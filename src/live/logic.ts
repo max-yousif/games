@@ -77,6 +77,12 @@ export function normaliseer(antwoord: string): string {
     .replace(/\{,\}/g, ',')
     .replace(/(\d),(\d)/g, '$1.$2')
     .replace(/\\(times|cdot)|[×·⋅]/g, '*')
+    .replace(/\\pi(?![a-z])|π/gi, 'pi')
+    .replace(/\\(sin|cos|tan|cot|ln|log)(?![a-z])/g, '$1')
+    .replace(/\\operatorname\{([a-z]+)\}/g, '$1')
+    .replace(/\\(le|leq)(?![a-z])|≤/g, '<=')
+    .replace(/\\(ge|geq)(?![a-z])|≥/g, '>=')
+    .replace(/\\pm(?![a-z])|±/g, '+-')
     .replace(/²/g, '^2')
     .replace(/³/g, '^3')
     .replace(/√\s*([a-z0-9.]+)/gi, 'sqrt($1)');

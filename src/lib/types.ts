@@ -30,6 +30,24 @@ export interface Vraag {
   uitleg: string;
 }
 
+/**
+ * Whodunit: een logisch raadsel. Leerlingen vullen een tabel in (per categorie een waarde per kolom)
+ * en verdienen hints door de oefeningen van de vragenset juist op te lossen.
+ */
+export interface Raadsel {
+  titel: string;
+  /** Het verhaal (met opmaak zoals bij vragen). */
+  verhaal: string;
+  /** Uitleg boven de kolommen, bv. "Deze leerling is gecrasht als...". */
+  kolomTitel: string;
+  /** Kolommen van de tabel, bv. 1e, 2e, 3e, 4e. */
+  kolommen: string[];
+  /** Rijen van de tabel; per categorie de juiste waarde in elke kolom (de oplossing). */
+  categorieen: { naam: string; oplossing: string[] }[];
+  /** Hints ("roddels"), te verdienen met de oefeningen. */
+  hints: string[];
+}
+
 export interface Vragenset {
   id: string;
   titel: string;
@@ -39,6 +57,8 @@ export interface Vragenset {
   vragen: Vraag[];
   /** Id van een voorbeeldset, zodat die niet dubbel toegevoegd wordt. */
   voorbeeld?: string;
+  /** Raadsel voor het spel Whodunit. */
+  raadsel?: Raadsel;
   aangemaakt: string;
   gewijzigd: string;
 }
@@ -59,7 +79,7 @@ export interface Klas {
   naamVolgorde?: NaamVolgorde;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'live' | 'escape';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'live' | 'escape' | 'whodunit';
 
 export interface Team {
   naam: string;
@@ -117,6 +137,8 @@ export interface Sessie {
   gestart: string;
   beeindigd: string | null;
   live?: LiveInfo;
+  /** Whodunit: kopie van het raadsel (met de oplossing) bij de start. */
+  raadsel?: Raadsel;
   /** Naamvolgorde van de klas, voor de korte namen op het scorebord. */
   naamVolgorde?: NaamVolgorde;
 }

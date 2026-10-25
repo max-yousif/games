@@ -6,10 +6,13 @@ import { beeindig, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { backend } from './config';
 import { escapeBeoordelingen, escapeStand, escapeVoortgang, type EscapeVoortgang } from './escape';
+import { whodunitBeoordelingen } from './whodunit';
+import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
 import { schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 
+/** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
 export function EscapeHost({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
   if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} />;
   return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} />;
@@ -30,6 +33,8 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   const [fout, setFout] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [toonCode, setToonCode] = useState(false);
+  const whodunit = sessie.spelType === 'whodunit';
+  const spelNaam = whodunit ? 'De whodunit' : 'De escape room';
 
   useEffect(() => be.volgSessie(live.sessieId, setServer), [be, live.sessieId]);
   useEffect(() => be.volgSpelers(live.sessieId, setSpelers), [be, live.sessieId]);
@@ -43,7 +48,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   // Na elke ronde opnieuw kijken: pogingen die binnenkwamen tijdens het nakijken.
   const [ronde, setRonde] = useState(0);
   useEffect(() => {
-    const items = escapeBeoordelingen(vragen, code, antwoorden);
+    const items = whodunit && sessie.raadsel ? whodunitBeoordelingen(vragen, sessie.raadsel, antwoorden) : escapeBeoordelingen(vragen, code, antwoorden);
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {
@@ -63,7 +68,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
         setRonde((r) => r + 1);
       }
     })();
-  }, [antwoorden, vragen, code, be, live.sessieId, spelers, ronde]);
+  }, [antwoorden, vragen, code, be, live.sessieId, spelers, ronde, whodunit, sessie.raadsel]);
 
   // Resultaten bewaren in de lokale sessie.
   const sessieRef = useRef(sessie);
@@ -102,7 +107,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
 
   const afsluiten = () =>
     actie(async () => {
-      if (!confirm('De escape room afsluiten? De resultaten blijven bewaard op deze laptop, maar de gegevens op de server worden gewist.')) return;
+      if (!confirm(`${spelNaam} afsluiten? De resultaten blijven bewaard op deze laptop, maar de gegevens op de server worden gewist.`)) return;
       await be.verwijderSessie(live.sessieId);
       onUpdate({ ...sessie, live: { ...live, afgesloten: true } });
     });
@@ -129,7 +134,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   if (server === null) {
     return (
       <div className="mx-auto max-w-xl p-10">
-        <Notice tone="warn">Deze escape room bestaat niet meer op de server (gewist na 2 dagen of afgesloten). De bewaarde resultaten vind je onder Resultaten.</Notice>
+        <Notice tone="warn">{whodunit ? 'Deze whodunit' : 'Deze escape room'} bestaat niet meer op de server (gewist na 2 dagen of afgesloten). De bewaarde resultaten vind je onder Resultaten.</Notice>
         <Button className="mt-4" onClick={() => onUpdate({ ...beeindig(sessie), live: { ...live, afgesloten: true } })}>
           Toon de bewaarde resultaten
         </Button>
@@ -153,7 +158,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
           sessie={sessie}
           spelers={spelers}
           bezig={bezig}
-          startTekst="Start de escape room"
+          startTekst={whodunit ? 'Start de whodunit' : 'Start de escape room'}
           onStart={() => actie(() => be.startEscape(live.sessieId))}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
           onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
@@ -167,17 +172,24 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
               ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
             </span>
             <span className="text-3xl font-semibold">
-              🚪 {ontsnapt} / {verbonden.length} ontsnapt
+              {whodunit ? `🕵️ ${ontsnapt} / ${verbonden.length} opgelost` : `🚪 ${ontsnapt} / ${verbonden.length} ontsnapt`}
             </span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button onClick={() => setToonCode((t) => !t)}>{toonCode ? `Geheime code: ${code}` : 'Toon geheime code'}</Button>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('De escape room nu beëindigen?') && void actie(einde)}>
+            {whodunit ? (
+              <Button onClick={() => setToonCode((t) => !t)}>{toonCode ? 'Verberg oplossing' : 'Toon oplossing'}</Button>
+            ) : (
+              <Button onClick={() => setToonCode((t) => !t)}>{toonCode ? `Geheime code: ${code}` : 'Toon geheime code'}</Button>
+            )}
+            <Button variant="primary" disabled={bezig} onClick={() => confirm(`${spelNaam} nu beëindigen?`) && void actie(einde)}>
               ⏹ Beëindigen
             </Button>
           </div>
-          <VoortgangTabel voortgang={voortgang} vragen={vragen} />
+          {whodunit && toonCode && sessie.raadsel && <OplossingTabel raadsel={sessie.raadsel} />}
+          <VoortgangTabel voortgang={voortgang} vragen={vragen} whodunit={whodunit} />
           <p className="text-sm text-slate-500">
-            🔒 nog dicht · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ open. Nieuwe leerlingen kunnen nog aansluiten met de code. Beweeg over een slotnummer om de vraag te zien.
+            {whodunit
+              ? '🔒 nog niet opgelost · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ juist (hint verdiend). 🕵️ = tijd tot de tabel klopt. Nieuwe leerlingen kunnen nog aansluiten met de code. Beweeg over een oefening om de vraag te zien.'
+              : '🔒 nog dicht · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ open. Nieuwe leerlingen kunnen nog aansluiten met de code. Beweeg over een slotnummer om de vraag te zien.'}
           </p>
         </div>
       )}
@@ -187,7 +199,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   );
 }
 
-function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; vragen: Vraag[] }) {
+function VoortgangTabel({ voortgang, vragen, whodunit }: { voortgang: EscapeVoortgang[]; vragen: Vraag[]; whodunit: boolean }) {
   return (
     <div className="overflow-x-auto rounded-2xl bg-surface shadow-sm">
       <table className="w-full text-left">
@@ -197,10 +209,10 @@ function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; v
             <th className="px-4 py-2">Leerling</th>
             {vragen.map((v, i) => (
               <th key={v.id} className="px-2 py-2 text-center" title={`${v.categorie ? `${v.categorie}: ` : ''}${v.tekst}`}>
-                Slot {i + 1}
+                {whodunit ? `Oef ${i + 1}` : `Slot ${i + 1}`}
               </th>
             ))}
-            <th className="px-4 py-2 text-center">🚪</th>
+            <th className="px-4 py-2 text-center">{whodunit ? '🕵️' : '🚪'}</th>
           </tr>
         </thead>
         <tbody>
@@ -227,7 +239,7 @@ function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; v
                 );
               })}
               <td className="px-4 py-2 text-center font-mono font-bold">
-                {v.ontsnaptMs !== null ? <span className="text-emerald-700">{tijdTekst(v.ontsnaptMs)}</span> : v.opgelost.size === vragen.length ? '🔑' : '—'}
+                {v.ontsnaptMs !== null ? <span className="text-emerald-700">{tijdTekst(v.ontsnaptMs)}</span> : !whodunit && v.opgelost.size === vragen.length ? '🔑' : '—'}
               </td>
             </tr>
           ))}
@@ -247,6 +259,7 @@ function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; v
 function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => void; bezig?: boolean }) {
   const ontsnapt = sessie.live?.ontsnapt ?? {};
   const aantalSloten = sessie.vraagVolgorde.length;
+  const whodunit = sessie.spelType === 'whodunit';
   // Zonder server: rangschikking uit de bewaarde resultaten.
   const rijen = resultatenPerLeerling(sessie).filter((r) => r.naam !== '(hele team)');
   const ranking = voortgang
@@ -258,9 +271,13 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
 
   return (
     <div className="mx-auto w-full max-w-4xl py-6">
-      <div className="text-center text-6xl">🗝️</div>
+      <div className="text-center text-6xl">{whodunit ? '🕵️' : '🗝️'}</div>
       <h2 className="mt-2 text-center text-3xl font-bold">
-        {podium.length > 0 ? `${podium.length === ranking.length ? 'Iedereen' : `${ranking.filter((r) => r.tijd !== null).length} van de ${ranking.length}`} ontsnapt!` : 'Niemand is ontsnapt…'}
+        {podium.length > 0
+          ? `${podium.length === ranking.length ? 'Iedereen' : `${ranking.filter((r) => r.tijd !== null).length} van de ${ranking.length}`} ${whodunit ? 'loste het raadsel op' : 'ontsnapt'}!`
+          : whodunit
+            ? 'Niemand loste het raadsel op…'
+            : 'Niemand is ontsnapt…'}
       </h2>
       {podium.length > 0 && (
         <div className="mt-6 flex items-end justify-center gap-4">
@@ -282,8 +299,8 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
           <tr>
             <th className="px-4 py-2">#</th>
             <th className="px-4 py-2">Leerling</th>
-            <th className="px-4 py-2 text-right">Sloten open</th>
-            <th className="px-4 py-2 text-right">Ontsnapt na</th>
+            <th className="px-4 py-2 text-right">{whodunit ? 'Oefeningen juist' : 'Sloten open'}</th>
+            <th className="px-4 py-2 text-right">{whodunit ? 'Opgelost na' : 'Ontsnapt na'}</th>
           </tr>
         </thead>
         <tbody>
@@ -299,6 +316,12 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
           ))}
         </tbody>
       </table>
+      {whodunit && sessie.raadsel && (
+        <div className="mt-8">
+          <h3 className="mb-2 text-xl font-semibold">De oplossing</h3>
+          <OplossingTabel raadsel={sessie.raadsel} />
+        </div>
+      )}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)

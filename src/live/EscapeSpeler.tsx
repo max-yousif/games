@@ -5,7 +5,7 @@ import { EINDCODE } from './escape';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
 
-interface Status {
+export interface Status {
   soort: 'open' | 'nakijken' | 'wachten' | 'klaar';
   /** Wachten: resterende seconden. */
   seconden?: number;
@@ -14,7 +14,7 @@ interface Status {
 }
 
 /** Laatste poging per slot. */
-function laatstePoging(antwoorden: readonly LiveAntwoord[], nr: number): LiveAntwoord | undefined {
+export function laatstePoging(antwoorden: readonly LiveAntwoord[], nr: number): LiveAntwoord | undefined {
   return antwoorden.filter((a) => a.vraagNr === nr).sort((a, b) => b.poging - a.poging)[0];
 }
 

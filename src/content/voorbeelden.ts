@@ -151,4 +151,67 @@ const python4 = set(
   ],
 );
 
-export const VOORBEELDSETS: Vragenset[] = [algebra3, statistiek6, python4];
+/** Whodunit: een logisch raadsel met oefeningen over rijen en goniometrie (namen verzonnen). */
+const openVraag = (categorie: string, tekst: string, antwoord: string, alternatieven: string[] = [], uitleg = ''): VraagInvoer => ({
+  categorie,
+  punten: 100,
+  type: 'open',
+  tekst,
+  antwoord,
+  opties: ['', '', '', ''],
+  ...(alternatieven.length ? { alternatieven } : {}),
+  uitleg,
+});
+
+const whodunit50: Vragenset = {
+  ...set('whodunit-50', 'Whodunit: de nacht van de 50 dagen', 'wiskunde', '5e–6e jaar', 'Rijen en goniometrie. Elke juiste oefening geeft een roddel; wie vindt als eerste wie wat uitgestoken heeft?', [
+    openVraag('Reeks 1', 'Geef de vergelijking van de evenwichtsstand van $y = 2\\sin(5x-3)+\\frac{\\pi}{2}$.', '$y=\\frac{\\pi}{2}$', [], 'De evenwichtsstand is $y = d$.'),
+    openVraag('Reeks 1', 'Geef de tiende term van $u_n = u_{n-1}+7$ met $u_1 = 67$.', '130', ['u_{10}=130'], '$u_{10} = 67 + 9 \\cdot 7$'),
+    openVraag('Reeks 1', 'Bepaal de cotangens van $\\alpha = \\frac{3\\pi}{4}$.', '-1'),
+    openVraag('Reeks 1', 'Zet om in radialen en vereenvoudig zo ver mogelijk: $21^\\circ$.', '$\\frac{7\\pi}{60}$', ['7π/60', '7/60 π'], '$21 \\cdot \\frac{\\pi}{180}$'),
+    openVraag('Reeks 2', 'Geef het expliciet voorschrift van de rekenkundige rij met $u_5 = 10$ en $u_{25} = 90$.', '$u_n = 4n-10$', ['4n-10', 'u_n=-6+4(n-1)', '-6+4(n-1)', 'u_n=-6+(n-1)\\cdot 4', '-6+(n-1)\\cdot 4'], '$v = \\frac{90-10}{20} = 4$ en $u_1 = 10 - 4 \\cdot 4 = -6$'),
+    openVraag('Reeks 2', 'Komt het getal 768 voor in de rij $u_n = 3 \\cdot 2^n$?', 'Ja, n = 8', ['ja', 'ja n=8', 'n=8', 'ja, u_8 = 768', 'ja, u_8'], '$3 \\cdot 2^8 = 768$'),
+    openVraag('Reeks 2', 'Voor de hoek $\\alpha \\in II$ geldt dat $\\cos\\alpha = -\\frac{4}{5}$. Bepaal $\\sin\\alpha$.', '$\\frac{3}{5}$', ['0,6'], 'In het tweede kwadrant is de sinus positief.'),
+    openVraag('Reeks 2', 'Bepaal de periode van $y = 3\\sin(\\pi x - 4)+2$.', '2', [], '$p = \\frac{2\\pi}{\\pi}$'),
+    openVraag('Reeks 3', 'Bepaal de som van alle oneven getallen met 3 cijfers.', '247500', [], '$S_{450} = \\frac{450 \\cdot (101 + 999)}{2}$'),
+    openVraag('Reeks 3', 'Wat is het bereik van de functie $f$ met voorschrift $f(x) = 4\\sin(2x+1)-5$?', '$[-9, -1]$', ['[-9;-1]']),
+    openVraag('Reeks 3', 'Herleid naar de algemene sinusfunctie: $y = -\\sin(6x+2)-1$.', '$y = \\sin\\left(6\\left(x+\\frac{2+\\pi}{6}\\right)\\right)-1$', [
+      '$y = \\sin\\left(6\\left(x+\\frac{2-\\pi}{6}\\right)\\right)-1$',
+      'y = sin(6x+2+π)-1',
+      'y = sin(6x+2-π)-1',
+    ], '$-\\sin t = \\sin(t \\pm \\pi)$'),
+    openVraag('Reeks 3', 'In de rij $\\ldots, w, x, y, z, 0, 1, 1, 2, 3, 5, 8, 13, \\ldots$ is elke term de som van de vorige twee termen. Bepaal $w$.', '-3', ['w=-3'], 'Terugrekenen: $z = 1$, $y = -1$, $x = 2$, $w = -3$.'),
+  ]),
+  raadsel: {
+    titel: '50 dagen om nooit te vergeten!',
+    verhaal:
+      'De nacht van de 50 dagen was plezant! Iedereen heeft zich geamuseerd, er werd gedanst en gelachen, maar er waren 4 vrienden die toch weer speciaal moesten doen... Ze hebben alle 4 iets uitgestoken en zijn 1 voor 1 gecrasht. Gelukkig waren er ook enkele leerkrachten ter plaatse om een oogje in het zeil te houden.\n\nDe volgende dag werd de beruchte avond uitvoerig besproken. Alleen was het voor iedereen wel een vage avond, dus weten we niet meer precies hoe hij is afgelopen... We hebben rondgevraagd en een heleboel roddels verzameld. Apart zijn we er niet zo veel mee, maar samen leveren ze wat meer informatie op.\n\nKun jij achterhalen wie wat precies heeft uitgestoken?',
+    kolomTitel: 'Deze leerling is gecrasht als...',
+    kolommen: ['1e', '2e', '3e', '4e'],
+    categorieen: [
+      { naam: 'Naam', oplossing: ['Fien', 'Lars', 'Mats', 'Noor'] },
+      { naam: 'Drankje', oplossing: ['Cava', 'Bier', 'Cocktails', 'Wijn'] },
+      { naam: 'Outfit', oplossing: ['Dierenonesie', 'Overall', 'Bontjas', 'Geruit hemd'] },
+      {
+        naam: 'Stunt',
+        oplossing: ['Gevochten met de turnleraar', 'Gepaaldanst met de leraar Frans', 'Midnightsnack met de directeur', 'In slaap gevallen in de lerarenkamer'],
+      },
+    ],
+    hints: [
+      'De bierdrinker hing heel de avond aan de paal.',
+      'Het vechtersbaasje is ofwel als eerste gecrasht, ofwel als allerlaatste.',
+      'De wijnliefhebber viel in slaap in de lerarenkamer.',
+      'De wijndrinker is ofwel als eerste, ofwel als laatste gecrasht.',
+      'De persoon in de dierenonesie is vlak voor of vlak na Lars gecrasht.',
+      'Fien was een varkentje.',
+      'De cavafanaat was er ofwel als eerste, ofwel als laatste helemaal aan.',
+      'De dierenvriend dronk heel de avond cava.',
+      'De persoon met de overall is gecrasht vlak voor of vlak na de snacker.',
+      'De snacker crashte vlak voor of vlak na het geruite hemd.',
+      'Het geruite hemdje was de last one standing.',
+      'Mats is de voorlaatste die gecrasht is.',
+    ],
+  },
+};
+
+export const VOORBEELDSETS: Vragenset[] = [algebra3, statistiek6, python4, whodunit50];

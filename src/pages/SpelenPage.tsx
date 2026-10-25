@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { maakEscapeCode } from '../live/escape';
+import { publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
 import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
@@ -16,6 +17,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
+  { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
 const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
@@ -38,7 +40,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const klas = store.klassen.find((k) => k.id === klasId) ?? null;
   const set = store.sets.find((s) => s.id === gekozenSet) ?? null;
   const vragen = set ? speelbareVragen(set) : [];
-  const isLive = spel === 'live' || spel === 'escape';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit';
+  // Escape room en whodunit: elke leerling werkt in eigen tempo.
+  const eigenTempo = spel === 'escape' || spel === 'whodunit';
+  const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
   const [escapeMinuten, setEscapeMinuten] = useState<number | null>(20);
   const [wachttijd, setWachttijd] = useState(15);
@@ -94,10 +99,11 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const leerlingen = teams.flatMap((t) => t.leerlingen);
       const soort = demo ? 'lokaal' : 'supabase';
       const metNamen = klas !== null && leerlingen.length > 0;
-      const escape = spel === 'escape';
+      const escape = eigenTempo;
+      const whodunit = spel === 'whodunit';
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
-      const gekozen = escape && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
-      const escapeCode = escape ? maakEscapeCode(gekozen.length) : undefined;
+      const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
+      const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
       const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
       const server = await backend(soort).maakSessie({
         titel: set.titel,
@@ -108,9 +114,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
         wachttijd: escape ? wachttijd : 0,
+        raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
       });
       const basis = nieuweSessie({
-        spelType: escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : escape ? 'escape' : 'live',
         set,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -120,6 +127,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       });
       const sessie = {
         ...basis,
+        ...(whodunit && set.raadsel ? { raadsel: set.raadsel } : {}),
         vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
@@ -175,14 +183,14 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       </Section>
 
       <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {SPELLEN.map((s) => (
             <button
               key={s.type}
               type="button"
               onClick={() => {
                 setSpel(s.type);
-                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' ? 1 : aantal);
+                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' ? 1 : aantal);
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
               className={`rounded-xl border-2 p-4 text-left transition ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
@@ -235,19 +243,21 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </select>
             </div>
           )}
-          {spel === 'escape' ? (
+          {eigenTempo ? (
             <>
-              <div className="w-40">
-                <label className={labelClass}>Aantal sloten</label>
-                <select className={inputClass} value={aantalSloten} onChange={(e) => setAantalSloten(Number(e.target.value))}>
-                  <option value={0}>alle vragen ({vragen.length})</option>
-                  {[3, 4, 5, 6, 8, 10, 12].filter((n) => n < vragen.length).map((n) => (
-                    <option key={n} value={n}>
-                      {n} (willekeurig gekozen)
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {spel === 'escape' && (
+                <div className="w-40">
+                  <label className={labelClass}>Aantal sloten</label>
+                  <select className={inputClass} value={aantalSloten} onChange={(e) => setAantalSloten(Number(e.target.value))}>
+                    <option value={0}>alle vragen ({vragen.length})</option>
+                    {[3, 4, 5, 6, 8, 10, 12].filter((n) => n < vragen.length).map((n) => (
+                      <option key={n} value={n}>
+                        {n} (willekeurig gekozen)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="w-40">
                 <label className={labelClass}>Totale tijd</label>
                 <select className={inputClass} value={escapeMinuten ?? ''} onChange={(e) => setEscapeMinuten(e.target.value ? Number(e.target.value) : null)}>
@@ -286,7 +296,22 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
         {isLive && (
           <div className="mb-4 space-y-2 text-sm">
-            {spel === 'escape' ? (
+            {spel === 'whodunit' ? (
+              <>
+                <p className="text-slate-600">
+                  Leerlingen lezen het verhaal, lossen de oefeningen op en krijgen voor elk juist antwoord een hint. Met de hints vullen ze de tabel in; wie de tabel als
+                  eerste volledig juist heeft, wint. Het raadsel stel je in bij de vragenset (onderaan de editor).
+                </p>
+                {raadselFouten.length > 0 && set && (
+                  <Notice tone="warn">
+                    {raadselFouten.join(' ')}{' '}
+                    <a className="font-semibold underline" href={href({ pagina: 'set', id: set.id })}>
+                      Raadsel instellen
+                    </a>
+                  </Notice>
+                )}
+              </>
+            ) : spel === 'escape' ? (
               <p className="text-slate-600">
                 Elk slot is een vraag. Een juist antwoord geeft één cijfer van de geheime code; met de volledige code ontsnapt de leerling. Leerlingen kiezen zelf de volgorde en
                 mogen na een fout antwoord opnieuw proberen. Alle vragen worden automatisch nagekeken.
@@ -404,7 +429,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
       {fout && <Notice tone="warn">{fout}</Notice>}
       <div className="flex justify-end">
-        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht)} onClick={start}>
+        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht) || raadselFouten.length > 0} onClick={start}>
           {bezig ? 'Bezig…' : '▶ Start het spel'}
         </Button>
       </div>

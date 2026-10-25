@@ -42,7 +42,9 @@ function sessieUit(r: any): LiveSessie {
     vraagNr: r.vraag_nr,
     aantalVragen: r.aantal_vragen,
     vraag: r.vraag,
-    vragen: r.vragen ?? null,
+    // Whodunit: de vragen en het raadsel samen in de kolom vragen ({ vragen, raadsel }).
+    vragen: (Array.isArray(r.vragen) ? r.vragen : r.vragen?.vragen) ?? null,
+    raadsel: Array.isArray(r.vragen) ? null : (r.vragen?.raadsel ?? null),
     wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
@@ -256,7 +258,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           aantal_vragen: input.aantalVragen,
           timer: input.timer,
           modus: input.modus ?? 'quiz',
-          vragen: input.vragen ?? null,
+          vragen: input.raadsel ? { vragen: input.vragen ?? [], raadsel: input.raadsel } : (input.vragen ?? null),
           wachttijd: input.wachttijd ?? 0,
         })
         .select()

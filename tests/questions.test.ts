@@ -24,12 +24,12 @@ describe('speelbareVragen', () => {
 });
 
 describe('voorbeeldsets', () => {
-  it('bevatten enkel volledige vragen met unieke id\'s en 4 categorieën van 4 vragen', () => {
+  it('bevatten enkel volledige vragen met unieke id\'s en 4 categorieën van 4 vragen (whodunit: 3 reeksen)', () => {
     for (const set of VOORBEELDSETS) {
       expect(set.vragen.every((v) => vraagProblemen(v).length === 0)).toBe(true);
       expect(new Set(set.vragen.map((v) => v.id)).size).toBe(set.vragen.length);
       const kolommen = bordIndeling(set.vragen);
-      expect(kolommen).toHaveLength(4);
+      expect(kolommen).toHaveLength(set.raadsel ? 3 : 4);
       expect(kolommen.every((k) => k.vragen.length === 4)).toBe(true);
     }
   });

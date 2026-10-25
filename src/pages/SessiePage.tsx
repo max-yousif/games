@@ -61,7 +61,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   }
 
   const vierWinnaar = sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : undefined;
-  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape';
+  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit';
   const kanOngedaan = sessie.beurten.length > 0 && !isLive;
 
   return (
@@ -94,7 +94,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       </header>
 
-      {sessie.spelType === 'escape' ? (
+      {sessie.spelType === 'escape' || sessie.spelType === 'whodunit' ? (
         <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} />
       ) : isLive ? (
         <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} />

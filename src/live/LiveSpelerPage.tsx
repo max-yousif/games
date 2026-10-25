@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { RichText } from '../components/RichText';
 import { backend, supabaseIngesteld } from './config';
 import { EscapeSpeler } from './EscapeSpeler';
+import { WhodunitSpeler } from './Whodunit';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
@@ -89,7 +90,7 @@ export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo:
           </>
         )}
       </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-8">
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-8 has-[.breed]:max-w-7xl">
         {deelname ? (
           <Spel key={deelname.sessieId} be={be} deelname={deelname} onWeg={weg} />
         ) : (
@@ -289,6 +290,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
+  if (sessie.modus === 'escape' && sessie.raadsel) return <WhodunitSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape') return <EscapeSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
 
   if (sessie.status === 'einde') {

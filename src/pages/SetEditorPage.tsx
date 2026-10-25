@@ -3,7 +3,9 @@ import { RichText } from '../components/RichText';
 import { Button, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { VraagWeergave } from '../components/VraagWeergave';
 import { nu } from '../lib/ids';
-import { juistAntwoord, kopieVraag, nieuweVraag, vraagProblemen } from '../lib/questions';
+import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vraagProblemen } from '../lib/questions';
+import { RaadselEditor } from '../components/RaadselEditor';
+import { nieuwRaadsel } from '../live/whodunit';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vak, Vraag, VraagType, Vragenset } from '../lib/types';
@@ -120,6 +122,27 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         </a>
       </div>
       <p className="mt-3 text-sm text-slate-500">Wijzigingen worden automatisch bewaard.</p>
+
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">🕵️ Whodunit-raadsel</h2>
+        {set.raadsel ? (
+          <div className="mt-4">
+            <RaadselEditor
+              raadsel={set.raadsel}
+              aantalOefeningen={speelbareVragen(set).length}
+              onChange={(f) => update((s) => ({ ...s, raadsel: f(s.raadsel ?? nieuwRaadsel()) }))}
+              onVerwijder={() => update((s) => ({ ...s, raadsel: undefined }))}
+            />
+          </div>
+        ) : (
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-slate-600">
+              Voor het spel Whodunit: een logisch raadsel waarbij leerlingen met de vragen van deze set hints verdienen om een tabel in te vullen.
+            </p>
+            <Button onClick={() => update((s) => ({ ...s, raadsel: nieuwRaadsel() }))}>+ Raadsel toevoegen</Button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

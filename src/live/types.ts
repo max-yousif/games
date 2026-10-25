@@ -1,4 +1,5 @@
 import type { VraagType } from '../lib/types';
+import type { PubliekRaadsel } from './whodunit';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -53,6 +54,8 @@ export interface LiveSessie {
   vragen: PubliekeVraag[] | null;
   /** Escape room: seconden wachten na een fout antwoord. */
   wachttijd: number;
+  /** Whodunit (escape-modus met een raadsel): het raadsel zonder oplossing. */
+  raadsel?: PubliekRaadsel | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -182,6 +185,7 @@ export interface LiveBackend {
     modus?: LiveModus;
     vragen?: PubliekeVraag[];
     wachttijd?: number;
+    raadsel?: PubliekRaadsel;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;
