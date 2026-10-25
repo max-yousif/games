@@ -31,8 +31,12 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 - Spellen **pauzeren en hervatten**, laatste beurt **ongedaan maken**, timer, volledig scherm.
 - **Live quiz en escape room**: code op het bord, leerlingen kiezen hun naam (en eventueel een
   bijnaam voor op het bord), je volgt alles live, automatisch nakijken (ook open vragen),
-  tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren; met
-  🧪 *test als leerling* speel je zelf meerdere leerlingen op één laptop. Vereist een gratis
+  tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren, reageren met
+  emoji (😠 😂 ❤️ 😢 💀 🐐) terwijl ze wachten, en antwoorden met een **wiskunde-editor**
+  (breuken, machten, wortels, maal). Met 🧪 *test als leerling* speel je zelf meerdere
+  leerlingen op één laptop.
+- **Klassen op al je toestellen**: met een persoonlijke kluiscode staan je klassen versleuteld in
+  Supabase en synchroniseren ze automatisch tussen je laptops en computers. Vereist een gratis
   Supabase-project: zie [supabase/README.md](supabase/README.md). Zonder Supabase werkt een demo
   in één browser.
 - **Back-up** van alles in één bestand. Klassen, sets en resultaten blijven in je browser.

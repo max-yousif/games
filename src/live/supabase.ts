@@ -1,6 +1,6 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { zetVerbinding } from './verbinding';
-import { LiveFout, type FoutCode, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
+import { isGeldigeReactie, LiveFout, type FoutCode, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type Reactie, type SessieInfo } from './types';
 
 
 const CODES: FoutCode[] = [
@@ -19,7 +19,7 @@ const CODES: FoutCode[] = [
 ];
 
 /** Zet een databasefout om naar een LiveFout met een Nederlandstalige uitleg. */
-function vertaal(error: { message?: string; code?: string } | null): never {
+export function vertaal(error: { message?: string; code?: string } | null): never {
   const msg = error?.message ?? '';
   // Functie of kolom bestaat nog niet: het schema werd niet opnieuw uitgevoerd na een update.
   if (error?.code === 'PGRST202' || error?.code === '42883' || /could not find the function/i.test(msg)) throw new LiveFout('schema_oud');
@@ -64,39 +64,57 @@ const antwoordUit = (r: any): LiveAntwoord => ({
   beloning: r.beloning ?? null,
 });
 
+// Eén client en één anonieme aanmelding per browser (of per testtabblad), gedeeld door de live
+// spellen en de kluis met klassen.
+const clients = new Map<string, Promise<SupabaseClient>>();
+const aanmeldingen = new Map<string, Promise<string>>();
+
 /**
  * @param perTabblad elk tabblad meldt zich apart aan (om met meerdere leerlingen te testen op één
  *   laptop). Standaard deelt de hele browser één aanmelding, zodat een leerling na het sluiten van
  *   het tabblad gewoon verder kan.
  */
-export function supabaseBackend(url: string, key: string, perTabblad = false): LiveBackend {
-  // De bibliotheek wordt pas geladen wanneer een live spel ze nodig heeft (snellere startpagina).
-  let client: Promise<SupabaseClient> | null = null;
-  const sb = () =>
-    (client ??= import('@supabase/supabase-js').then(({ createClient }) =>
-      createClient(url, key, {
-        auth: perTabblad
-          ? { persistSession: true, storage: sessionStorage, storageKey: 'klasspelen-live-auth-tabblad' }
-          : { persistSession: true, storageKey: 'klasspelen-live-auth' },
-      }),
-    ));
-
-  let aanmelden: Promise<string> | null = null;
+export function supabaseClient(url: string, key: string, perTabblad = false): { sb: () => Promise<SupabaseClient>; uid: () => Promise<string> } {
+  const sleutel = `${url}|${perTabblad}`;
+  // De bibliotheek wordt pas geladen wanneer ze nodig is (snellere startpagina).
+  const sb = () => {
+    let c = clients.get(sleutel);
+    if (!c) {
+      c = import('@supabase/supabase-js').then(({ createClient }) =>
+        createClient(url, key, {
+          auth: perTabblad
+            ? { persistSession: true, storage: sessionStorage, storageKey: 'klasspelen-live-auth-tabblad' }
+            : { persistSession: true, storageKey: 'klasspelen-live-auth' },
+        }),
+      );
+      clients.set(sleutel, c);
+    }
+    return c;
+  };
   /** Anoniem aanmelden (één keer per browser of tabblad; de sessie blijft bewaard). */
-  function uid(): Promise<string> {
-    aanmelden ??= (async () => {
-      const c = await sb();
-      const { data } = await c.auth.getSession();
-      if (data.session) return data.session.user.id;
-      const { data: d, error } = await c.auth.signInAnonymously();
-      if (error || !d.user) {
-        aanmelden = null;
-        vertaal(error);
-      }
-      return d.user!.id;
-    })();
-    return aanmelden;
-  }
+  const uid = () => {
+    let a = aanmeldingen.get(sleutel);
+    if (!a) {
+      a = (async () => {
+        const c = await sb();
+        const { data } = await c.auth.getSession();
+        if (data.session) return data.session.user.id;
+        const { data: d, error } = await c.auth.signInAnonymously();
+        if (error || !d.user) {
+          aanmeldingen.delete(sleutel);
+          vertaal(error);
+        }
+        return d.user!.id;
+      })();
+      aanmeldingen.set(sleutel, a);
+    }
+    return a;
+  };
+  return { sb, uid };
+}
+
+export function supabaseBackend(url: string, key: string, perTabblad = false): LiveBackend {
+  const { sb, uid } = supabaseClient(url, key, perTabblad);
 
   /**
    * Volgt een tabel: haalt alles opnieuw op bij elke wijziging (en elke 15 seconden als vangnet,
@@ -158,8 +176,50 @@ export function supabaseBackend(url: string, key: string, perTabblad = false): L
     };
   }
 
+  /** Eén broadcast-kanaal per sessie voor reacties, gedeeld door zenden en ontvangen. */
+  const reactieKanalen = new Map<string, { kanaal: Promise<RealtimeChannel>; luisteraars: Set<(r: Reactie) => void> }>();
+  function reactieKanaal(sessieId: string) {
+    let k = reactieKanalen.get(sessieId);
+    if (!k) {
+      const luisteraars = new Set<(r: Reactie) => void>();
+      const kanaal = Promise.all([sb(), uid()]).then(
+        ([c]) =>
+          new Promise<RealtimeChannel>((klaar, mislukt) => {
+            const ch = c
+              .channel(`reacties:${sessieId}`, { config: { broadcast: { self: false } } })
+              .on('broadcast', { event: 'reactie' }, ({ payload }) => {
+                if (isGeldigeReactie(payload)) luisteraars.forEach((l) => l({ emoji: payload.emoji, naam: payload.naam.slice(0, 30) }));
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') klaar(ch);
+                else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                  reactieKanalen.delete(sessieId);
+                  void c.removeChannel(ch);
+                  mislukt(new LiveFout('verbinding'));
+                }
+              });
+          }),
+      );
+      k = { kanaal, luisteraars };
+      reactieKanalen.set(sessieId, k);
+    }
+    return k;
+  }
+
   return {
     soort: 'supabase',
+
+    async reageer(sessieId, reactie) {
+      const ch = await reactieKanaal(sessieId).kanaal;
+      await ch.send({ type: 'broadcast', event: 'reactie', payload: reactie });
+    },
+
+    volgReacties(sessieId, cb) {
+      const k = reactieKanaal(sessieId);
+      k.luisteraars.add(cb);
+      k.kanaal.catch(() => {});
+      return () => k.luisteraars.delete(cb);
+    },
 
     async maakSessie(input) {
       await uid();

@@ -1,5 +1,5 @@
 import { zetVerbinding } from './verbinding';
-import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type PubliekeVraag } from './types';
+import { isGeldigeReactie, LiveFout, type Beoordeling, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type PubliekeVraag } from './types';
 
 /*
  * Lokale demo van de live server: alles staat in de opslag van deze browser en elk tabblad
@@ -87,6 +87,21 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
 
   return {
     soort: 'lokaal',
+
+    async reageer(sessieId, reactie) {
+      // Andere tabbladen van deze browser (het bord) ontvangen de reactie.
+      const kanaal = new BroadcastChannel(`klasspelen-reacties-${sessieId}`);
+      kanaal.postMessage(reactie);
+      kanaal.close();
+    },
+
+    volgReacties(sessieId, cb) {
+      const kanaal = new BroadcastChannel(`klasspelen-reacties-${sessieId}`);
+      kanaal.onmessage = (e: MessageEvent) => {
+        if (isGeldigeReactie(e.data)) cb({ emoji: e.data.emoji, naam: e.data.naam.slice(0, 30) });
+      };
+      return () => kanaal.close();
+    },
 
     async maakSessie(input) {
       return wijzig((r) => {

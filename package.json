@@ -9,11 +9,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "mathlive:fonts": "node -e \"require('fs').cpSync('node_modules/mathlive/fonts','public/mathlive-fonts',{recursive:true})\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "katex": "^0.19.1",
+    "mathlive": "^0.111.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "read-excel-file": "^9.3.10",

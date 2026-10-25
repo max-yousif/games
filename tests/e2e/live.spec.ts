@@ -25,6 +25,11 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await anna.getByRole('button', { name: /^B/ }).click();
   await expect(anna.getByText('Antwoord verstuurd!')).toBeVisible();
 
+  // Reageren terwijl ze wacht: de emoji zweeft over het bord, met haar bijnaam.
+  await anna.getByRole('button', { name: 'geit' }).click();
+  await expect(page.locator('.reactie-zweef', { hasText: '🐐' })).toBeVisible();
+  await expect(page.locator('.reactie-zweef', { hasText: 'Pi' })).toBeVisible();
+
   // Bert verlaat het spel en keert terug met dezelfde naam.
   await bert.getByRole('button', { name: 'Verlaten' }).click();
   await expect(bert.getByText(/Je hebt het spel verlaten/)).toBeVisible();
@@ -35,12 +40,31 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   // Iedereen geantwoord: het antwoord verschijnt vanzelf, met de bijnaam in de tussenstand.
   await expect(page.getByText('Tussenstand')).toBeVisible();
   await expect(page.locator('ol').getByText('Pi')).toBeVisible();
-  await expect(anna.getByText(/Juist! \+100/)).toBeVisible();
+  await expect(anna.getByText(/Juist! \+\d+/)).toBeVisible();
   await expect(bert.getByText('Helaas, fout')).toBeVisible();
+
+  // Vraag 2 (open): Bert antwoordt met de wiskunde-editor.
+  await page.getByRole('button', { name: /Volgende vraag/ }).click();
+  await expect(bert.getByText('Vraag 2 / 16')).toBeVisible();
+  await bert.getByRole('button', { name: /Wiskunde-editor uit/ }).click();
+  const veld = bert.locator('math-field');
+  await expect(veld).toBeVisible();
+  await veld.click();
+  await bert.keyboard.type('4a');
+  await bert.getByRole('button', { name: 'x²' }).click();
+  await veld.click();
+  await bert.keyboard.press('End');
+  await bert.keyboard.type('-20a+25');
+  await bert.keyboard.press('Enter');
+  await expect(bert.getByText('Antwoord verstuurd!')).toBeVisible();
+  await anna.getByLabel('Je antwoord').fill('16a^2');
+  await anna.getByRole('button', { name: 'Versturen' }).click();
+  await expect(bert.getByText(/Juist! \+\d+/)).toBeVisible();
+  await expect(anna.getByText('Helaas, fout')).toBeVisible();
 
   await page.getByRole('button', { name: /Nu stoppen/ }).click();
   await expect(page.getByRole('button', { name: /Afsluiten en gegevens/ })).toBeVisible();
-  await expect(anna.getByText('Je eindigde op plaats 1!')).toBeVisible();
+  await expect(anna.getByText(/Je eindigde op plaats/)).toBeVisible();
   await anna.getByRole('button', { name: 'Nieuw spel meespelen' }).click();
   await expect(anna.getByLabel('Code')).toBeVisible();
   controleer();

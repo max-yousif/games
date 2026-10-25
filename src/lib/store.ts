@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
 import { loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
 import type { Klas, Sessie, Vragenset } from './types';
+import { useKluis, type Kluis } from './useKluis';
 
 /** Voegt voorbeeldsets toe die nog nooit toegevoegd werden. */
 function metVoorbeelden(sets: Vragenset[]): Vragenset[] {
@@ -19,6 +20,8 @@ export interface Store {
   setSessies: (f: (s: Sessie[]) => Sessie[]) => void;
   /** Vervangt of voegt één sessie toe. */
   bewaarSessie: (s: Sessie) => void;
+  /** Klassen op al je toestellen (versleuteld in Supabase). */
+  kluis: Kluis;
 }
 
 export function useStore(): Store {
@@ -36,7 +39,9 @@ export function useStore(): Store {
     [],
   );
 
-  return { sets, klassen, sessies, setSets: setSetsState, setKlassen: setKlassenState, setSessies: setSessiesState, bewaarSessie };
+  const kluis = useKluis(klassen, setKlassenState);
+
+  return { sets, klassen, sessies, setSets: setSetsState, setKlassen: setKlassenState, setSessies: setSessiesState, bewaarSessie, kluis };
 }
 
 /** Voorbeeldsets (opnieuw) toevoegen, bv. nadat ze gewist werden. */

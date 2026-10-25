@@ -42,3 +42,43 @@ body {
 .pop {
   animation: pop 0.25s ease-out both;
 }
+
+/* Wiskunde-editor (MathLive) in het leerlingenscherm */
+.wiskunde-invoer math-field {
+  display: block;
+  width: 100%;
+  font-size: 1.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: white;
+  --primary: var(--accent);
+}
+.wiskunde-invoer math-field:focus-within {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Emoji-reacties die over het bord zweven */
+@keyframes reactie-zweef {
+  0% {
+    transform: translateY(20%) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(-5vh) scale(1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-75vh) scale(1.1);
+    opacity: 0;
+  }
+}
+.reactie-zweef {
+  animation-name: reactie-zweef;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}

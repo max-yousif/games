@@ -33,8 +33,13 @@ tweede tabblad), handig om alles uit te proberen.
    standaard aan.
 
 **Na een update van de website** met wijzigingen aan `schema.sql`: voer het script opnieuw uit
-in de SQL Editor (het bewaart bestaande gegevens). Laatste wijziging: bijnamen, het spel
-verlaten en `live_ping` (om Supabase wakker te houden).
+in de SQL Editor (het bewaart bestaande gegevens). Laatste wijziging: de kluis voor je klassen
+(`leerkracht_kluis`, `kluis_lees`, `kluis_schrijf`); daarvoor bijnamen, het spel verlaten en
+`live_ping`.
+
+**Klassen op al je toestellen (kluis)**: op de pagina *Klassen* kies je een kluiscode. Je
+klassen worden in de browser versleuteld; in de tabel `leerkracht_kluis` staat enkel onleesbare
+tekst. Emoji-reacties gebruiken Supabase Realtime (broadcast) en worden niet bewaard.
 
 **Supabase wakker houden**: de GitHub-taak *Supabase wakker houden* roept de database elke
 3 dagen aan, zodat het gratis project niet gepauzeerd wordt. Dat werkt automatisch zodra de

@@ -1,5 +1,5 @@
 import { lokaalBackend } from './lokaal';
-import { supabaseBackend } from './supabase';
+import { supabaseBackend, supabaseClient } from './supabase';
 import type { LiveBackend } from './types';
 
 // Zonder schuine streep achteraan (zoals de URL soms gekopieerd wordt).
@@ -24,4 +24,9 @@ export function backend(soort: LiveBackend['soort'], perTabblad = false): LiveBa
     cache.set(sleutel, b);
   }
   return b;
+}
+
+/** Supabase-client van de leerkracht (voor de kluis met klassen); null als Supabase niet ingesteld is. */
+export function cloud() {
+  return supabaseIngesteld ? supabaseClient(URL!, KEY!) : null;
 }

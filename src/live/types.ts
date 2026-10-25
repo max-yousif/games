@@ -94,6 +94,28 @@ export interface SessieInfo {
   status: LiveStatus;
 }
 
+/** Emoji's waarmee leerlingen kunnen reageren terwijl ze wachten. */
+export const REACTIES = [
+  { emoji: '😠', naam: 'boos' },
+  { emoji: '😂', naam: 'grappig' },
+  { emoji: '❤️', naam: 'hartje' },
+  { emoji: '😢', naam: 'droevig' },
+  { emoji: '💀', naam: 'doodskop' },
+  { emoji: '🐐', naam: 'geit' },
+] as const;
+
+/** Een reactie van een leerling (wordt niet bewaard, enkel doorgestuurd naar het bord). */
+export interface Reactie {
+  emoji: string;
+  /** Naam zoals op het scherm (bijnaam als die er is). */
+  naam: string;
+}
+
+export function isGeldigeReactie(r: unknown): r is Reactie {
+  const x = r as Partial<Reactie> | null;
+  return !!x && typeof x.naam === 'string' && REACTIES.some((e) => e.emoji === x.emoji);
+}
+
 export interface Beoordeling {
   id: string;
   juist: boolean;
@@ -179,4 +201,8 @@ export interface LiveBackend {
 
   // Beide (leerlingen zien enkel hun eigen antwoorden)
   volgSessie(sessieId: string, cb: (s: LiveSessie | null) => void): () => void;
+
+  // Reacties: niet bewaard, rechtstreeks doorgestuurd (Supabase Realtime of tussen tabbladen).
+  reageer(sessieId: string, reactie: Reactie): Promise<void>;
+  volgReacties(sessieId: string, cb: (r: Reactie) => void): () => void;
 }

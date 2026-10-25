@@ -73,8 +73,8 @@ export function leesGetal(invoer: string): number | null {
     .replace(/\\dfrac|\\tfrac|\\frac/g, '\\frac')
     .trim();
   t = t.replace(/^[a-zA-Z]\s*=\s*/, '');
-  const breuk = t.match(/^\\frac\{(.+?)\}\{(.+?)\}$/);
-  if (breuk) t = `${breuk[1]}/${breuk[2]}`;
+  const breuk = t.match(/^(-?)\\frac\{(.+?)\}\{(.+?)\}$/);
+  if (breuk) t = `${breuk[1]}${breuk[2]}/${breuk[3]}`;
   t = t.replace(/(\d)\s+(?=\d{3}\b)/g, '$1').replace(/\s*(%|[a-zA-Zµ°²³]+)$/, '');
   t = t.replace(',', '.').replace(/\s+/g, '').replace('−', '-');
   const deel = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);

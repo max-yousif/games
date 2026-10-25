@@ -5,6 +5,7 @@ import { EscapeSpeler } from './EscapeSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
+import { ReactieKnoppen } from './Reacties';
 import { VerbindingsBolletje } from './VerbindingsBolletje';
 
 const BEWAARD = 'klasspelen.live-deelname';
@@ -282,6 +283,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
           <div className="mt-6 animate-pulse text-slate-400">●●●</div>
         </div>
         <Bijnaam be={be} sessieId={deelname.sessieId} ik={ik} />
+        <ReactieKnoppen be={be} sessieId={deelname.sessieId} naam={ik ? schermNaam(ik) : deelname.naam} />
       </Kaart>
     );
   }
@@ -341,6 +343,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
             </p>
             <p className="mt-1 text-slate-500">Wacht op de anderen…</p>
           </div>
+          <ReactieKnoppen be={be} sessieId={deelname.sessieId} naam={ik ? schermNaam(ik) : deelname.naam} />
         </Kaart>
       )}
 
@@ -364,6 +367,8 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
           {sessie.oplossing.uitleg && <RichText text={sessie.oplossing.uitleg} className="mt-2 text-slate-700" />}
         </div>
       )}
+
+      {sessie.status === 'antwoord' && <ReactieKnoppen be={be} sessieId={deelname.sessieId} naam={ik ? schermNaam(ik) : deelname.naam} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { KluisKaart } from '../components/KluisKaart';
 import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
@@ -23,6 +24,8 @@ export function KlassenPage({ store }: { store: Store }) {
           + Nieuwe klas
         </Button>
       </PageHeader>
+
+      <KluisKaart kluis={store.kluis} />
 
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
         <nav className="space-y-1">
@@ -60,7 +63,7 @@ export function KlassenPage({ store }: { store: Store }) {
       </div>
 
       <p className="mt-8 text-sm text-slate-500">
-        De namen blijven enkel in deze browser op deze laptop (en in je back-upbestand). Er wordt niets doorgestuurd.
+        Zonder kluis blijven de namen enkel in deze browser (en in je back-upbestand). Met een kluis staan ze versleuteld in Supabase: enkel wie de kluiscode kent, kan ze lezen.
       </p>
     </div>
   );

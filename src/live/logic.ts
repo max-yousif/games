@@ -63,21 +63,43 @@ export function antwoordWeergave(v: PubliekeVraag, antwoord: string): string {
 }
 
 /**
- * Maakt een antwoord vergelijkbaar: zonder LaTeX-dollartekens en backticks, spaties,
- * hoofdletters, en met een punt als decimaal teken. "x = 7" en "$x=7$" worden dus gelijk.
+ * Maakt een antwoord vergelijkbaar: zonder LaTeX-dollartekens en backticks, spaties en
+ * hoofdletters, met een punt als decimaal teken, en met één schrijfwijze voor breuken, machten,
+ * wortels en vermenigvuldigen. Zo zijn "x = 7" en "$x=7$" gelijk, en ook "\\frac{1}{2}" (uit de
+ * wiskunde-editor) en "1/2", "x^{2}" en "x²", "2\\cdot x" en "2x", "\\sqrt{9}" en "√9".
  */
 export function normaliseer(antwoord: string): string {
-  return antwoord
+  let t = antwoord
     .replace(/\\[,;!: ]/g, '')
     .replace(/[$`]/g, '')
+    .replace(/\\left|\\right/g, '')
     .replace(/\\(dfrac|tfrac)/g, '\\frac')
     .replace(/\{,\}/g, ',')
     .replace(/(\d),(\d)/g, '$1.$2')
-    .replace(/\s+/g, '')
-    .toLocaleLowerCase('nl');
+    .replace(/\\(times|cdot)|[×·⋅]/g, '*')
+    .replace(/²/g, '^2')
+    .replace(/³/g, '^3')
+    .replace(/√\s*([a-z0-9.]+)/gi, 'sqrt($1)');
+  // Binnenste breuken, wortels en exponenten eerst (geneste accolades).
+  for (let i = 0; i < 5; i++) {
+    const vorige = t;
+    t = t
+      .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)')
+      .replace(/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)')
+      .replace(/\^\{([^{}]*)\}/g, '^($1)');
+    if (t === vorige) break;
+  }
+  t = t.replace(/[{}]/g, '').replace(/\s+/g, '').toLocaleLowerCase('nl');
+  // Haakjes rond één getal of letter zijn overbodig: (1)/(2) = 1/2, x^(2) = x^2.
+  for (let i = 0; i < 5; i++) {
+    const vorige = t;
+    t = t.replace(/\((-?[a-z0-9.]+)\)/g, (m, inhoud: string, pos: number) => (pos > 0 && /[a-z]/.test(t[pos - 1]) && !t.slice(0, pos).endsWith('sqrt') ? m : inhoud));
+    if (t === vorige) break;
+  }
+  // Maalteken naast een letter of haakje weglaten: 2*x = 2x.
+  return t.replace(/\*(?=[a-z(])/g, '').replace(/(?<=[a-z)])\*/g, '');
 }
 
-/** Automatische beoordeling: meerkeuze exact, open vraag als het genormaliseerde antwoord overeenkomt. */
 /** Vergelijkt een getypt antwoord met het verwachte: als tekst (genormaliseerd) of als getal. */
 function tekstJuist(antwoord: string, verwacht: string): boolean {
   const doel = normaliseer(verwacht);

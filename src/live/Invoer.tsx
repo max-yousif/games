@@ -3,6 +3,7 @@ import { GatSymbool, RichText } from '../components/RichText';
 import { gatKleur, LETTERS } from '../lib/vraagtypes';
 import { antwoordWeergave } from './logic';
 import { LiveFout, type PubliekeVraag } from './types';
+import { WiskundeInvoer } from './WiskundeInvoer';
 
 const OPTIE_KLEUREN = ['bg-red-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-purple-500', 'bg-cyan-500', 'bg-pink-500', 'bg-lime-600'];
 
@@ -73,31 +74,87 @@ function VerstuurKnop({ disabled }: { disabled: boolean }) {
   );
 }
 
+const EDITOR_SLEUTEL = 'klasspelen.wiskunde-editor';
+
+/** Wiskunde-editor aan of uit; de keuze van de leerling wordt onthouden op deze laptop. */
+function useWiskundeEditor(): [boolean, (aan: boolean) => void] {
+  const [aan, setAan] = useState(() => {
+    try {
+      return localStorage.getItem(EDITOR_SLEUTEL) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const zet = (waarde: boolean) => {
+    setAan(waarde);
+    try {
+      localStorage.setItem(EDITOR_SLEUTEL, waarde ? '1' : '0');
+    } catch {
+      // geen opslag: enkel voor deze vraag
+    }
+  };
+  return [aan, zet];
+}
+
+function EditorSchakelaar({ aan, onWissel }: { aan: boolean; onWissel: (aan: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onWissel(!aan)}
+      className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${aan ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}
+      title="Typ breuken, machten, wortels en maal zoals op papier"
+    >
+      <span className="font-serif">√x</span> Wiskunde-editor {aan ? 'aan' : 'uit'}
+    </button>
+  );
+}
+
 function TekstInvoer({ getal, bezig, onVerstuur }: { getal: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
   const [tekst, setTekst] = useState('');
+  const [editor, setEditor] = useWiskundeEditor();
+  const verstuur = () => {
+    if (tekst.trim()) onVerstuur(tekst.trim());
+  };
   return (
     <>
+      <div className="mb-2 flex justify-end">
+        <EditorSchakelaar
+          aan={editor}
+          onWissel={(aan) => {
+            setTekst('');
+            setEditor(aan);
+          }}
+        />
+      </div>
       <form
-        className="flex flex-wrap gap-3"
+        className="flex flex-wrap items-start gap-3"
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
-          if (tekst.trim()) onVerstuur(tekst.trim());
+          verstuur();
         }}
       >
-        <input
-          autoFocus
-          value={tekst}
-          onChange={(e) => setTekst(e.target.value)}
-          maxLength={500}
-          inputMode={getal ? 'decimal' : undefined}
-          placeholder={getal ? 'Typ een getal' : 'Typ je antwoord'}
-          aria-label="Je antwoord"
-          className={`min-w-64 flex-1 ${invoerKlasse}`}
-        />
+        {editor ? (
+          <WiskundeInvoer autoFocus label="Je antwoord" onChange={setTekst} onEnter={verstuur} />
+        ) : (
+          <input
+            autoFocus
+            value={tekst}
+            onChange={(e) => setTekst(e.target.value)}
+            maxLength={500}
+            inputMode={getal ? 'decimal' : undefined}
+            placeholder={getal ? 'Typ een getal' : 'Typ je antwoord'}
+            aria-label="Je antwoord"
+            className={`min-w-64 flex-1 ${invoerKlasse}`}
+          />
+        )}
         <VerstuurKnop disabled={!tekst.trim() || bezig} />
       </form>
       <p className="mt-2 text-sm text-slate-500">
-        {getal ? 'Een kommagetal (12,5) of breuk (3/4) mag.' : 'Tip: schrijf machten als x^2, breuken als 1/2 en decimalen met een komma.'}
+        {editor
+          ? 'Typ / voor een breuk en ^ voor een macht, of gebruik de knoppen. Enter = versturen.'
+          : getal
+            ? 'Een kommagetal (12,5) of breuk (3/4) mag.'
+            : 'Tip: schrijf machten als x^2, breuken als 1/2 en decimalen met een komma, of zet de wiskunde-editor aan.'}
       </p>
     </>
   );
@@ -105,28 +162,48 @@ function TekstInvoer({ getal, bezig, onVerstuur }: { getal: boolean; bezig: bool
 
 function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolean; onVerstuur: (a: string) => void }) {
   const [waarden, setWaarden] = useState<string[]>(() => Array<string>(aantal).fill(''));
+  const [editor, setEditor] = useWiskundeEditor();
   const klaar = waarden.every((w) => w.trim());
+  const zet = (i: number, waarde: string) => setWaarden((ws) => ws.map((x, j) => (j === i ? waarde : x)));
+  const verstuur = () => {
+    if (klaar) onVerstuur(JSON.stringify(waarden.map((w) => w.trim())));
+  };
   return (
     <form
       className="space-y-3"
       onSubmit={(e: FormEvent) => {
         e.preventDefault();
-        if (klaar) onVerstuur(JSON.stringify(waarden.map((w) => w.trim())));
+        verstuur();
       }}
     >
+      <div className="flex justify-end">
+        <EditorSchakelaar
+          aan={editor}
+          onWissel={(aan) => {
+            setWaarden(Array<string>(aantal).fill(''));
+            setEditor(aan);
+          }}
+        />
+      </div>
       {waarden.map((w, i) => (
-        <label key={i} className="flex items-center gap-3">
-          <GatSymbool nr={i} groot />
-          <input
-            autoFocus={i === 0}
-            value={w}
-            maxLength={200}
-            aria-label={`Gat ${i + 1}`}
-            onChange={(e) => setWaarden((ws) => ws.map((x, j) => (j === i ? e.target.value : x)))}
-            className={`flex-1 ${invoerKlasse}`}
-            style={{ borderColor: gatKleur(i) }}
-          />
-        </label>
+        <div key={`${editor}-${i}`} className="flex items-start gap-3">
+          <span className="pt-2">
+            <GatSymbool nr={i} groot />
+          </span>
+          {editor ? (
+            <WiskundeInvoer autoFocus={i === 0} label={`Gat ${i + 1}`} kleur={gatKleur(i)} onChange={(waarde) => zet(i, waarde)} onEnter={verstuur} />
+          ) : (
+            <input
+              autoFocus={i === 0}
+              value={w}
+              maxLength={200}
+              aria-label={`Gat ${i + 1}`}
+              onChange={(e) => zet(i, e.target.value)}
+              className={`flex-1 ${invoerKlasse}`}
+              style={{ borderColor: gatKleur(i) }}
+            />
+          )}
+        </div>
       ))}
       <div className="flex justify-end">
         <VerstuurKnop disabled={!klaar || bezig} />

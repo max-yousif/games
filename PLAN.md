@@ -167,8 +167,9 @@ pas openen na een vorig slot, of een code die een puzzel vormt (bv. cijfers door
 
 ## 6. Privacy
 
-- Klassen, vragensets en resultaten blijven op de laptop van de leerkracht (browseropslag) of
-  in een bestand dat de leerkracht zelf bewaart.
+- Vragensets en resultaten blijven op de laptop van de leerkracht (browseropslag) of in een
+  bestand dat de leerkracht zelf bewaart. Klassen kunnen daarnaast in de **kluis**: versleuteld
+  in de browser met de kluiscode van de leerkracht, zodat Supabase enkel onleesbare tekst bewaart.
 - Enkel tijdens een **live quiz** staan namen en antwoorden op de server (Supabase, EU-regio),
   en enkel voor die ene sessie: na *Afsluiten* of na 2 dagen wordt alles gewist. Het is
   aangeraden de school op de hoogte te brengen (verwerkersovereenkomst/GDPR).
@@ -228,9 +229,17 @@ tests/
 - Gaten bij invulvragen als gekleurde symbolen (★ ● ▲ …) in plaats van cijfers
 - Open vragen met meerdere juiste antwoorden ("+ ook juist", Excel-kolom *Ook juist*)
 
-**Volgende stap (voorstel): leerkrachtlogin + cloudopslag**
+**Fase 1f: reacties, wiskunde-editor en klassen in de cloud (deze versie)**
+- Emoji-reacties tijdens het wachten (😠 😂 ❤️ 😢 💀 🐐), zwevend over het bord met de
+  (bij)naam; niet bewaard, enkel doorgestuurd; de leerkracht kan ze verbergen
+- Wiskunde-editor (MathLive) als keuze bij open vragen, getallen en invullen; het nakijken
+  herkent breuken, machten, wortels en maal in elke schrijfwijze
+- Kluis van de leerkracht: klassen versleuteld (AES, sleutel afgeleid uit de kluiscode) in
+  Supabase, automatisch gesynchroniseerd tussen toestellen; de server ziet geen namen
+
+**Volgende stap (voorstel): leerkrachtlogin + cloudopslag van vragensets**
 - Enkel de leerkracht kan spellen starten (magische link per e-mail); leerlingen blijven anoniem
-- Vragensets, klassen en resultaten in Supabase: op elke laptop beschikbaar, geen verlies meer
+- Vragensets en resultaten ook in de kluis: op elke laptop beschikbaar, geen verlies meer
 - Anonieme gebruikers automatisch opruimen na 30 dagen; CAPTCHA/rate limits in Supabase
 
 **Fase 2: meer spellen**

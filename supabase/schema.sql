@@ -351,6 +351,41 @@ grant execute on function public.live_ping() to anon, authenticated;
 grant select, insert, update, delete on public.live_sessies to authenticated;
 grant select, update, delete on public.live_spelers, public.live_antwoorden to authenticated;
 
+-- ---------- Kluis van de leerkracht (klassen op al je toestellen) ----------
+-- De klassen worden in de browser versleuteld met de persoonlijke kluiscode van de leerkracht.
+-- De database bewaart enkel die onleesbare gegevens, onder een id dat ook uit de kluiscode
+-- afgeleid wordt. Zonder kluiscode kan niemand ze lezen, ook de beheerder van Supabase niet.
+
+create table if not exists public.leerkracht_kluis (
+  id text primary key check (id ~ '^[0-9a-f]{64}$'),
+  data text not null check (length(data) <= 2000000),
+  bijgewerkt timestamptz not null default now()
+);
+-- Geen policies: de tabel is enkel bereikbaar via de twee functies hieronder.
+alter table public.leerkracht_kluis enable row level security;
+revoke all on public.leerkracht_kluis from anon, authenticated;
+
+create or replace function public.kluis_lees(p_id text)
+returns table (data text, bijgewerkt timestamptz)
+language sql stable security definer set search_path = public as $$
+  select k.data, k.bijgewerkt from leerkracht_kluis k where k.id = p_id;
+$$;
+
+create or replace function public.kluis_schrijf(p_id text, p_data text)
+returns timestamptz
+language plpgsql security definer set search_path = public as $$
+declare
+  t timestamptz := now();
+begin
+  insert into leerkracht_kluis (id, data, bijgewerkt) values (p_id, p_data, t)
+  on conflict (id) do update set data = excluded.data, bijgewerkt = t;
+  return t;
+end;
+$$;
+
+revoke all on function public.kluis_lees(text), public.kluis_schrijf(text, text) from public, anon;
+grant execute on function public.kluis_lees(text), public.kluis_schrijf(text, text) to authenticated;
+
 -- ---------- Realtime ----------
 
 do $$

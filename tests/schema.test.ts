@@ -272,3 +272,22 @@ describe('supabase-schema: bijnaam, verlaten en ping', () => {
     }
   });
 });
+
+describe('supabase-schema: kluis van de leerkracht', () => {
+  const ID = 'a'.repeat(64);
+
+  it('schrijven en lezen enkel via de functies', async () => {
+    await als(LEERKRACHT, 'select kluis_schrijf($1, $2)', [ID, 'versleuteld-1']);
+    // Op een ander toestel (andere anonieme gebruiker) met dezelfde kluiscode.
+    const [r] = await als<{ data: string }>(VREEMDE, 'select * from kluis_lees($1)', [ID]);
+    expect(r.data).toBe('versleuteld-1');
+    await als(VREEMDE, 'select kluis_schrijf($1, $2)', [ID, 'versleuteld-2']);
+    expect((await als<{ data: string }>(LEERKRACHT, 'select * from kluis_lees($1)', [ID]))[0].data).toBe('versleuteld-2');
+    expect(await als(LEERKRACHT, 'select * from kluis_lees($1)', ['b'.repeat(64)])).toEqual([]);
+  });
+
+  it('de tabel zelf is niet leesbaar en een ongeldig id wordt geweigerd', async () => {
+    expect(await fout(als(ANNA, 'select * from leerkracht_kluis'))).toContain('permission denied');
+    expect(await fout(als(ANNA, 'select kluis_schrijf($1, $2)', ['te-kort', 'x']))).toContain('check constraint');
+  });
+});

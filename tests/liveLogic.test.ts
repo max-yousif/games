@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { automatischJuist, automatischeBeoordelingen, berekenStand, groepeerAntwoorden, normaliseer, plaatsVan, publiekeVraag, puntenVoor, synchroniseer } from '../src/live/logic';
-import type { LiveAntwoord } from '../src/live/types';
+import { isGeldigeReactie, type LiveAntwoord } from '../src/live/types';
 import type { Vraag } from '../src/lib/types';
 import { sessie, vraag } from './helpers';
 
@@ -93,5 +93,35 @@ describe('live: stand en groepen', () => {
     expect(uit.beurten[0]).toMatchObject({ vraagId: 'm', leerlingId: 'l1', juist: true, punten: 200 });
     // Niet beoordeelde antwoorden tellen (nog) niet mee.
     expect(synchroniseer(s, spelers, [ant('9', 'a', 1, 'x')], ['m', 'o']).beurten).toHaveLength(0);
+  });
+});
+
+describe('live: wiskunde-editor en schrijfwijzen', () => {
+  it('herkent LaTeX uit de editor als hetzelfde antwoord', () => {
+    const gelijk = (a: string, b: string) => expect(normaliseer(a)).toBe(normaliseer(b));
+    gelijk('$\\frac{1}{2}$', '1/2');
+    gelijk('$4a^{2}-20a+25$', '$4a^2-20a+25$');
+    gelijk('x²+6x+9', '$x^2+6x+9$');
+    gelijk('$2\\cdot x$', '2x');
+    gelijk('$3\\times 4$', '3*4');
+    gelijk('$\\sqrt{9}$', '√9');
+    gelijk('$\\frac{x+1}{2}$', '(x+1)/2');
+    gelijk('$\\left(x+3\\right)^{2}$', '(x+3)^2');
+    expect(normaliseer('$\\frac{1}{2}$')).not.toBe(normaliseer('1/3'));
+  });
+
+  it('kijkt antwoorden uit de editor na', () => {
+    const q: Vraag = { ...vraag('o'), antwoord: '$\\frac{3}{4}$' };
+    expect(automatischJuist(q, '$\\frac{3}{4}$')).toBe(true);
+    expect(automatischJuist(q, '3/4')).toBe(true);
+    expect(automatischJuist(q, '0,75')).toBe(true);
+    const g: Vraag = { ...vraag('g'), type: 'getal', antwoord: '-0,25' };
+    expect(automatischJuist(g, '$-\\frac{1}{4}$')).toBe(true);
+  });
+
+  it('aanvaardt enkel de afgesproken emoji als reactie', () => {
+    expect(isGeldigeReactie({ emoji: '🐐', naam: 'Pi' })).toBe(true);
+    expect(isGeldigeReactie({ emoji: '🍕', naam: 'Pi' })).toBe(false);
+    expect(isGeldigeReactie({ emoji: '😂' })).toBe(false);
   });
 });
