@@ -6,7 +6,7 @@ export async function maakKlas(page: Page, naam: string, leerlingen: string[]) {
   await page.getByRole('button', { name: '+ Nieuwe klas' }).click();
   await page.locator('input[value^="Klas "]').fill(naam);
   await page.getByPlaceholder(/Anna Peeters/).fill(leerlingen.join('\n'));
-  await page.getByRole('button', { name: 'Toevoegen', exact: true }).click();
+  await page.getByRole('button', { name: `✓ ${leerlingen.length} leerlingen toevoegen` }).click();
   await expect(page.getByRole('button', { name: new RegExp(`${naam}\\s*${leerlingen.length}`) })).toBeVisible();
 }
 

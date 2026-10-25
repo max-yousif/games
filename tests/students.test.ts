@@ -9,3 +9,40 @@ describe('parseNamen', () => {
     expect(parseNamen('Anna\nBert')).toEqual(['Anna', 'Bert']);
   });
 });
+
+import { naamKandidaten, plakNaarRijen, raadKlaslijst } from '../src/lib/students';
+
+describe('klaslijst importeren', () => {
+  it('slaat titels en klasnummers over', () => {
+    const tekst = 'Klaslijst 3A\nSchooljaar 2026-2027\n1. Anna Peeters\n2. Bert Claes\n3A\n3) Chloé Janssens';
+    const rijen = plakNaarRijen(tekst);
+    const k = naamKandidaten(rijen, raadKlaslijst(rijen));
+    expect(k.filter((x) => x.aan).map((x) => x.naam)).toEqual(['Anna Peeters', 'Bert Claes', 'Chloé Janssens']);
+    expect(k.filter((x) => !x.aan).map((x) => x.reden)).toEqual(['lijkt een titel', 'lijkt een titel', 'lijkt een klasnaam']);
+  });
+
+  it('export met kolommen: klasnummer, naam, voornaam, klas', () => {
+    const rijen = plakNaarRijen('Klasnummer\tNaam\tVoornaam\tKlas\n1\tPeeters\tAnna\t3A\n2\tClaes\tBert\t3A');
+    const keuze = raadKlaslijst(rijen);
+    expect(keuze).toEqual({ kopRij: 0, naamKolommen: [2, 1] });
+    expect(naamKandidaten(rijen, keuze).map((x) => x.naam)).toEqual(['Anna Peeters', 'Bert Claes']);
+  });
+
+  it('zonder titelrij: nummers en klas als kolom worden genegeerd', () => {
+    const rijen = plakNaarRijen('1\tAnna\tPeeters\t3A\n2\tBert\tClaes\t3A\n3\tDries\tMertens\t3A');
+    expect(raadKlaslijst(rijen)).toEqual({ kopRij: -1, naamKolommen: [1, 2] });
+  });
+
+  it('titellijn boven de kolomtitels', () => {
+    const rijen = plakNaarRijen('Klaslijst 3A - schooljaar 2026-2027\nKlasnummer\tNaam\tVoornaam\tKlas\n1\tPeeters\tAnna\t3A');
+    const keuze = raadKlaslijst(rijen);
+    expect(keuze).toEqual({ kopRij: 1, naamKolommen: [2, 1] });
+    expect(naamKandidaten(rijen, keuze)).toEqual([{ naam: 'Anna Peeters', aan: true }]);
+  });
+
+  it('herkent leerlingen die al in de klas staan en dubbels', () => {
+    const rijen = plakNaarRijen('Anna Peeters\nBert Claes\nBert Claes');
+    const k = naamKandidaten(rijen, raadKlaslijst(rijen), ['anna peeters']);
+    expect(k.map((x) => x.reden)).toEqual(['staat al in de klas', undefined, 'dubbel']);
+  });
+});
