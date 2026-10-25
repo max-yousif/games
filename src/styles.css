@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+:root {
+  --accent: #4f46e5;
+  --accent-soft: #e0e7ff;
+}
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.rich-text {
+  white-space: pre-wrap;
+}
+.rich-text pre {
+  white-space: pre;
+}
+
+@keyframes drop-in {
+  from {
+    transform: translateY(var(--drop-from, -300px));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.disc-drop {
+  animation: drop-in 0.35s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.pop {
+  animation: pop 0.25s ease-out both;
+}
