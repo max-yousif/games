@@ -9,21 +9,15 @@ const KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim
 /** Is Supabase ingesteld voor deze website? */
 export const supabaseIngesteld = Boolean(URL && KEY);
 
-const cache = new Map<string, LiveBackend>();
+const cache: Partial<Record<LiveBackend['soort'], LiveBackend>> = {};
 
 /**
- * @param perTabblad (enkel Supabase) elk tabblad meldt zich apart aan, om met meerdere leerlingen te
- *   testen op één laptop. De demo-server telt elk tabblad altijd als een aparte laptop.
+ * Server voor de live spellen. Met Supabase is één browser altijd één leerling (de aanmelding wordt
+ * gedeeld door alle tabbladen); de demo-server telt elk tabblad als een aparte laptop.
  */
-export function backend(soort: LiveBackend['soort'], perTabblad = false): LiveBackend {
+export function backend(soort: LiveBackend['soort']): LiveBackend {
   if (soort === 'supabase' && !supabaseIngesteld) throw new Error('Supabase is niet ingesteld.');
-  const sleutel = `${soort}:${perTabblad}`;
-  let b = cache.get(sleutel);
-  if (!b) {
-    b = soort === 'supabase' ? supabaseBackend(URL!, KEY!, perTabblad) : lokaalBackend();
-    cache.set(sleutel, b);
-  }
-  return b;
+  return (cache[soort] ??= soort === 'supabase' ? supabaseBackend(URL!, KEY!) : lokaalBackend());
 }
 
 /** Supabase-client van de leerkracht (voor de kluis met klassen); null als Supabase niet ingesteld is. */

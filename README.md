@@ -33,8 +33,7 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
   bijnaam voor op het bord), je volgt alles live, automatisch nakijken (ook open vragen),
   tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren, reageren met
   emoji (😠 😂 ❤️ 😢 💀 🐐) terwijl ze wachten, en antwoorden met een **wiskunde-editor**
-  (breuken, machten, wortels, maal). Met 🧪 *test als leerling* speel je zelf meerdere
-  leerlingen op één laptop.
+  (breuken, machten, wortels, maal). Eén browser is één leerling.
 - **Klassen op al je toestellen**: met een persoonlijke kluiscode staan je klassen versleuteld in
   Supabase en synchroniseren ze automatisch tussen je laptops en computers. Vereist een gratis
   Supabase-project: zie [supabase/README.md](supabase/README.md). Zonder Supabase werkt een demo

@@ -291,8 +291,6 @@ export function Wachtruimte({
 }) {
   const live = sessie.live!;
   const link = deelnameLink(live.code, live.backend === 'lokaal');
-  // Testtabblad: elk tabblad meldt zich apart aan, zodat je op één laptop meerdere leerlingen kan spelen.
-  const testLink = live.backend === 'lokaal' ? link : `${link}&apart=1`;
   const aantal = spelers.filter((s) => s.verbonden).length;
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-4">
@@ -305,10 +303,6 @@ export function Wachtruimte({
           Of rechtstreeks:{' '}
           <a className="underline" href={link} target="_blank" rel="noreferrer">
             {link}
-          </a>
-          {' · '}
-          <a className="underline" href={testLink} target="_blank" rel="noreferrer" title="Opent een leerlingenscherm in een nieuw tabblad; elk testtabblad is een andere leerling.">
-            🧪 test als leerling
           </a>
         </div>
       </div>

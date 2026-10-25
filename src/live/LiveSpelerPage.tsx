@@ -17,7 +17,7 @@ interface Deelname {
   naam: string;
 }
 
-/** In de demo en bij "apart per tabblad" is elk tabblad een andere leerling, dus dan per tabblad bewaren. */
+/** In de demo is elk tabblad een andere leerling, dus dan per tabblad bewaren; anders per browser. */
 const opslagVoor = (perTabblad: boolean) => (perTabblad ? sessionStorage : localStorage);
 
 function leesDeelname(perTabblad: boolean): Deelname | null {
@@ -38,14 +38,11 @@ function bewaarDeelname(perTabblad: boolean, d: Deelname | null) {
 }
 
 
-/**
- * Scherm voor leerlingen: code ingeven, naam kiezen en meespelen.
- * @param apart elk tabblad is een andere leerling (om als leerkracht te testen op één laptop).
- */
-export function LiveSpelerPage({ code: startCode, demo, apart = false }: { code?: string; demo: boolean; apart?: boolean }) {
+/** Scherm voor leerlingen: code ingeven, naam kiezen en meespelen. */
+export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo: boolean }) {
   const soort: LiveBackend['soort'] = demo || !supabaseIngesteld ? 'lokaal' : 'supabase';
-  const perTabblad = soort === 'lokaal' || apart;
-  const be = backend(soort, apart);
+  const perTabblad = soort === 'lokaal';
+  const be = backend(soort);
   const [deelname, setDeelname] = useState<Deelname | null>(() => {
     const d = leesDeelname(perTabblad);
     return d && d.soort === soort && (!startCode || d.code === startCode.toUpperCase()) ? d : null;
@@ -82,7 +79,6 @@ export function LiveSpelerPage({ code: startCode, demo, apart = false }: { code?
       <header className="flex items-center gap-3 bg-white px-6 py-3 shadow-sm">
         <span className="text-lg font-bold">🎲 Klasspelen</span>
         <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">live</span>
-        {apart && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">testtabblad</span>}
         {deelname && (
           <>
             <span className="ml-auto font-medium">{deelname.naam}</span>
@@ -247,6 +243,11 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
   useEffect(() => be.volgSessie(deelname.sessieId, setSessie), [be, deelname.sessieId]);
   useEffect(() => be.volgAntwoorden(deelname.sessieId, setAntwoorden), [be, deelname.sessieId]);
   useEffect(() => be.volgSpelers(deelname.sessieId, (s) => setIk(s.find((x) => x.verbonden) ?? null)), [be, deelname.sessieId]);
+
+  // Eén browser = één leerling: werd in een ander tabblad een andere naam gekozen, dan stopt dit tabblad.
+  useEffect(() => {
+    if (ik && ik.naam !== deelname.naam) onWeg(`Je speelt nu in een ander tabblad als ${ik.naam}. Op één laptop kan je maar met één naam meespelen.`);
+  }, [ik, deelname.naam, onWeg]);
 
   // Geen toegang meer: losgekoppeld door de leerkracht of het spel is afgesloten.
   useEffect(() => {

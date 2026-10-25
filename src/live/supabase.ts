@@ -64,34 +64,26 @@ const antwoordUit = (r: any): LiveAntwoord => ({
   beloning: r.beloning ?? null,
 });
 
-// Eén client en één anonieme aanmelding per browser (of per testtabblad), gedeeld door de live
-// spellen en de kluis met klassen.
+// Eén client en één anonieme aanmelding per browser, gedeeld door alle tabbladen, de live spellen
+// en de kluis met klassen. Zo is één browser altijd één leerling: in een tweede tabblad een andere
+// naam kiezen geeft de eerste naam vrij.
 const clients = new Map<string, Promise<SupabaseClient>>();
 const aanmeldingen = new Map<string, Promise<string>>();
 
-/**
- * @param perTabblad elk tabblad meldt zich apart aan (om met meerdere leerlingen te testen op één
- *   laptop). Standaard deelt de hele browser één aanmelding, zodat een leerling na het sluiten van
- *   het tabblad gewoon verder kan.
- */
-export function supabaseClient(url: string, key: string, perTabblad = false): { sb: () => Promise<SupabaseClient>; uid: () => Promise<string> } {
-  const sleutel = `${url}|${perTabblad}`;
+export function supabaseClient(url: string, key: string): { sb: () => Promise<SupabaseClient>; uid: () => Promise<string> } {
+  const sleutel = url;
   // De bibliotheek wordt pas geladen wanneer ze nodig is (snellere startpagina).
   const sb = () => {
     let c = clients.get(sleutel);
     if (!c) {
       c = import('@supabase/supabase-js').then(({ createClient }) =>
-        createClient(url, key, {
-          auth: perTabblad
-            ? { persistSession: true, storage: sessionStorage, storageKey: 'klasspelen-live-auth-tabblad' }
-            : { persistSession: true, storageKey: 'klasspelen-live-auth' },
-        }),
+        createClient(url, key, { auth: { persistSession: true, storageKey: 'klasspelen-live-auth' } }),
       );
       clients.set(sleutel, c);
     }
     return c;
   };
-  /** Anoniem aanmelden (één keer per browser of tabblad; de sessie blijft bewaard). */
+  /** Anoniem aanmelden (één keer per browser; de sessie blijft bewaard). */
   const uid = () => {
     let a = aanmeldingen.get(sleutel);
     if (!a) {
@@ -113,8 +105,8 @@ export function supabaseClient(url: string, key: string, perTabblad = false): { 
   return { sb, uid };
 }
 
-export function supabaseBackend(url: string, key: string, perTabblad = false): LiveBackend {
-  const { sb, uid } = supabaseClient(url, key, perTabblad);
+export function supabaseBackend(url: string, key: string): LiveBackend {
+  const { sb, uid } = supabaseClient(url, key);
 
   /**
    * Volgt een tabel: haalt alles opnieuw op bij elke wijziging (en elke 15 seconden als vangnet,

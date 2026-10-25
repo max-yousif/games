@@ -36,7 +36,7 @@ export default function App() {
   if (route.pagina === 'live')
     return (
       <Suspense fallback={laden}>
-        <LiveSpelerPage code={route.code} demo={route.demo} apart={route.apart} />
+        <LiveSpelerPage code={route.code} demo={route.demo} />
       </Suspense>
     );
 

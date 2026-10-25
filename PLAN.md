@@ -122,8 +122,9 @@ sneltoetsen, eindstand met podium.
   wisselen: de leerkracht koppelt de naam los, de leerling meldt zich opnieuw aan.
 - Sessies worden gewist na *Afsluiten* of automatisch na 2 dagen.
 - **Demo-modus** zonder server: leerlingenschermen in andere tabbladen van dezelfde browser.
-- **Testtabblad** (🧪 in de wachtzaal): met Supabase meldt elk testtabblad zich apart aan, zodat
-  de leerkracht op één laptop meerdere leerlingen kan spelen (geen incognitovenster nodig).
+- **Eén browser = één leerling**: alle tabbladen delen dezelfde aanmelding; in een tweede tabblad
+  een andere naam kiezen geeft de eerste naam vrij. Zelf testen met meerdere leerlingen kan met
+  de demo-modus of met andere browsers/toestellen.
 - **Verbindingsbolletje** bij leerkracht en leerling; na een verbroken verbinding of slaapstand
   wordt alles meteen opnieuw opgehaald.
 - Installatie: zie [`supabase/README.md`](supabase/README.md).
@@ -225,7 +226,7 @@ tests/
 - Verbindingsbolletje en automatisch opnieuw verbinden
 - Onderhoud: nieuwere GitHub-acties, KaTeX-beveiligingsupdate, browsertests (Playwright) die op
   GitHub draaien vóór elke publicatie
-- Bijnaam, verlaten/terugkeren, testtabblad, lopende spellen beëindigen
+- Bijnaam, verlaten/terugkeren, lopende spellen beëindigen
 - Gaten bij invulvragen als gekleurde symbolen (★ ● ▲ …) in plaats van cijfers
 - Open vragen met meerdere juiste antwoorden ("+ ook juist", Excel-kolom *Ook juist*)
 
