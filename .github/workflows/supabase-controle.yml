@@ -1,0 +1,85 @@
+name: Supabase controleren
+
+# Controleert of de database klaar is voor de website: schema up-to-date, anoniem aanmelden
+# aan (leerlingen) en enkel leerkrachten kunnen live spellen starten. Start via
+# Actions → Supabase controleren → Run workflow. Gebruikt enkel de publieke (anon) sleutel.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Database controleren
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          set -u
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::De variabelen SUPABASE_URL en SUPABASE_ANON_KEY zijn niet ingesteld."
+            exit 1
+          fi
+          URL="${SUPABASE_URL%/}"
+          FOUTEN=0
+          ok() { echo "✅ $1"; }
+          fout() { echo "::error::$1"; FOUTEN=$((FOUTEN + 1)); }
+          # roep METHODE PAD TOKEN [BODY] → zet $CODE en $BODY
+          roep() {
+            local body="${4:-}"
+            local antwoord
+            antwoord=$(curl -sS --retry 2 -w '\n%{http_code}' -X "$1" "$URL$2" \
+              -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $3" \
+              -H "Content-Type: application/json" ${body:+-d "$body"})
+            CODE=$(tail -n1 <<<"$antwoord")
+            BODY=$(sed '$d' <<<"$antwoord")
+          }
+
+          roep POST /rest/v1/rpc/live_ping "$SUPABASE_ANON_KEY" '{}'
+          [ "$CODE" = 200 ] && ok "Database bereikbaar (live_ping)" || fout "live_ping gaf $CODE: $BODY"
+
+          roep POST /auth/v1/signup "$SUPABASE_ANON_KEY" '{}'
+          TOKEN=$(jq -r '.access_token // empty' <<<"$BODY")
+          if [ -n "$TOKEN" ]; then
+            ok "Anoniem aanmelden staat aan (leerlingen)"
+          else
+            fout "Anoniem aanmelden lukt niet ($CODE): $BODY"
+            exit 1
+          fi
+
+          for tabel in leerkrachten leerkracht_items live_sessies live_spelers live_antwoorden; do
+            roep GET "/rest/v1/$tabel?select=*&limit=1" "$TOKEN"
+            if [ "$CODE" = 200 ] && [ "$BODY" = "[]" ]; then
+              ok "Tabel $tabel bestaat en is afgeschermd voor leerlingen"
+            elif [ "$CODE" = 200 ]; then
+              fout "Een leerling kan rijen uit $tabel lezen!"
+            else
+              fout "Tabel $tabel: $CODE $BODY (voer supabase/schema.sql opnieuw uit)"
+            fi
+          done
+
+          roep POST /rest/v1/live_sessies "$TOKEN" '{"code":"CONTROLE","titel":"controle"}'
+          if grep -q "row-level security" <<<"$BODY"; then
+            ok "Een leerling kan geen live spel starten (enkel leerkrachten)"
+          else
+            fout "Een leerling kon een live spel starten of een onverwachte fout ($CODE): $BODY"
+          fi
+
+          roep POST /rest/v1/leerkracht_items "$TOKEN" '{"soort":"set","id":"controle","data":{}}'
+          if grep -q "row-level security" <<<"$BODY"; then
+            ok "Een leerling kan niets in de cloudopslag zetten"
+          else
+            fout "Cloudopslag niet afgeschermd ($CODE): $BODY"
+          fi
+
+          roep POST /rest/v1/rpc/live_is_leerkracht "$TOKEN" '{}'
+          [ "$BODY" = "false" ] && ok "Functie live_is_leerkracht werkt" || fout "live_is_leerkracht gaf $CODE: $BODY"
+
+          if [ "$FOUTEN" -gt 0 ]; then
+            echo "$FOUTEN probleem/problemen gevonden."
+            exit 1
+          fi
+          echo "Alles in orde. Meld je op de website aan met je gebruikersnaam om je account te testen."
