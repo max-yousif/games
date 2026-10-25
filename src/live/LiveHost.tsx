@@ -166,7 +166,6 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
     );
   }
 
-  const link = deelnameLink(live.code, live.backend === 'lokaal');
   const stand = server.stand.length ? server.stand : berekenStand(spelers, antwoorden);
 
   return (
@@ -178,24 +177,14 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
       )}
 
       {server.status === 'lobby' && (
-        <div className="flex flex-1 flex-col items-center gap-6 pt-4">
-          <div className="text-center">
-            <div className="text-xl text-slate-600">Ga naar</div>
-            <div className="mt-1 rounded-xl bg-white px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
-            <div className="mt-4 text-xl text-slate-600">en geef deze code in:</div>
-            <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent)]">{live.code}</div>
-            <div className="mt-2 text-sm text-slate-500">
-              Of rechtstreeks:{' '}
-              <a className="underline" href={link} target="_blank" rel="noreferrer">
-                {link}
-              </a>
-            </div>
-          </div>
-          <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={null} onOntkoppel={(id) => actie(() => be.ontkoppel(id))} />
-          <Button variant="primary" className="px-10 py-4 text-xl" disabled={bezig || sessie.vraagVolgorde.length === 0} onClick={volgende}>
-            ▶ Start de quiz ({spelers.filter((s) => s.verbonden).length} {spelers.filter((s) => s.verbonden).length === 1 ? 'speler' : 'spelers'})
-          </Button>
-        </div>
+        <Wachtruimte
+          sessie={sessie}
+          spelers={spelers}
+          bezig={bezig}
+          startTekst="Start de quiz"
+          onStart={volgende}
+          onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
+        />
       )}
 
       {(server.status === 'vraag' || server.status === 'antwoord') && vraag && (
@@ -256,7 +245,48 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
   );
 }
 
-function SpelersRaster({
+/** Wachtruimte: code en link op het bord, wie al aangemeld is, en de startknop. */
+export function Wachtruimte({
+  sessie,
+  spelers,
+  bezig,
+  startTekst,
+  onStart,
+  onOntkoppel,
+}: {
+  sessie: Sessie;
+  spelers: LiveSpeler[];
+  bezig: boolean;
+  startTekst: string;
+  onStart: () => void;
+  onOntkoppel: (spelerId: string) => void;
+}) {
+  const live = sessie.live!;
+  const link = deelnameLink(live.code, live.backend === 'lokaal');
+  const aantal = spelers.filter((s) => s.verbonden).length;
+  return (
+    <div className="flex flex-1 flex-col items-center gap-6 pt-4">
+      <div className="text-center">
+        <div className="text-xl text-slate-600">Ga naar</div>
+        <div className="mt-1 rounded-xl bg-white px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
+        <div className="mt-4 text-xl text-slate-600">en geef deze code in:</div>
+        <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent)]">{live.code}</div>
+        <div className="mt-2 text-sm text-slate-500">
+          Of rechtstreeks:{' '}
+          <a className="underline" href={link} target="_blank" rel="noreferrer">
+            {link}
+          </a>
+        </div>
+      </div>
+      <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={null} onOntkoppel={onOntkoppel} />
+      <Button variant="primary" className="px-10 py-4 text-xl" disabled={bezig || sessie.vraagVolgorde.length === 0} onClick={onStart}>
+        ▶ {startTekst} ({aantal} {aantal === 1 ? 'speler' : 'spelers'})
+      </Button>
+    </div>
+  );
+}
+
+export function SpelersRaster({
   sessie,
   spelers,
   beantwoord,

@@ -4,10 +4,17 @@ import { juistAntwoord } from './questions';
 import { leerlingNaam, resultatenPerLeerling, teamScores } from './session';
 import type { Sessie } from './types';
 
+/** Tijd als m:ss. */
+export function tijdTekst(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
 export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   quizbord: 'Quizbord',
   vieropeenrij: 'Vier op een rij',
   live: 'Live quiz',
+  escape: 'Escape room',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });
@@ -18,9 +25,11 @@ export function datumTekst(iso: string): string {
 
 function sessieBladen(s: Sessie, prefix = '') {
   const scores = teamScores(s);
+  const ontsnapt = s.live?.ontsnapt;
+  const tijd = (naam: string) => (ontsnapt?.[naam] !== undefined ? tijdTekst(ontsnapt[naam]) : '');
   const perLeerling = [
-    [bold('Leerling'), bold('Team'), bold('Beurten'), bold('Juist'), bold('Fout'), bold('Punten')],
-    ...resultatenPerLeerling(s).map((r) => [r.naam, r.team, r.beurten, r.juist, r.fout, r.punten]),
+    [bold('Leerling'), bold('Team'), bold('Pogingen'), bold('Juist'), bold('Fout'), bold('Punten'), ...(ontsnapt ? [bold('Ontsnapt na')] : [])],
+    ...resultatenPerLeerling(s).map((r) => [r.naam, r.team, r.beurten, r.juist, r.fout, r.punten, ...(ontsnapt ? [tijd(r.naam)] : [])]),
     [],
     [bold('Team'), bold('Score')],
     ...s.teams.map((t, i) => [t.naam, scores[i]]),

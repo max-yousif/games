@@ -1,10 +1,11 @@
 # Live spelen instellen (Supabase)
 
-Voor **Live quiz** (elke leerling op de eigen laptop) is een kleine online database nodig.
+Voor **Live quiz** en **Escape room** (elke leerling op de eigen laptop) is een kleine online
+database nodig.
 Daarvoor gebruiken we [Supabase](https://supabase.com): het gratis plan volstaat ruim voor een klas.
 De website zelf blijft gewoon op GitHub Pages staan.
 
-Zonder Supabase werkt live spelen enkel als **demo** in één browser (leerlingenscherm in een
+Zonder Supabase werken ze enkel als **demo** in één browser (leerlingenscherm in een
 tweede tabblad), handig om alles uit te proberen.
 
 ## Eenmalig instellen (± 10 minuten)
@@ -28,7 +29,11 @@ tweede tabblad), handig om alles uit te proberen.
    - `SUPABASE_URL` = de Project URL
    - `SUPABASE_ANON_KEY` = de publishable/anon key
 6. **Opnieuw publiceren**: **Actions → Website publiceren → Run workflow** (of push iets naar
-   `main`). Daarna staat bij *Spelen → Live quiz* de demo-optie niet meer standaard aan.
+   `main`). Daarna staat bij *Spelen → Live quiz / Escape room* de demo-optie niet meer
+   standaard aan.
+
+**Na een update van de website** met wijzigingen aan `schema.sql`: voer het script opnieuw uit
+in de SQL Editor (het bewaart bestaande gegevens).
 
 Lokaal ontwikkelen: maak een bestand `.env.local` (wordt niet mee opgeslagen in git):
 

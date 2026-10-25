@@ -52,7 +52,7 @@ export interface Klas {
   leerlingen: Leerling[];
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'live';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'live' | 'escape';
 
 export interface Team {
   naam: string;
@@ -83,6 +83,10 @@ export interface LiveInfo {
   snelheidsbonus: boolean;
   /** true wanneer de server-gegevens gewist zijn (na "Afsluiten"). */
   afgesloten: boolean;
+  /** Escape room: de geheime code (enkel bij de leerkracht). */
+  escapeCode?: string;
+  /** Escape room: tijd tot ontsnappen (ms) per leerlingnaam. */
+  ontsnapt?: Record<string, number>;
 }
 
 export interface Sessie {

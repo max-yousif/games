@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
+import { maakEscapeCode } from '../live/escape';
+import { publiekeVraag } from '../live/logic';
 import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
 import { ga, href } from '../lib/route';
+import { shuffle } from '../lib/random';
 import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
 import type { Store } from '../lib/store';
 import type { Leerling, SpelType, Team } from '../lib/types';
@@ -12,7 +15,11 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Categorieën × punten. Teams kiezen om beurt een vak. 2 tot 6 teams.' },
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
+  { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
 ];
+
+const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
+const WACHTTIJDEN = [0, 10, 15, 30, 60];
 
 const TIMERS = [null, 30, 60, 90, 120, 180];
 
@@ -31,7 +38,11 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const klas = store.klassen.find((k) => k.id === klasId) ?? null;
   const set = store.sets.find((s) => s.id === gekozenSet) ?? null;
   const vragen = set ? speelbareVragen(set) : [];
-  const aantalTeams = spel === 'vieropeenrij' ? 2 : spel === 'live' ? 1 : aantal;
+  const isLive = spel === 'live' || spel === 'escape';
+  const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
+  const [escapeMinuten, setEscapeMinuten] = useState<number | null>(20);
+  const [wachttijd, setWachttijd] = useState(15);
+  const [aantalSloten, setAantalSloten] = useState(0); // 0 = alle vragen
 
   const [teams, setTeams] = useState<Team[]>(() => maakTeams(klas?.leerlingen ?? [], aantalTeams));
   const [afwezig, setAfwezig] = useState<Leerling[]>([]);
@@ -66,7 +77,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   function start() {
     if (!set) return;
-    if (spel === 'live') {
+    if (isLive) {
       void startLive();
       return;
     }
@@ -83,25 +94,40 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const leerlingen = teams.flatMap((t) => t.leerlingen);
       const soort = demo ? 'lokaal' : 'supabase';
       const metNamen = klas !== null && leerlingen.length > 0;
+      const escape = spel === 'escape';
+      // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
+      const gekozen = escape && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
+      const escapeCode = escape ? maakEscapeCode(gekozen.length) : undefined;
+      const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
       const server = await backend(soort).maakSessie({
         titel: set.titel,
         namen: metNamen ? leerlingen.map((l) => l.naam) : [],
         vrijeNaam: !metNamen || vrijeNaam,
-        aantalVragen: vragen.length,
-        timer,
+        aantalVragen: gekozen.length,
+        timer: spelTimer,
+        modus: escape ? 'escape' : 'quiz',
+        vragen: escape ? gekozen.map(publiekeVraag) : undefined,
+        wachttijd: escape ? wachttijd : 0,
       });
       const basis = nieuweSessie({
-        spelType: 'live',
+        spelType: escape ? 'escape' : 'live',
         set,
-        vragen,
+        vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
         teams: [{ naam: klas?.naam ?? 'Spelers', kleur: TEAM_KLEUREN[0], leerlingen: metNamen ? leerlingen : [] }],
-        timer,
+        timer: spelTimer,
       });
       const sessie = {
         ...basis,
-        vraagVolgorde: willekeurig ? basis.vraagVolgorde : vragen.map((v) => v.id),
-        live: { backend: soort, sessieId: server.id, code: server.code, snelheidsbonus: snelheidsbonus && timer !== null, afgesloten: false },
+        vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
+        live: {
+          backend: soort,
+          sessieId: server.id,
+          code: server.code,
+          snelheidsbonus: !escape && snelheidsbonus && timer !== null,
+          afgesloten: false,
+          escapeCode,
+        },
       } as const;
       store.bewaarSessie(sessie);
       ga({ pagina: 'sessie', id: sessie.id });
@@ -148,14 +174,14 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       </Section>
 
       <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SPELLEN.map((s) => (
             <button
               key={s.type}
               type="button"
               onClick={() => {
                 setSpel(s.type);
-                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' ? 1 : aantal);
+                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' ? 1 : aantal);
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
               className={`rounded-xl border-2 p-4 text-left transition ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
@@ -168,7 +194,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </div>
       </Section>
 
-      <Section step={3} title={spel === 'live' ? 'Klas en instellingen' : 'Klas en teams'}>
+      <Section step={3} title={isLive ? 'Klas en instellingen' : 'Klas en teams'}>
         <div className="mb-4 flex flex-wrap items-end gap-4">
           <div className="w-60">
             <label className={labelClass}>Klas</label>
@@ -208,29 +234,74 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </select>
             </div>
           )}
-          <div className="w-44">
-            <label className={labelClass}>Timer per vraag</label>
-            <select className={inputClass} value={timer ?? ''} onChange={(e) => setTimer(e.target.value ? Number(e.target.value) : null)}>
-              {TIMERS.map((t) => (
-                <option key={t ?? 0} value={t ?? ''}>
-                  {t ? `${t} seconden` : 'geen timer'}
-                </option>
-              ))}
-            </select>
-          </div>
-          {klas && spel !== 'live' && <Button onClick={() => verdeel()}>🔀 Opnieuw verdelen</Button>}
+          {spel === 'escape' ? (
+            <>
+              <div className="w-40">
+                <label className={labelClass}>Aantal sloten</label>
+                <select className={inputClass} value={aantalSloten} onChange={(e) => setAantalSloten(Number(e.target.value))}>
+                  <option value={0}>alle vragen ({vragen.length})</option>
+                  {[3, 4, 5, 6, 8, 10, 12].filter((n) => n < vragen.length).map((n) => (
+                    <option key={n} value={n}>
+                      {n} (willekeurig gekozen)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-40">
+                <label className={labelClass}>Totale tijd</label>
+                <select className={inputClass} value={escapeMinuten ?? ''} onChange={(e) => setEscapeMinuten(e.target.value ? Number(e.target.value) : null)}>
+                  {ESCAPE_MINUTEN.map((m) => (
+                    <option key={m ?? 0} value={m ?? ''}>
+                      {m ? `${m} minuten` : 'geen limiet'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-48">
+                <label className={labelClass}>Wachten na fout antwoord</label>
+                <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
+                  {WACHTTIJDEN.map((w) => (
+                    <option key={w} value={w}>
+                      {w ? `${w} seconden` : 'niet wachten'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div className="w-44">
+              <label className={labelClass}>Timer per vraag</label>
+              <select className={inputClass} value={timer ?? ''} onChange={(e) => setTimer(e.target.value ? Number(e.target.value) : null)}>
+                {TIMERS.map((t) => (
+                  <option key={t ?? 0} value={t ?? ''}>
+                    {t ? `${t} seconden` : 'geen timer'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {klas && !isLive && <Button onClick={() => verdeel()}>🔀 Opnieuw verdelen</Button>}
         </div>
 
-        {spel === 'live' && (
+        {isLive && (
           <div className="mb-4 space-y-2 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={snelheidsbonus && timer !== null} disabled={timer === null} onChange={(e) => setSnelheidsbonus(e.target.checked)} />
-              Snelheidsbonus: wie sneller juist antwoordt, krijgt meer punten (enkel met timer)
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={willekeurig} onChange={(e) => setWillekeurig(e.target.checked)} />
-              Vragen in willekeurige volgorde
-            </label>
+            {spel === 'escape' ? (
+              <p className="text-slate-600">
+                Elk slot is een vraag. Een juist antwoord geeft één cijfer van de geheime code; met de volledige code ontsnapt de leerling. Leerlingen kiezen zelf de volgorde en
+                mogen na een fout antwoord opnieuw proberen. Alle vragen worden automatisch nagekeken.
+              </p>
+            ) : (
+              <>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={snelheidsbonus && timer !== null} disabled={timer === null} onChange={(e) => setSnelheidsbonus(e.target.checked)} />
+                  Snelheidsbonus: wie sneller juist antwoordt, krijgt meer punten (enkel met timer)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={willekeurig} onChange={(e) => setWillekeurig(e.target.checked)} />
+                  Vragen in willekeurige volgorde
+                </label>
+              </>
+            )}
             {klas && (
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={vrijeNaam} onChange={(e) => setVrijeNaam(e.target.checked)} />
@@ -259,7 +330,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           </div>
         )}
 
-        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={spel === 'live' && !klas}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={isLive && !klas}>
           {teams.map((t, ti) => (
             <div key={ti} className="rounded-xl border-2 p-3" style={{ borderColor: t.kleur }}>
               <input
@@ -314,7 +385,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         )}
         {klas && (
           <p className="mt-2 text-xs text-slate-500">
-            {spel === 'live'
+            {isLive
               ? 'Klik op ✕ als een leerling afwezig is: die naam verschijnt dan niet in de lijst op de laptops.'
               : 'Klik op een naam om die leerling naar het volgende team te verplaatsen, of op ✕ als de leerling afwezig is.'}
           </p>

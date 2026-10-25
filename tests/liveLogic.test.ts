@@ -14,6 +14,8 @@ const ant = (id: string, spelerId: string, vraagNr: number, antwoord: string, ex
   tijdMs: 1000,
   juist: null,
   punten: 0,
+  poging: 1,
+  beloning: null,
   ...extra,
 });
 

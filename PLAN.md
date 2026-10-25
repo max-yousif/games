@@ -79,9 +79,9 @@ Gemeenschappelijk verloop van een beurt (één component voor alle spellen):
 | 2 | Race op het bord | Pionnen per team schuiven vooruit per juist antwoord; valkuilen en ladders. |
 | 2 | Kaboom-pot | Punten verzamelen, maar een "Kaboom" laat je alles verliezen. |
 | 2 | Miljonairsladder | Steeds moeilijker, met hulplijnen. |
-| 3 | Escape room | Antwoorden vormen samen de code van een slot. |
 | 3 | Bingo | Unieke bingokaarten met antwoorden afdrukken. |
 | 1b | **Live quiz** | Elke leerling op de eigen laptop (zie §4b). |
+| 1d | **Escape room** | Elke leerling op de eigen laptop, in eigen tempo (zie §4c). |
 | later | Zelfstandig: herhalingsoefening, pixelkunst, memory | Op de laptop van de leerling; resultaat via de live server naar de leerkracht. |
 
 Extra's voor de klas: **volledig scherm**, grote letters (leesbaar van achteraan),
@@ -119,6 +119,27 @@ sneltoetsen, eindstand met podium.
 - Sessies worden gewist na *Afsluiten* of automatisch na 2 dagen.
 - **Demo-modus** zonder server: leerlingenschermen in andere tabbladen van dezelfde browser.
 - Installatie: zie [`supabase/README.md`](supabase/README.md).
+
+## 4c. Escape room (elke leerling op de eigen laptop, in eigen tempo)
+
+1. *Spelen → Escape room*: kies een vragenset, het aantal sloten (alle vragen of een
+   willekeurige selectie), de totale tijd en de wachttijd na een fout antwoord.
+2. Aanmelden zoals bij de live quiz (code op het bord, naam kiezen).
+3. Elke leerling ziet de sloten en een geheime code met vraagtekens. Een slot opent met een
+   juist antwoord en onthult één cijfer van de code. De volgorde kiezen de leerlingen zelf;
+   na een fout antwoord mogen ze opnieuw proberen na de wachttijd (tegen gokken).
+4. Zijn alle sloten open, dan typt de leerling de code en ontsnapt.
+5. Op het bord: klok, aantal ontsnapt en een tabel met per leerling per slot 🔒 / ⏳ / ✗n / ✅
+   en de ontsnappingstijd. De geheime code kan de leerkracht tonen met een knop.
+6. Einde (knop of als de tijd om is): podium met de snelste ontsnappers, resultaten en
+   Excel-export (met "ontsnapt na").
+
+Techniek: alles wordt nagekeken in de browser van de leerkracht, zodat antwoorden en code nooit
+op de laptops van de leerlingen staan. De database bewaart meerdere pogingen per slot en
+dwingt de wachttijd en de totale tijd af.
+
+Mogelijke uitbreidingen: teams per escape room, een verhaal per slot ("kamer"), sloten die
+pas openen na een vorig slot, of een code die een puzzel vormt (bv. cijfers door elkaar).
 
 ## 5. Beheer door de leerkracht
 
@@ -182,9 +203,11 @@ tests/
 - Supabase-schema met beveiliging, live wachtruimte, live meevolgen, automatisch nakijken,
   tussenstand, eindstand, Excel-export, demo-modus
 
-**Fase 1c: meer vraagtypes (deze versie)**
+**Fase 1c: meer vraagtypes (klaar)**
 - Waar/onwaar, getal met foutmarge, invullen, ordenen (Parsons) en koppelen, in de editor,
   op het bord, in de live quiz en in de Excel-import
+
+**Fase 1d: escape room (deze versie)**
 
 **Fase 2: meer spellen**
 - Race op het bord, Kaboom, Miljonairsladder
@@ -202,7 +225,7 @@ tests/
 - Geparametriseerde vragen (andere getallen voor elke leerling)
 
 **Fase 5: grafieken en extra's**
-- Grafiekvragen (punt aanklikken), escape room, bingo-afdruk, pixelkunst
+- Grafiekvragen (punt aanklikken), bingo-afdruk, pixelkunst
 
 ## 9. Kwaliteit
 

@@ -164,3 +164,57 @@ describe('supabase-schema', () => {
     expect((await db.query('select count(*)::int as n from live_antwoorden')).rows).toEqual([{ n: 0 }]);
   });
 });
+
+describe('supabase-schema: escape room', () => {
+  let id = '';
+  let escCode = '';
+
+  it('laat pas antwoorden toe als de escape room gestart is', async () => {
+    const [s] = await als<{ id: string; code: string }>(
+      LEERKRACHT,
+      `insert into live_sessies (titel, modus, vrije_naam, aantal_vragen, wachttijd, vragen) values ('Escape', 'escape', true, 2, 30, '[]') returning id, code`,
+    );
+    id = s.id;
+    escCode = s.code;
+    await als(ANNA, 'select * from live_deelnemen($1, $2)', [escCode, 'Anna']);
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 0, $2)', [id, 'x']))).toContain('geen_vraag');
+    expect(await fout(als(ANNA, 'select live_start_escape($1)', [id]))).toContain('geen_host');
+    await als(LEERKRACHT, 'select live_start_escape($1)', [id]);
+  });
+
+  it('meerdere pogingen per slot, met wachttijd na een fout', async () => {
+    await als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'fout']);
+    // Nog niet beoordeeld: wachten.
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'nog eens']))).toContain('wacht');
+    // Andere sloten kunnen wel.
+    await als(ANNA, 'select live_antwoord($1, 0, $2)', [id, 'juist']);
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 2, $2)', [id, 'x']))).toContain('geen_vraag');
+
+    const rijen = await als<{ id: string; vraag_nr: number }>(LEERKRACHT, 'select id, vraag_nr from live_antwoorden where sessie_id = $1', [id]);
+    const items = rijen.map((r) => ({ id: r.id, juist: r.vraag_nr === 0, punten: 0, beloning: r.vraag_nr === 0 ? '7' : null }));
+    await als(LEERKRACHT, 'select live_beoordeel($1, $2)', [id, JSON.stringify(items)]);
+
+    // Fout beoordeeld, maar de wachttijd (30 s) loopt nog.
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'nog eens']))).toContain('wacht');
+    await db.exec(`update live_antwoorden set aangemaakt = now() - interval '31 seconds' where sessie_id = '${id}'`);
+    await als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'nog eens']);
+    const pogingen = await als<{ poging: number }>(ANNA, 'select poging from live_antwoorden where vraag_nr = 1 order by poging');
+    expect(pogingen.map((p) => p.poging)).toEqual([1, 2]);
+
+    // Opgelost slot: niet opnieuw. De leerling ziet het verdiende cijfer.
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 0, $2)', [id, 'x']))).toContain('al_opgelost');
+    const [b] = await als<{ beloning: string }>(ANNA, 'select beloning from live_antwoorden where vraag_nr = 0');
+    expect(b.beloning).toBe('7');
+  });
+
+  it('de eindcode is slot -1', async () => {
+    await als(ANNA, 'select live_antwoord($1, -1, $2)', [id, '1234']);
+    expect((await als(LEERKRACHT, 'select vraag_nr from live_antwoorden where sessie_id = $1 and vraag_nr = -1', [id])).length).toBe(1);
+  });
+
+  it('weigert antwoorden na de totale tijd', async () => {
+    await db.exec(`update live_sessies set timer = 60, vraag_start = now() - interval '70 seconds' where id = '${id}'`);
+    await db.exec(`update live_antwoorden set aangemaakt = now() - interval '1 hour', juist = false where sessie_id = '${id}' and juist is null`);
+    expect(await fout(als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'x']))).toContain('te_laat');
+  });
+});

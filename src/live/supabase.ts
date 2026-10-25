@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { LiveFout, type FoutCode, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
 
 
-const CODES: FoutCode[] = ['onbekende_code', 'gesloten', 'ongeldige_naam', 'naam_bezet', 'geen_vraag', 'al_geantwoord', 'te_laat', 'geen_speler', 'niet_aangemeld'];
+const CODES: FoutCode[] = ['onbekende_code', 'gesloten', 'ongeldige_naam', 'naam_bezet', 'geen_vraag', 'al_geantwoord', 'al_opgelost', 'te_laat', 'geen_speler', 'niet_aangemeld', 'wacht'];
 
 /** Zet een databasefout om naar een LiveFout met een Nederlandstalige uitleg. */
 function vertaal(error: { message?: string } | null): never {
@@ -18,12 +18,15 @@ function sessieUit(r: any): LiveSessie {
     id: r.id,
     code: r.code,
     titel: r.titel,
+    modus: r.modus ?? 'quiz',
     namen: r.namen ?? [],
     vrijeNaam: r.vrije_naam,
     status: r.status,
     vraagNr: r.vraag_nr,
     aantalVragen: r.aantal_vragen,
     vraag: r.vraag,
+    vragen: r.vragen ?? null,
+    wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
     oplossing: r.oplossing,
@@ -41,6 +44,8 @@ const antwoordUit = (r: any): LiveAntwoord => ({
   tijdMs: r.tijd_ms,
   juist: r.juist,
   punten: r.punten,
+  poging: r.poging ?? 1,
+  beloning: r.beloning ?? null,
 });
 
 export function supabaseBackend(url: string, key: string): LiveBackend {
@@ -115,7 +120,16 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
       await uid();
       const { data, error } = await sb
         .from('live_sessies')
-        .insert({ titel: input.titel, namen: input.namen, vrije_naam: input.vrijeNaam, aantal_vragen: input.aantalVragen, timer: input.timer })
+        .insert({
+          titel: input.titel,
+          namen: input.namen,
+          vrije_naam: input.vrijeNaam,
+          aantal_vragen: input.aantalVragen,
+          timer: input.timer,
+          modus: input.modus ?? 'quiz',
+          vragen: input.vragen ?? null,
+          wachttijd: input.wachttijd ?? 0,
+        })
         .select()
         .single();
       if (error) vertaal(error);
@@ -124,6 +138,11 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
 
     async startVraag(sessieId, nr, vraag) {
       const { error } = await sb.rpc('live_start_vraag', { p_sessie: sessieId, p_vraag_nr: nr, p_vraag: vraag });
+      if (error) vertaal(error);
+    },
+
+    async startEscape(sessieId) {
+      const { error } = await sb.rpc('live_start_escape', { p_sessie: sessieId });
       if (error) vertaal(error);
     },
 
@@ -166,7 +185,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
         'live_antwoorden',
         `sessie_id=eq.${sessieId}`,
         async () => {
-          const { data, error } = await sb.from('live_antwoorden').select('*').eq('sessie_id', sessieId).order('aangemaakt');
+          const { data, error } = await sb.from('live_antwoorden').select('*').eq('sessie_id', sessieId).order('aangemaakt').limit(5000);
           if (error) vertaal(error);
           return (data ?? []).map(antwoordUit);
         },

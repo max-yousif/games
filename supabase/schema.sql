@@ -15,12 +15,19 @@ create table if not exists public.live_sessies (
   -- Namen waaruit leerlingen kiezen (leeg + vrije_naam = zelf een naam typen).
   namen text[] not null default '{}',
   vrije_naam boolean not null default false,
-  status text not null default 'lobby' check (status in ('lobby', 'vraag', 'antwoord', 'einde')),
+  -- quiz: de leerkracht toont vraag per vraag. escape: elke leerling lost de sloten op in eigen tempo.
+  modus text not null default 'quiz' check (modus in ('quiz', 'escape')),
+  status text not null default 'lobby' check (status in ('lobby', 'vraag', 'antwoord', 'bezig', 'einde')),
   vraag_nr int not null default -1,
   aantal_vragen int not null default 0,
-  -- Huidige vraag zonder antwoord.
+  -- Huidige vraag zonder antwoord (quiz).
   vraag jsonb,
+  -- Alle vragen zonder antwoord (escape room).
+  vragen jsonb,
+  -- Escape room: seconden wachten na een fout antwoord.
+  wachttijd int not null default 0 check (wachttijd >= 0),
   vraag_start timestamptz,
+  -- Seconden per vraag (quiz) of voor de hele escape room.
   timer int check (timer is null or timer > 0),
   -- Juiste antwoord + uitleg, pas ingevuld als de leerkracht het toont.
   oplossing jsonb,
@@ -44,15 +51,37 @@ create table if not exists public.live_antwoorden (
   id uuid primary key default gen_random_uuid(),
   sessie_id uuid not null references public.live_sessies (id) on delete cascade,
   speler_id uuid not null references public.live_spelers (id) on delete cascade,
+  -- Escape room: -1 = de eindcode.
   vraag_nr int not null,
+  -- Escape room: meerdere pogingen per vraag. Quiz: altijd 1.
+  poging int not null default 1,
   antwoord text not null check (length(antwoord) <= 2000),
   tijd_ms int not null,
   juist boolean,
   punten int not null default 0,
+  -- Escape room: het cijfer van de code dat de leerling verdient met een juist antwoord.
+  beloning text,
   aangemaakt timestamptz not null default now(),
-  unique (speler_id, vraag_nr)
+  unique (speler_id, vraag_nr, poging)
 );
 create index if not exists live_antwoorden_sessie on public.live_antwoorden (sessie_id, vraag_nr);
+
+-- Bijwerken van een oudere installatie (zonder escape room).
+alter table public.live_sessies add column if not exists modus text not null default 'quiz';
+alter table public.live_sessies add column if not exists vragen jsonb;
+alter table public.live_sessies add column if not exists wachttijd int not null default 0;
+alter table public.live_sessies drop constraint if exists live_sessies_status_check;
+alter table public.live_sessies add constraint live_sessies_status_check check (status in ('lobby', 'vraag', 'antwoord', 'bezig', 'einde'));
+alter table public.live_antwoorden add column if not exists poging int not null default 1;
+alter table public.live_antwoorden add column if not exists beloning text;
+alter table public.live_antwoorden drop constraint if exists live_antwoorden_speler_id_vraag_nr_key;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'live_antwoorden_speler_id_vraag_nr_poging_key') then
+    alter table public.live_antwoorden add constraint live_antwoorden_speler_id_vraag_nr_poging_key unique (speler_id, vraag_nr, poging);
+  end if;
+end;
+$$;
 
 -- ---------- Hulpfuncties (security definer: vermijdt recursie in de policies) ----------
 
@@ -188,26 +217,45 @@ begin
 end;
 $$;
 
--- Een antwoord geven op de huidige vraag (één keer per vraag). De tijd wordt door de server gemeten.
+-- Een antwoord geven. Quiz: één keer op de huidige vraag. Escape room: op eender welk slot
+-- (of -1 voor de eindcode), opnieuw proberen na een fout antwoord en de wachttijd.
+-- De tijd wordt door de server gemeten.
 create or replace function public.live_antwoord(p_sessie uuid, p_vraag_nr int, p_antwoord text)
 returns void
 language plpgsql security definer set search_path = public as $$
 declare
   s live_sessies;
   p live_spelers;
+  laatste live_antwoorden;
   ms int;
 begin
   select * into s from live_sessies where id = p_sessie;
   if not found then raise exception 'onbekende_sessie'; end if;
   select * into p from live_spelers where sessie_id = p_sessie and uid = auth.uid();
   if not found then raise exception 'geen_speler'; end if;
-  if s.status <> 'vraag' or s.vraag_nr <> p_vraag_nr then raise exception 'geen_vraag'; end if;
   ms := greatest(0, floor(extract(epoch from (now() - s.vraag_start)) * 1000))::int;
+
+  if s.modus = 'escape' then
+    if s.status <> 'bezig' or p_vraag_nr < -1 or p_vraag_nr >= s.aantal_vragen then raise exception 'geen_vraag'; end if;
+    if s.timer is not null and ms > (s.timer + 2) * 1000 then raise exception 'te_laat'; end if;
+    if exists (select 1 from live_antwoorden where speler_id = p.id and vraag_nr = p_vraag_nr and juist) then
+      raise exception 'al_opgelost';
+    end if;
+    select * into laatste from live_antwoorden where speler_id = p.id and vraag_nr = p_vraag_nr order by poging desc limit 1;
+    if found and (laatste.juist is null or laatste.aangemaakt + make_interval(secs => s.wachttijd) > now()) then
+      raise exception 'wacht';
+    end if;
+    insert into live_antwoorden (sessie_id, speler_id, vraag_nr, poging, antwoord, tijd_ms)
+    values (p_sessie, p.id, p_vraag_nr, coalesce(laatste.poging, 0) + 1, left(p_antwoord, 2000), ms);
+    return;
+  end if;
+
+  if s.status <> 'vraag' or s.vraag_nr <> p_vraag_nr then raise exception 'geen_vraag'; end if;
   -- 2 seconden speling voor trage verbindingen.
   if s.timer is not null and ms > (s.timer + 2) * 1000 then raise exception 'te_laat'; end if;
   insert into live_antwoorden (sessie_id, speler_id, vraag_nr, antwoord, tijd_ms)
   values (p_sessie, p.id, s.vraag_nr, left(p_antwoord, 2000), ms)
-  on conflict (speler_id, vraag_nr) do nothing;
+  on conflict (speler_id, vraag_nr, poging) do nothing;
   if not found then raise exception 'al_geantwoord'; end if;
 end;
 $$;
@@ -226,15 +274,25 @@ begin
 end;
 $$;
 
--- Beoordelingen opslaan: [{"id": "...", "juist": true, "punten": 100}, ...]
+-- Escape room starten; de starttijd komt van de server.
+create or replace function public.live_start_escape(p_sessie uuid)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not live_is_host(p_sessie) then raise exception 'geen_host'; end if;
+  update live_sessies set status = 'bezig', vraag_start = now() where id = p_sessie and modus = 'escape';
+end;
+$$;
+
+-- Beoordelingen opslaan: [{"id": "...", "juist": true, "punten": 100, "beloning": "7"}, ...]
 create or replace function public.live_beoordeel(p_sessie uuid, p_items jsonb)
 returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not live_is_host(p_sessie) then raise exception 'geen_host'; end if;
   update live_antwoorden a
-  set juist = i.juist, punten = coalesce(i.punten, 0)
-  from jsonb_to_recordset(p_items) as i (id uuid, juist boolean, punten int)
+  set juist = i.juist, punten = coalesce(i.punten, 0), beloning = i.beloning
+  from jsonb_to_recordset(p_items) as i (id uuid, juist boolean, punten int, beloning text)
   where a.id = i.id and a.sessie_id = p_sessie;
 end;
 $$;
@@ -242,9 +300,9 @@ $$;
 revoke all on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code(), public.live_opruimen() from public, anon;
 grant execute on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code() to authenticated;
 revoke all on function public.live_sessie_info(text), public.live_deelnemen(text, text), public.live_antwoord(uuid, int, text),
-  public.live_start_vraag(uuid, int, jsonb), public.live_beoordeel(uuid, jsonb) from public, anon;
+  public.live_start_vraag(uuid, int, jsonb), public.live_start_escape(uuid), public.live_beoordeel(uuid, jsonb) from public, anon;
 grant execute on function public.live_sessie_info(text), public.live_deelnemen(text, text), public.live_antwoord(uuid, int, text),
-  public.live_start_vraag(uuid, int, jsonb), public.live_beoordeel(uuid, jsonb) to authenticated;
+  public.live_start_vraag(uuid, int, jsonb), public.live_start_escape(uuid), public.live_beoordeel(uuid, jsonb) to authenticated;
 grant select, insert, update, delete on public.live_sessies to authenticated;
 grant select, update, delete on public.live_spelers, public.live_antwoorden to authenticated;
 

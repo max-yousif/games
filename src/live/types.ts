@@ -28,20 +28,28 @@ export interface StandRij {
   naam: string;
   punten: number;
   juist: number;
+  /** Escape room: tijd tot ontsnappen (ms), of null als nog niet ontsnapt. */
+  tijdMs?: number | null;
 }
 
-export type LiveStatus = 'lobby' | 'vraag' | 'antwoord' | 'einde';
+export type LiveStatus = 'lobby' | 'vraag' | 'antwoord' | 'bezig' | 'einde';
+export type LiveModus = 'quiz' | 'escape';
 
 export interface LiveSessie {
   id: string;
   code: string;
   titel: string;
+  modus: LiveModus;
   namen: string[];
   vrijeNaam: boolean;
   status: LiveStatus;
   vraagNr: number;
   aantalVragen: number;
   vraag: PubliekeVraag | null;
+  /** Escape room: alle sloten. */
+  vragen: PubliekeVraag[] | null;
+  /** Escape room: seconden wachten na een fout antwoord. */
+  wachttijd: number;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -67,6 +75,10 @@ export interface LiveAntwoord {
   tijdMs: number;
   juist: boolean | null;
   punten: number;
+  /** Escape room: pogingnummer (1, 2, ...). */
+  poging: number;
+  /** Escape room: het cijfer van de code bij een juist antwoord. */
+  beloning: string | null;
 }
 
 export interface SessieInfo {
@@ -81,6 +93,7 @@ export interface Beoordeling {
   id: string;
   juist: boolean;
   punten: number;
+  beloning?: string | null;
 }
 
 export type FoutCode =
@@ -91,6 +104,8 @@ export type FoutCode =
   | 'geen_vraag'
   | 'al_geantwoord'
   | 'te_laat'
+  | 'al_opgelost'
+  | 'wacht'
   | 'geen_speler'
   | 'niet_aangemeld'
   | 'anoniem_uit'
@@ -104,6 +119,8 @@ export const FOUT_TEKST: Record<FoutCode, string> = {
   geen_vraag: 'Deze vraag is al afgesloten.',
   al_geantwoord: 'Je hebt deze vraag al beantwoord.',
   te_laat: 'Te laat: de tijd was om.',
+  al_opgelost: 'Dit slot is al open.',
+  wacht: 'Even wachten voor je opnieuw probeert.',
   geen_speler: 'Je bent niet (meer) aangemeld in dit spel.',
   niet_aangemeld: 'Aanmelden is mislukt. Herlaad de pagina.',
   anoniem_uit: 'Anoniem aanmelden staat uit in Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins).',
@@ -121,8 +138,18 @@ export interface LiveBackend {
   soort: 'supabase' | 'lokaal';
 
   // Leerkracht
-  maakSessie(input: { titel: string; namen: string[]; vrijeNaam: boolean; aantalVragen: number; timer: number | null }): Promise<LiveSessie>;
+  maakSessie(input: {
+    titel: string;
+    namen: string[];
+    vrijeNaam: boolean;
+    aantalVragen: number;
+    timer: number | null;
+    modus?: LiveModus;
+    vragen?: PubliekeVraag[];
+    wachttijd?: number;
+  }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
+  startEscape(sessieId: string): Promise<void>;
   wijzigSessie(sessieId: string, patch: Partial<Pick<LiveSessie, 'status' | 'oplossing' | 'stand'>>): Promise<void>;
   beoordeel(sessieId: string, items: Beoordeling[]): Promise<void>;
   ontkoppel(spelerId: string): Promise<void>;

@@ -9,7 +9,7 @@ import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveBackend, type L
 interface Rijen {
   sessies: (LiveSessie & { host: string; aangemaakt: number; vraagStartMs: number | null })[];
   spelers: (LiveSpeler & { sessieId: string; uid: string | null })[];
-  antwoorden: (LiveAntwoord & { sessieId: string })[];
+  antwoorden: (LiveAntwoord & { sessieId: string; aangemaaktMs: number })[];
 }
 
 const SLEUTEL = 'klasspelen.lokaal-live';
@@ -70,7 +70,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
   const isSpeler = (r: Rijen, id: string) => r.spelers.some((p) => p.sessieId === id && p.uid === uid);
   const zonderIntern = ({ host: _h, aangemaakt: _a, vraagStartMs: _v, ...s }: Rijen['sessies'][number]): LiveSessie => s;
   const naarSpeler = (p: Rijen['spelers'][number]): LiveSpeler => ({ id: p.id, naam: p.naam, verbonden: p.uid !== null });
-  const naarAntwoord = ({ sessieId: _s, ...a }: Rijen['antwoorden'][number]): LiveAntwoord => a;
+  const naarAntwoord = ({ sessieId: _s, aangemaaktMs: _a, ...a }: Rijen['antwoorden'][number]): LiveAntwoord => a;
 
   function volg<T>(ophalen: () => T, cb: (t: T) => void): () => void {
     const f = () => cb(ophalen());
@@ -98,12 +98,15 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
           id: crypto.randomUUID(),
           code,
           titel: input.titel,
+          modus: input.modus ?? ('quiz' as const),
           namen: input.namen,
           vrijeNaam: input.vrijeNaam,
           status: 'lobby' as const,
           vraagNr: -1,
           aantalVragen: input.aantalVragen,
           vraag: null,
+          vragen: input.vragen ?? null,
+          wachttijd: input.wachttijd ?? 0,
           vraagStart: null,
           timer: input.timer,
           oplossing: null,
@@ -125,6 +128,14 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
       });
     },
 
+    async startEscape(sessieId: string) {
+      wijzig((r) => {
+        const s = sessie(r, sessieId);
+        if (!s || s.host !== uid) throw new Error('geen_host');
+        if (s.modus === 'escape') Object.assign(s, { status: 'bezig', vraagStart: new Date(klok()).toISOString(), vraagStartMs: klok() });
+      });
+    },
+
     async wijzigSessie(sessieId, patch) {
       wijzig((r) => {
         const s = sessie(r, sessieId);
@@ -137,7 +148,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
         if (!isHost(r, sessieId)) throw new Error('geen_host');
         for (const i of items) {
           const a = r.antwoorden.find((x) => x.id === i.id && x.sessieId === sessieId);
-          if (a) Object.assign(a, { juist: i.juist, punten: i.punten });
+          if (a) Object.assign(a, { juist: i.juist, punten: i.punten, beloning: i.beloning ?? null });
         }
       });
     },
@@ -214,11 +225,36 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
         if (!s) throw new LiveFout('geen_vraag');
         const p = r.spelers.find((x) => x.sessieId === sessieId && x.uid === uid);
         if (!p) throw new LiveFout('geen_speler');
-        if (s.status !== 'vraag' || s.vraagNr !== vraagNr) throw new LiveFout('geen_vraag');
         const ms = Math.max(0, klok() - (s.vraagStartMs ?? klok()));
+        const nieuw = (poging: number) => ({
+          id: crypto.randomUUID(),
+          sessieId,
+          spelerId: p.id,
+          vraagNr,
+          poging,
+          antwoord: antwoord.slice(0, 2000),
+          tijdMs: ms,
+          juist: null,
+          punten: 0,
+          beloning: null,
+          aangemaaktMs: klok(),
+        });
+
+        if (s.modus === 'escape') {
+          if (s.status !== 'bezig' || vraagNr < -1 || vraagNr >= s.aantalVragen) throw new LiveFout('geen_vraag');
+          if (s.timer !== null && ms > (s.timer + 2) * 1000) throw new LiveFout('te_laat');
+          const eigen = r.antwoorden.filter((a) => a.spelerId === p.id && a.vraagNr === vraagNr).sort((a, b) => a.poging - b.poging);
+          if (eigen.some((a) => a.juist)) throw new LiveFout('al_opgelost');
+          const laatste = eigen.at(-1);
+          if (laatste && (laatste.juist === null || laatste.aangemaaktMs + s.wachttijd * 1000 > klok())) throw new LiveFout('wacht');
+          r.antwoorden.push(nieuw((laatste?.poging ?? 0) + 1));
+          return;
+        }
+
+        if (s.status !== 'vraag' || s.vraagNr !== vraagNr) throw new LiveFout('geen_vraag');
         if (s.timer !== null && ms > (s.timer + 2) * 1000) throw new LiveFout('te_laat');
         if (r.antwoorden.some((a) => a.spelerId === p.id && a.vraagNr === vraagNr)) throw new LiveFout('al_geantwoord');
-        r.antwoorden.push({ id: crypto.randomUUID(), sessieId, spelerId: p.id, vraagNr, antwoord: antwoord.slice(0, 2000), tijdMs: ms, juist: null, punten: 0 });
+        r.antwoorden.push(nieuw(1));
       });
     },
 

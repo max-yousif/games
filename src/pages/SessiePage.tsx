@@ -3,6 +3,7 @@ import { EindScherm } from '../components/EindScherm';
 import { Notice } from '../components/ui';
 import { VierOpEenRij, wachtOpZet } from '../games/VierOpEenRij';
 import { QuizBord } from '../games/QuizBord';
+import { EscapeHost } from '../live/EscapeHost';
 import { LiveHost } from '../live/LiveHost';
 import { bouwRooster, winnaar } from '../lib/connectFour';
 import { SPEL_NAMEN } from '../lib/exportResults';
@@ -58,8 +59,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   }
 
   const vierWinnaar = sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : undefined;
-  const kanOngedaan = sessie.beurten.length > 0 && sessie.spelType !== 'live';
-  const isLive = sessie.spelType === 'live';
+  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape';
+  const kanOngedaan = sessie.beurten.length > 0 && !isLive;
 
   return (
     <div className="flex h-screen flex-col bg-slate-100">
@@ -90,7 +91,9 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       </header>
 
-      {isLive ? (
+      {sessie.spelType === 'escape' ? (
+        <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} />
+      ) : isLive ? (
         <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} />
       ) : sessie.beeindigd ? (
         <div className="flex-1 overflow-y-auto">
