@@ -37,7 +37,7 @@ export function AccountKnop({ store }: { store: Store }) {
         {account.leerkracht.naam}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-lg">
+        <div className="absolute right-0 z-40 mt-2 w-80 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
           <p>
             Aangemeld als <strong>{account.leerkracht.naam}</strong>.
           </p>

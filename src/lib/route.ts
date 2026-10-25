@@ -9,6 +9,7 @@ export type Route =
   | { pagina: 'sessie'; id: string }
   | { pagina: 'resultaten' }
   | { pagina: 'aanmelden' }
+  | { pagina: 'importeren'; setId?: string }
   | { pagina: 'live'; code?: string; demo: boolean };
 
 export function parseHash(hash: string): Route {
@@ -30,6 +31,8 @@ export function parseHash(hash: string): Route {
       return { pagina: 'resultaten' };
     case 'aanmelden':
       return { pagina: 'aanmelden' };
+    case 'importeren':
+      return { pagina: 'importeren', setId: params.get('set') ?? undefined };
     case 'live':
       return { pagina: 'live', code: params.get('code') ?? undefined, demo: params.get('demo') === '1' };
     default:
@@ -45,6 +48,8 @@ export function href(r: Route): string {
       return `#/set/${r.id}`;
     case 'spelen':
       return r.setId ? `#/spelen?set=${r.setId}` : '#/spelen';
+    case 'importeren':
+      return r.setId ? `#/importeren?set=${r.setId}` : '#/importeren';
     case 'sessie':
       return `#/sessie/${r.id}`;
     case 'live': {

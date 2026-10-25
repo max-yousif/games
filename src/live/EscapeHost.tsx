@@ -163,7 +163,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
       {server.status === 'bezig' && (
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-4">
-            <span className={`rounded-2xl px-5 py-2 font-mono text-5xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-white'}`}>
+            <span className={`rounded-2xl px-5 py-2 font-mono text-5xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
               ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
             </span>
             <span className="text-3xl font-semibold">
@@ -189,7 +189,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
 
 function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; vragen: Vraag[] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-2xl bg-surface shadow-sm">
       <table className="w-full text-left">
         <thead className="bg-slate-100 text-sm text-slate-600">
           <tr>
@@ -277,7 +277,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
           )}
         </div>
       )}
-      <table className="mt-8 w-full overflow-hidden rounded-xl bg-white text-left shadow-sm">
+      <table className="mt-8 w-full overflow-hidden rounded-xl bg-surface text-left shadow-sm">
         <thead className="bg-slate-100 text-sm text-slate-600">
           <tr>
             <th className="px-4 py-2">#</th>
@@ -308,7 +308,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
             Afsluiten en gegevens op de server wissen
           </Button>
         )}
-        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">
+        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
           Naar de startpagina
         </a>
       </div>

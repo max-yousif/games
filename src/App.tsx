@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { AccountKnop } from './components/Account';
+import { ThemaKnop } from './components/ThemaKnop';
 import { StartPage } from './pages/StartPage';
 import { href, useRoute, type Route } from './lib/route';
 import { useStore } from './lib/store';
@@ -12,6 +13,7 @@ const SetEditorPage = lazy(() => import('./pages/SetEditorPage').then((m) => ({ 
 const SetsPage = lazy(() => import('./pages/SetsPage').then((m) => ({ default: m.SetsPage })));
 const SpelenPage = lazy(() => import('./pages/SpelenPage').then((m) => ({ default: m.SpelenPage })));
 const AanmeldenPage = lazy(() => import('./pages/AanmeldenPage').then((m) => ({ default: m.AanmeldenPage })));
+const ImporterenPage = lazy(() => import('./pages/ImporterenPage').then((m) => ({ default: m.ImporterenPage })));
 const LiveSpelerPage = lazy(() => import('./live/LiveSpelerPage').then((m) => ({ default: m.LiveSpelerPage })));
 
 const laden = <div className="p-10 text-center text-slate-400">Laden…</div>;
@@ -44,7 +46,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-surface">
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-6 py-3">
           <a href={href({ pagina: 'start' })} className="mr-4 text-lg font-bold">
             🎲 Klasspelen
@@ -54,8 +56,8 @@ export default function App() {
               key={m.label}
               href={href(m.route)}
               className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                route.pagina === m.route.pagina || (m.route.pagina === 'sets' && route.pagina === 'set')
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                route.pagina === m.route.pagina || (m.route.pagina === 'sets' && (route.pagina === 'set' || route.pagina === 'importeren'))
+                  ? 'bg-[var(--accent-soft)] text-[var(--accent-tekst)]'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -63,6 +65,7 @@ export default function App() {
             </a>
           ))}
           <AccountKnop store={store} />
+          <ThemaKnop className={store.account.beschikbaar ? '' : 'ml-auto'} />
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
@@ -74,6 +77,7 @@ export default function App() {
         {route.pagina === 'spelen' && <SpelenPage key={route.setId ?? ''} setId={route.setId} store={store} />}
         {route.pagina === 'resultaten' && <ResultatenPage store={store} />}
         {route.pagina === 'aanmelden' && <AanmeldenPage store={store} />}
+        {route.pagina === 'importeren' && <ImporterenPage key={route.setId ?? ''} setId={route.setId} store={store} />}
         </Suspense>
       </main>
     </div>

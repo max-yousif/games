@@ -35,7 +35,7 @@ export function KlassenPage({ store }: { store: Store }) {
               type="button"
               onClick={() => setGekozen(k.id)}
               className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium ${
-                k.id === gekozen ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'hover:bg-slate-100'
+                k.id === gekozen ? 'bg-[var(--accent-soft)] text-[var(--accent-tekst)]' : 'hover:bg-slate-100'
               }`}
             >
               <span>{k.naam || 'Naamloze klas'}</span>
@@ -89,7 +89,7 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="space-y-5 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-60">
           <label className={labelClass}>Naam van de klas</label>

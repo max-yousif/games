@@ -17,7 +17,7 @@ export function QuizBord({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: S
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6">
       <div className="grid min-h-0 flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${kolommen.length}, minmax(0, 1fr))`, gridTemplateRows: `auto repeat(${rijen}, minmax(0, 1fr))` }}>
         {kolommen.map((k, ki) => (
-          <div key={k.categorie} className="flex items-center justify-center rounded-xl bg-slate-800 px-2 py-3 text-center text-lg font-bold text-white" style={{ gridColumn: ki + 1, gridRow: 1 }}>
+          <div key={k.categorie} className="flex items-center justify-center rounded-xl bg-gray-800 px-2 py-3 text-center text-lg font-bold text-white" style={{ gridColumn: ki + 1, gridRow: 1 }}>
             {k.categorie}
           </div>
         ))}

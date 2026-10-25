@@ -33,15 +33,15 @@ export function VraagWeergave({
             if (!o.trim()) return null;
             const isJuist = i === v.juisteOptie;
             const kleur = !getoond
-              ? 'border-slate-200 bg-white' + (onKiesOptie ? ' hover:border-slate-400' : '')
+              ? 'border-slate-200 bg-surface' + (onKiesOptie ? ' hover:border-slate-400' : '')
               : isJuist
                 ? 'border-emerald-500 bg-emerald-100'
                 : i === gekozenOptie
                   ? 'border-red-400 bg-red-100'
-                  : 'border-slate-200 bg-white opacity-50';
+                  : 'border-slate-200 bg-surface opacity-50';
             const inhoud = (
               <>
-                <span className={`flex shrink-0 items-center justify-center rounded-full bg-slate-800 font-bold text-white ${groot ? 'h-12 w-12 text-2xl' : 'h-7 w-7 text-sm'}`}>
+                <span className={`flex shrink-0 items-center justify-center rounded-full bg-gray-800 font-bold text-white ${groot ? 'h-12 w-12 text-2xl' : 'h-7 w-7 text-sm'}`}>
                   {LETTERS[i]}
                 </span>
                 <RichText text={o} />
@@ -75,7 +75,7 @@ function Item({ tekst, code, groot }: { tekst: string; code?: boolean; groot: bo
   );
 }
 
-function Letter({ l, groot, kleur = 'bg-slate-800' }: { l: string; groot: boolean; kleur?: string }) {
+function Letter({ l, groot, kleur = 'bg-gray-800' }: { l: string; groot: boolean; kleur?: string }) {
   return <span className={`flex shrink-0 items-center justify-center rounded-full font-bold text-white ${kleur} ${groot ? 'h-10 w-10 text-xl' : 'h-7 w-7 text-sm'}`}>{l}</span>;
 }
 
@@ -92,7 +92,7 @@ function Ordenen({ vraag: v, groot, getoond }: { vraag: Vraag; groot: boolean; g
     <div className={groot ? 'mt-6' : 'mt-3'}>
       <ul className={`${groot ? 'space-y-3' : 'space-y-1.5'}`}>
         {getoondeItems.map((o, i) => (
-          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
+          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-surface ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
             <Letter l={LETTERS[i]} groot={groot} />
             <Item tekst={o} code={v.alsCode} groot={groot} />
           </li>
@@ -118,7 +118,7 @@ function Koppelen({ vraag: v, groot, getoond }: { vraag: Vraag; groot: boolean; 
     <div className={`grid grid-cols-2 ${groot ? 'gap-8' : 'gap-3'} ${groot ? 'mt-6' : 'mt-3'}`}>
       <ul className={`${groot ? 'space-y-3' : 'space-y-1.5'}`}>
         {paren.map(([l], i) => (
-          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 bg-white ${getoond ? 'border-emerald-400' : 'border-slate-200'} ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
+          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 bg-surface ${getoond ? 'border-emerald-400' : 'border-slate-200'} ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
             <Letter l={String(i + 1)} groot={groot} kleur="bg-[var(--accent)]" />
             <div className="flex-1">
               <Item tekst={l} groot={groot} />
@@ -129,7 +129,7 @@ function Koppelen({ vraag: v, groot, getoond }: { vraag: Vraag; groot: boolean; 
       </ul>
       <ul className={`${groot ? 'space-y-3' : 'space-y-1.5'}`}>
         {rechts.map((r, i) => (
-          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
+          <li key={i} className={`flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-surface ${groot ? 'px-5 py-3' : 'px-3 py-1.5'}`}>
             <Letter l={LETTERS[i]} groot={groot} />
             <Item tekst={r} groot={groot} />
           </li>

@@ -101,7 +101,7 @@ function EditorSchakelaar({ aan, onWissel }: { aan: boolean; onWissel: (aan: boo
     <button
       type="button"
       onClick={() => onWissel(!aan)}
-      className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${aan ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}
+      className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${aan ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-tekst)]' : 'border-slate-300 bg-surface text-slate-600 hover:bg-slate-50'}`}
       title="Typ breuken, machten, wortels en maal zoals op papier"
     >
       <span className="font-serif">√x</span> Wiskunde-editor {aan ? 'aan' : 'uit'}
@@ -232,7 +232,7 @@ function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: bo
       <p className="mb-2 text-slate-600">Zet in de juiste volgorde met de pijltjes.</p>
       <ol className="space-y-2">
         {volgorde.map((item, i) => (
-          <li key={`${item}-${i}`} className="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2">
+          <li key={`${item}-${i}`} className="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-surface px-4 py-2">
             <span className="w-6 font-bold text-slate-400">{i + 1}.</span>
             <div className="min-w-0 flex-1">{code ? <pre className="overflow-x-auto font-mono text-lg whitespace-pre">{item}</pre> : <RichText text={item} className="text-xl" />}</div>
             <button type="button" aria-label="Omhoog" disabled={i === 0} onClick={() => wissel(i, i - 1)} className="rounded-lg bg-slate-100 px-3 py-2 text-xl hover:bg-slate-200 disabled:opacity-30">
@@ -269,10 +269,10 @@ function Koppelen({ links, rechts, bezig, onVerstuur }: { links: string[]; recht
   const klaar = keuze.every(Boolean);
   return (
     <div>
-      <div className="mb-4 grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-2">
+      <div className="mb-4 grid gap-2 rounded-xl bg-surface p-4 sm:grid-cols-2">
         {rechts.map((r, i) => (
           <div key={i} className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 font-bold text-white">{LETTERS[i]}</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-800 font-bold text-white">{LETTERS[i]}</span>
             <RichText text={r} className="text-lg" />
           </div>
         ))}
@@ -280,7 +280,7 @@ function Koppelen({ links, rechts, bezig, onVerstuur }: { links: string[]; recht
       <p className="mb-2 text-slate-600">Kies bij elk item de juiste letter.</p>
       <div className="space-y-2">
         {links.map((l, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2">
+          <div key={i} className="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-surface px-4 py-2">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-bold text-white">{i + 1}</span>
             <RichText text={l} className="flex-1 text-xl" />
             <div className="flex flex-wrap gap-1">

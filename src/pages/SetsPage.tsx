@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button, FileButton, Notice, PageHeader } from '../components/ui';
 import { BackupError, bestandsnaam, downloadJson, leesBestand, setBestand, voegSamen } from '../lib/backup';
 import { nu } from '../lib/ids';
-import { downloadQuestionTemplate, QuestionImportError, readSpreadsheet, rowsToQuestions, UnsupportedFileError } from '../lib/importFile';
 import { dupliceerSet, nieuweSet, speelbareVragen } from '../lib/questions';
 import { ga, href } from '../lib/route';
 import { ontbrekendeVoorbeelden, type Store } from '../lib/store';
@@ -19,19 +18,6 @@ export function SetsPage({ store }: { store: Store }) {
     const s = nieuweSet();
     store.setSets((all) => [...all, s]);
     ga({ pagina: 'set', id: s.id });
-  }
-
-  async function importeerExcel(file: File) {
-    try {
-      const vragen = rowsToQuestions(await readSpreadsheet(file));
-      if (vragen.length === 0) throw new QuestionImportError('Er werden geen vragen gevonden in dit bestand.');
-      const s: Vragenset = { ...nieuweSet(), titel: file.name.replace(/\.[^.]+$/, ''), vragen };
-      store.setSets((all) => [...all, s]);
-      ga({ pagina: 'set', id: s.id });
-    } catch (e) {
-      const bekend = e instanceof QuestionImportError || e instanceof UnsupportedFileError;
-      setMelding({ tone: 'warn', tekst: bekend ? e.message : 'Het bestand kon niet gelezen worden.' });
-    }
   }
 
   async function importeerJson(file: File) {
@@ -57,9 +43,9 @@ export function SetsPage({ store }: { store: Store }) {
         <Button variant="primary" onClick={nieuw}>
           + Nieuwe vragenset
         </Button>
-        <FileButton accept=".xlsx,.csv" onFile={importeerExcel}>
-          Importeren uit Excel…
-        </FileButton>
+        <a href={href({ pagina: 'importeren' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
+          📥 Vragen importeren
+        </a>
         <FileButton accept=".json,application/json" onFile={importeerJson}>
           Openen uit bestand…
         </FileButton>
@@ -76,9 +62,9 @@ export function SetsPage({ store }: { store: Store }) {
           const categorieen = [...new Set(s.vragen.map((v) => v.categorie.trim()).filter(Boolean))];
           const klaar = speelbareVragen(s).length;
           return (
-            <div key={s.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div key={s.id} className="flex flex-col rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[var(--accent)]">{VAK_LABELS[s.vak]}</span>
+                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[var(--accent-tekst)]">{VAK_LABELS[s.vak]}</span>
                 {s.leerjaar && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{s.leerjaar}</span>}
                 {s.voorbeeld && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">voorbeeld</span>}
               </div>
@@ -106,23 +92,21 @@ export function SetsPage({ store }: { store: Store }) {
         })}
       </div>
 
-      {sets.length === 0 && <Notice>Nog geen vragensets. Maak een nieuwe set of importeer er een uit Excel.</Notice>}
+      {sets.length === 0 && <Notice>Nog geen vragensets. Maak een nieuwe set of importeer vragen.</Notice>}
 
       <div className="mt-8 space-y-2 text-sm text-slate-600">
         <p>
-          <strong>Excel-import:</strong> de eerste rij bevat de kolomtitels <em>Type, Categorie, Punten, Vraag, Antwoord</em>, en optioneel{' '}
-          <em>Ook juist</em> (andere juiste antwoorden bij een open vraag), <em>Fout antwoord 1–3</em> (meerkeuze), <em>Tolerantie</em> (getal) en <em>Uitleg</em>. Types: open, meerkeuze, waar/onwaar, getal, invullen,
-          ordenen en koppelen; het sjabloon bevat van elk een voorbeeld.{' '}
-          <button type="button" className="text-[var(--accent)] underline" onClick={() => downloadQuestionTemplate()}>
-            Download het sjabloon
-          </button>
-          .
+          <strong>Vragen importeren:</strong> plak cellen uit Excel of Google Sheets, tekst uit Word of van een AI-chatbot, of sleep een Excel-bestand. Je ziet meteen
+          een voorbeeld van elke vraag voor je ze toevoegt.{' '}
+          <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'importeren' })}>
+            Vragen importeren
+          </a>
         </p>
         {ontbrekend.length > 0 && (
           <p>
             <button
               type="button"
-              className="text-[var(--accent)] underline"
+              className="text-[var(--accent-tekst)] underline"
               onClick={() => store.setSets((all) => [...all, ...ontbrekend.map((v) => ({ ...v, gewijzigd: nu() }))])}
             >
               Voorbeeldsets opnieuw toevoegen

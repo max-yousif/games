@@ -66,7 +66,7 @@ export function EscapeSpeler({
   if (sessie.status === 'einde') {
     const plaats = sessie.stand.findIndex((r) => r.id === spelerId) + 1;
     return (
-      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl bg-surface p-8 text-center shadow-sm">
         <div className="text-6xl">{ontsnapt ? '🎉' : '🔒'}</div>
         <h1 className="mt-3 text-3xl font-bold">{ontsnapt ? `Ontsnapt in ${tijdTekst(ontsnapt.tijdMs)}!` : 'De tijd is om!'}</h1>
         <p className="mt-2 text-xl text-slate-600">
@@ -90,7 +90,7 @@ export function EscapeSpeler({
 
   if (resterend !== null && resterend <= 0) {
     return (
-      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl bg-surface p-8 text-center shadow-sm">
         <div className="text-6xl">⏰</div>
         <h1 className="mt-3 text-3xl font-bold">De tijd is om!</h1>
         <p className="mt-2 text-xl text-slate-600">
@@ -104,12 +104,12 @@ export function EscapeSpeler({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
         <span className="text-xl font-semibold">🗝️ {sessie.titel}</span>
-        <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-white'}`}>
+        <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
           ⏱ {tijdTekst(resterend !== null ? resterend : verstreken)}
         </span>
       </div>
 
-      <div className="rounded-2xl bg-slate-800 p-5 text-white shadow-sm">
+      <div className="rounded-2xl bg-gray-800 p-5 text-white shadow-sm">
         <div className="text-sm tracking-wide uppercase opacity-70">De geheime code</div>
         <div className="mt-2 flex flex-wrap gap-2">
           {cijfers.map((c, i) => (
@@ -135,7 +135,7 @@ export function EscapeSpeler({
                   disabled={st.soort === 'klaar'}
                   onClick={() => setOpen(nr)}
                   className={`rounded-2xl border-2 p-4 text-left transition ${
-                    st.soort === 'klaar' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md'
+                    st.soort === 'klaar' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-surface hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md'
                   }`}
                 >
                   <div className="text-3xl">{st.soort === 'klaar' ? '🔓' : '🔒'}</div>
@@ -174,7 +174,7 @@ function Slot({ nr, be, sessie, status, cijfer, onTerug }: { nr: number; be: Liv
       <button type="button" onClick={onTerug} className="text-slate-500 underline">
         ← Terug naar de sloten
       </button>
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
+      <div className="rounded-2xl bg-surface p-6 shadow-sm">
         <div className="mb-2 text-sm font-semibold text-slate-500">
           Slot {nr + 1}
           {v.categorie && ` · ${v.categorie}`}
@@ -187,7 +187,7 @@ function Slot({ nr, be, sessie, status, cijfer, onTerug }: { nr: number; be: Liv
           <div className="mt-2 text-3xl font-bold">Slot open! Je cijfer: {cijfer}</div>
         </div>
       )}
-      {status.soort === 'nakijken' && <div className="rounded-2xl bg-white p-6 text-center text-xl text-slate-500">Wordt nagekeken…</div>}
+      {status.soort === 'nakijken' && <div className="rounded-2xl bg-surface p-6 text-center text-xl text-slate-500">Wordt nagekeken…</div>}
       {status.soort === 'wachten' && (
         <div className="rounded-2xl bg-red-600 p-6 text-center text-white">
           <div className="text-4xl">✗</div>

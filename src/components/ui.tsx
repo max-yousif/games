@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export function Section({ step, title, children, aside }: { step?: number; title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {step !== undefined && (
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white">
@@ -21,8 +21,8 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-[var(--accent)] text-white hover:brightness-110',
-  secondary: 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
-  danger: 'border border-red-200 bg-white text-red-700 hover:bg-red-50',
+  secondary: 'border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50',
+  danger: 'border border-red-200 bg-surface text-red-700 hover:bg-red-50',
   ghost: 'text-slate-600 hover:bg-slate-100',
 };
 
@@ -46,18 +46,18 @@ export function Notice({ tone = 'info', children }: { tone?: 'info' | 'warn' | '
 }
 
 export const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]';
+  'w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]';
 
 export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label={title}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
-      <div className="w-full max-w-3xl rounded-2xl bg-white p-5 shadow-xl sm:p-6">
+      <div className="w-full max-w-3xl rounded-2xl bg-surface p-5 shadow-xl sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button type="button" onClick={onClose} className="rounded px-2 py-1 text-slate-400 hover:bg-slate-100" aria-label="Sluiten">

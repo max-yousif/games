@@ -38,7 +38,7 @@ export function AanmeldenPage({ store }: { store: Store }) {
     );
 
   return (
-    <form onSubmit={verstuur} className="mx-auto max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={verstuur} className="mx-auto max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
       <h1 className="text-2xl font-bold">Aanmelden als leerkracht</h1>
       <p className="text-sm text-slate-600">Na het aanmelden staan je vragensets, klassen en resultaten op elk toestel, en kan je live spellen starten.</p>
       <div>

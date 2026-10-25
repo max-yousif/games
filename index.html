@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>" />
+    <script>
+      // Thema meteen toepassen, zodat de pagina niet eerst wit oplicht (zie src/lib/thema.ts).
+      try {
+        var t = localStorage.getItem('games.v1.thema');
+        var d = t === 'donker' || (t !== 'licht' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = d ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
     <title>Klasspelen: wiskunde en Python</title>
   </head>
   <body>

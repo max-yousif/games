@@ -42,7 +42,7 @@ export function StartPage({ store }: { store: Store }) {
           <h1 className="text-3xl font-bold">Klasspelen</h1>
           <p className="mt-1 text-slate-600">Klassikale spelletjes met je eigen vragen: wiskunde en Python.</p>
         </div>
-        <a href={href({ pagina: 'live', demo: false })} className="ml-auto rounded-xl border-2 border-[var(--accent)] px-5 py-3 font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]">
+        <a href={href({ pagina: 'live', demo: false })} className="ml-auto rounded-xl border-2 border-[var(--accent)] px-5 py-3 font-semibold text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]">
           💻 Leerling? Live meespelen
         </a>
       </div>
@@ -74,7 +74,7 @@ export function StartPage({ store }: { store: Store }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {TEGELS.map((t) => (
-          <a key={t.titel} href={t.href} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <a key={t.titel} href={t.href} className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <div className="text-4xl">{t.icoon}</div>
             <div className="mt-3 text-lg font-semibold">{t.titel}</div>
             <div className="mt-1 text-sm text-slate-600">{t.tekst}</div>

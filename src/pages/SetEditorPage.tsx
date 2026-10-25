@@ -1,10 +1,8 @@
-import { useState } from 'react';
 import { AntwoordVelden } from '../components/AntwoordVelden';
 import { RichText } from '../components/RichText';
-import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
+import { Button, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { VraagWeergave } from '../components/VraagWeergave';
 import { nu } from '../lib/ids';
-import { QuestionImportError, readSpreadsheet, rowsToQuestions, UnsupportedFileError } from '../lib/importFile';
 import { juistAntwoord, kopieVraag, nieuweVraag, vraagProblemen } from '../lib/questions';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
@@ -14,7 +12,6 @@ import { VAK_LABELS } from './SetsPage';
 
 export function SetEditorPage({ id, store }: { id: string; store: Store }) {
   const set = store.sets.find((s) => s.id === id);
-  const [melding, setMelding] = useState<string | null>(null);
 
   if (!set) {
     return (
@@ -37,17 +34,6 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
       return { ...s, vragen };
     });
 
-  async function voegToeUitExcel(file: File) {
-    try {
-      const vragen = rowsToQuestions(await readSpreadsheet(file));
-      update((s) => ({ ...s, vragen: [...s.vragen.filter((v) => v.tekst.trim()), ...vragen] }));
-      setMelding(`${vragen.length} vragen toegevoegd.`);
-    } catch (e) {
-      const bekend = e instanceof QuestionImportError || e instanceof UnsupportedFileError;
-      setMelding(bekend ? e.message : 'Het bestand kon niet gelezen worden.');
-    }
-  }
-
   const categorieen = [...new Set(set.vragen.map((v) => v.categorie.trim()).filter(Boolean))];
 
   return (
@@ -58,7 +44,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         </a>
       </PageHeader>
 
-      <div className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[2fr_1fr_1fr]">
+      <div className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm md:grid-cols-[2fr_1fr_1fr]">
         <div>
           <label className={labelClass}>Titel</label>
           <input className={inputClass} value={set.titel} onChange={(e) => update((s) => ({ ...s, titel: e.target.value }))} />
@@ -83,7 +69,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         </div>
       </div>
 
-      <details className="mb-6 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-700">
+      <details className="mb-6 rounded-xl border border-slate-200 bg-surface px-5 py-3 text-sm text-slate-700">
         <summary className="cursor-pointer font-medium">Hoe typ ik formules en code?</summary>
         <ul className="mt-3 list-disc space-y-1 pl-5">
           <li>
@@ -101,12 +87,6 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           </li>
         </ul>
       </details>
-
-      {melding && (
-        <div className="mb-4">
-          <Notice>{melding}</Notice>
-        </div>
-      )}
 
       <datalist id="categorieen">
         {categorieen.map((c) => (
@@ -135,9 +115,9 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         <Button variant="primary" onClick={() => update((s) => ({ ...s, vragen: [...s.vragen, nieuweVraag(s.vragen.at(-1))] }))}>
           + Vraag toevoegen
         </Button>
-        <FileButton accept=".xlsx,.csv" onFile={voegToeUitExcel}>
-          Vragen toevoegen uit Excel…
-        </FileButton>
+        <a href={href({ pagina: 'importeren', setId: set.id })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
+          📥 Vragen importeren (plakken, Excel, AI)
+        </a>
       </div>
       <p className="mt-3 text-sm text-slate-500">Wijzigingen worden automatisch bewaard.</p>
     </div>
@@ -163,7 +143,7 @@ function VraagEditor({
 }) {
   const problemen = vraagProblemen(v);
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">{nr}</span>
         <div className="w-56">

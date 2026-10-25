@@ -106,7 +106,7 @@ export function BeurtScherm({
           {punten} {punten === 1 ? 'punt' : 'punten'}
         </span>
         {resterend !== null && (
-          <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${tijdOp ? 'animate-pulse bg-white text-red-600' : 'bg-white/20'}`}>
+          <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${tijdOp ? 'animate-pulse bg-surface text-red-600' : 'bg-white/20'}`}>
             {tijdOp ? 'Tijd is om!' : `${Math.floor(Math.max(resterend, 0) / 60)}:${String(Math.max(resterend, 0) % 60).padStart(2, '0')}`}
           </span>
         )}
@@ -135,9 +135,9 @@ export function BeurtScherm({
 
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 bg-white px-10 py-4">
+          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 bg-surface px-10 py-4">
             {!getoond ? (
-              <button type="button" onClick={() => setGetoond(true)} className="rounded-xl bg-slate-800 px-8 py-3 text-xl font-semibold text-white hover:bg-slate-700">
+              <button type="button" onClick={() => setGetoond(true)} className="rounded-xl bg-gray-800 px-8 py-3 text-xl font-semibold text-white hover:bg-gray-700">
                 Toon antwoord <span className="text-sm opacity-60">(spatie)</span>
               </button>
             ) : (
@@ -162,7 +162,7 @@ export function BeurtScherm({
           </div>
         </div>
 
-        <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white px-5 py-6">
+        <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-surface px-5 py-6">
           <div className="mb-3 text-lg font-semibold">Wie antwoordt?</div>
           {t.leerlingen.length > 0 && (
             <button

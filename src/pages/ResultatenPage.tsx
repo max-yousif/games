@@ -17,7 +17,7 @@ export function ResultatenPage({ store }: { store: Store }) {
     <div>
       <PageHeader title="Resultaten">
         {klassen.length > 1 && (
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={klasFilter} onChange={(e) => setKlasFilter(e.target.value)}>
+          <select className="rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm" value={klasFilter} onChange={(e) => setKlasFilter(e.target.value)}>
             <option value="">Alle klassen</option>
             {klassen.map((k) => (
               <option key={k}>{k}</option>
@@ -33,7 +33,7 @@ export function ResultatenPage({ store }: { store: Store }) {
 
       <div className="space-y-3">
         {sessies.map((s) => (
-          <div key={s.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div key={s.id} className="rounded-2xl border border-slate-200 bg-surface shadow-sm">
             <button type="button" onClick={() => setOpen(open === s.id ? null : s.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 text-left">
               <span className="font-semibold">{s.setTitel}</span>
               <span className="text-sm text-slate-500">

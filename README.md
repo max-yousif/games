@@ -19,14 +19,18 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
    (`…/games/#/live`) in een tweede tabblad van dezelfde browser.
 3. **Live spelen met echte laptops**: maak een gratis Supabase-project en koppel het
    (± 10 minuten): zie [supabase/README.md](supabase/README.md).
-4. **Eigen inhoud**: maak een klas (namen plakken) en vragensets (zelf typen of uit Excel).
+4. **Eigen inhoud**: maak een klas (namen plakken) en vragensets (zelf typen of importeren).
    Maak af en toe een **back-up** (startpagina): alles staat in de browser van je laptop.
 
 - **Klassen** met namen van leerlingen (plakken uit Excel/Smartschool of Excel importeren);
   elke beurt wordt aan een leerling gekoppeld (of 🎲 willekeurig gekozen).
 - **Vragensets** zelf maken met 7 vraagtypes: open vraag, meerkeuze, waar/onwaar, getal (met
   foutmarge), invullen, ordenen (bv. Python-lijnen) en koppelen. Formules in LaTeX (`$x^2$`),
-  Python-code in codeblokken, importeren uit Excel, dupliceren en bewaren als bestand.
+  Python-code in codeblokken, dupliceren en bewaren als bestand.
+- **Vragen importeren**: plak cellen uit Excel/Google Sheets, tekst uit Word of van een
+  AI-chatbot (snelformaat met `*`, `-` en `=`), of sleep een Excel-bestand. Je kiest zelf welke
+  kolom wat is en ziet elke vraag vooraf.
+- **Dark mode**: knop rechtsboven (donker, licht of zoals de computer).
 - **Resultaten** per leerling bekijken en **exporteren naar Excel**.
 - Spellen **pauzeren en hervatten**, laatste beurt **ongedaan maken**, timer, volledig scherm.
 - **Live quiz en escape room**: code op het bord, leerlingen kiezen hun naam (en eventueel een

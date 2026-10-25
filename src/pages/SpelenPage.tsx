@@ -166,7 +166,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           <p className="mt-2 text-sm text-slate-500">
             {vragen.length} speelbare vragen
             {vragen.length < set.vragen.length && ` (${set.vragen.length - vragen.length} onvolledige vragen worden overgeslagen)`}.{' '}
-            <a className="text-[var(--accent)] underline" href={href({ pagina: 'set', id: set.id })}>
+            <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
               Bewerken
             </a>
           </p>

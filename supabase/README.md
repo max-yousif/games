@@ -55,6 +55,9 @@ resultaten bewaard in de tabel `leerkracht_items`. Enkel jij kan ze lezen (row l
 Per item wint de laatste wijziging. Emoji-reacties gebruiken Supabase Realtime (broadcast) en
 worden niet bewaard.
 
+**Controleren of alles klopt**: **Actions → Supabase controleren → Run workflow** test het
+schema, anoniem aanmelden en de beveiliging (enkel leerkrachten starten live spellen).
+
 **Supabase wakker houden**: de GitHub-taak *Supabase wakker houden* roept de database elke
 3 dagen aan, zodat het gratis project niet gepauzeerd wordt. Dat werkt automatisch zodra de
 variabelen `SUPABASE_URL` en `SUPABASE_ANON_KEY` ingesteld zijn en het schema `live_ping` bevat.

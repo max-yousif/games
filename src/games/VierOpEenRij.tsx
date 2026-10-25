@@ -45,7 +45,7 @@ export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (
       </div>
 
       <div className="min-h-0 w-full max-w-3xl flex-1">
-        <div className="mx-auto grid aspect-[7/6] max-h-full gap-2 rounded-3xl bg-slate-800 p-3 shadow-xl" style={{ gridTemplateColumns: `repeat(${KOLOMMEN}, minmax(0, 1fr))` }} onMouseLeave={() => setHover(null)}>
+        <div className="mx-auto grid aspect-[7/6] max-h-full gap-2 rounded-3xl bg-gray-800 p-3 shadow-xl" style={{ gridTemplateColumns: `repeat(${KOLOMMEN}, minmax(0, 1fr))` }} onMouseLeave={() => setHover(null)}>
           {rooster.map((rij, ri) =>
             rij.map((cel, ki) => {
               const nieuw = laatsteZet && laatsteZet.kolom === ki && cel !== null && ri === rooster.findIndex((r) => r[ki] !== null);
@@ -57,7 +57,7 @@ export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (
                   disabled={zetVan === null}
                   onMouseEnter={() => setHover(ki)}
                   onClick={() => laatVallen(ki)}
-                  className={`aspect-square rounded-full ${zetVan !== null ? 'cursor-pointer' : 'cursor-default'} ${hover === ki && zetVan !== null ? 'bg-slate-300' : 'bg-white'}`}
+                  className={`aspect-square rounded-full ${zetVan !== null ? 'cursor-pointer' : 'cursor-default'} ${hover === ki && zetVan !== null ? 'bg-slate-300' : 'bg-surface'}`}
                   aria-label={`Kolom ${ki + 1}`}
                 >
                   {cel !== null && (

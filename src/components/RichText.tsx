@@ -38,7 +38,7 @@ export function RichText({ text, className = '' }: { text: string; className?: s
         if (s.soort === 'formule') return <Formule key={i} tex={s.tex} blok={s.blok} />;
         if (s.soort === 'code' && s.blok)
           return (
-            <pre key={i} className="my-2 overflow-x-auto rounded-lg bg-slate-900 px-4 py-3 text-left font-mono text-[0.85em] leading-snug text-slate-100">
+            <pre key={i} className="my-2 overflow-x-auto rounded-lg bg-gray-900 px-4 py-3 text-left font-mono text-[0.85em] leading-snug text-gray-100">
               <code>{metGaten(s.code)}</code>
             </pre>
           );

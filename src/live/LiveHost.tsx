@@ -183,7 +183,7 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         <button
           type="button"
           onClick={() => setReactiesTonen(!reactiesTonen)}
-          className="fixed right-4 bottom-4 z-40 rounded-full bg-white px-3 py-1.5 text-sm text-slate-600 shadow-md hover:bg-slate-50"
+          className="fixed right-4 bottom-4 z-40 rounded-full bg-surface px-3 py-1.5 text-sm text-slate-600 shadow-md hover:bg-slate-50"
           title="Emoji-reacties van de leerlingen tonen of verbergen"
         >
           {reactiesTonen ? '😀 Reacties aan' : '🙈 Reacties uit'}
@@ -216,7 +216,7 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
             {vraag.categorie && <span>{vraag.categorie}</span>}
             <span className="ml-auto font-mono">code {live.code}</span>
             {resterend !== null && (
-              <span className={`rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend <= 5 ? 'bg-red-100 text-red-700' : 'bg-white'}`}>{resterend}s</span>
+              <span className={`rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend <= 5 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>{resterend}s</span>
             )}
           </div>
           {server.status === 'vraag' ? (
@@ -296,9 +296,9 @@ export function Wachtruimte({
     <div className="flex flex-1 flex-col items-center gap-6 pt-4">
       <div className="text-center">
         <div className="text-xl text-slate-600">Ga naar</div>
-        <div className="mt-1 rounded-xl bg-white px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
+        <div className="mt-1 rounded-xl bg-surface px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
         <div className="mt-4 text-xl text-slate-600">en geef deze code in:</div>
-        <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent)]">{live.code}</div>
+        <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent-tekst)]">{live.code}</div>
         <div className="mt-2 text-sm text-slate-500">
           Of rechtstreeks:{' '}
           <a className="underline" href={link} target="_blank" rel="noreferrer">
@@ -337,7 +337,7 @@ export function SpelersRaster({
           return (
             <span
               key={s.id}
-              className={`pop group inline-flex items-center gap-1 rounded-full px-4 py-2 text-lg font-medium ${klaar ? 'bg-emerald-500 text-white' : beantwoord ? 'bg-white text-slate-700 shadow-sm' : 'bg-[var(--accent-soft)] text-[var(--accent)]'}`}
+              className={`pop group inline-flex items-center gap-1 rounded-full px-4 py-2 text-lg font-medium ${klaar ? 'bg-emerald-500 text-white' : beantwoord ? 'bg-surface text-slate-700 shadow-sm' : 'bg-[var(--accent-soft)] text-[var(--accent-tekst)]'}`}
             >
               {klaar && '✓ '}
               <span title={s.bijnaam ? s.naam : undefined}>{schermNaam(s)}</span>
@@ -413,7 +413,7 @@ function Antwoorden({
               return (
                 <div key={i} className="flex items-center gap-3">
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white ${juist ? 'bg-emerald-600' : 'bg-slate-400'}`}>{LETTERS[i]}</span>
-                  <div className="relative h-12 flex-1 overflow-hidden rounded-xl bg-white">
+                  <div className="relative h-12 flex-1 overflow-hidden rounded-xl bg-surface">
                     <div className={`h-full transition-all ${juist ? 'bg-emerald-300' : 'bg-slate-200'}`} style={{ width: `${antwoorden.length ? (n / antwoorden.length) * 100 : 0}%` }} />
                     <div className="absolute inset-0 flex items-center px-4 text-xl">
                       <RichText text={o} />
@@ -428,7 +428,7 @@ function Antwoorden({
           <div className="space-y-2">
             <p className="text-sm text-slate-500">Antwoorden die automatisch als fout gemarkeerd werden, kan je met ✓ alsnog goedkeuren.</p>
             {groepeerAntwoorden(antwoorden).map((g) => (
-              <div key={g.sleutel} className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-2 ${g.juist ? 'border-emerald-400' : 'border-red-200'}`}>
+              <div key={g.sleutel} className={`flex items-center gap-3 rounded-xl border-2 bg-surface px-4 py-2 ${g.juist ? 'border-emerald-400' : 'border-red-200'}`}>
                 <span className="font-mono text-xl font-bold">{g.antwoorden.length}×</span>
                 <div className="min-w-0 flex-1">
                   <RichText text={antwoordWeergave(publiek, g.tekst)} className="truncate font-mono text-xl" />
@@ -450,7 +450,7 @@ function Antwoorden({
         <div className="mb-2 text-xl font-semibold">Tussenstand</div>
         <ol className="space-y-1.5">
           {stand.slice(0, 10).map((r, i) => (
-            <li key={r.naam} className="flex items-center gap-3 rounded-xl bg-white px-4 py-2 text-lg shadow-sm">
+            <li key={r.naam} className="flex items-center gap-3 rounded-xl bg-surface px-4 py-2 text-lg shadow-sm">
               <span className="w-8 font-bold text-slate-400">{i + 1}.</span>
               <span className="flex-1 truncate font-medium">{r.naam}</span>
               <span className="font-mono font-bold">{r.punten}</span>
@@ -488,7 +488,7 @@ function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stan
             ),
         )}
       </div>
-      <table className="mt-8 w-full overflow-hidden rounded-xl bg-white text-left shadow-sm">
+      <table className="mt-8 w-full overflow-hidden rounded-xl bg-surface text-left shadow-sm">
         <thead className="bg-slate-100 text-sm text-slate-600">
           <tr>
             <th className="px-4 py-2">Leerling</th>
@@ -523,7 +523,7 @@ function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stan
             Afsluiten en gegevens op de server wissen
           </Button>
         )}
-        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">
+        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
           Naar de startpagina
         </a>
       </div>

@@ -97,7 +97,7 @@ export function WiskundeInvoer({
               title={k.titel}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => voegIn(k.latex)}
-              className="min-w-11 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-serif text-lg hover:bg-slate-50"
+              className="min-w-11 rounded-lg border border-slate-300 bg-surface px-2.5 py-1.5 font-serif text-lg hover:bg-slate-50"
             >
               {k.label}
             </button>

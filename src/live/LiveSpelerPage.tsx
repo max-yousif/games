@@ -76,9 +76,9 @@ export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo:
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
-      <header className="flex items-center gap-3 bg-white px-6 py-3 shadow-sm">
+      <header className="flex items-center gap-3 bg-surface px-6 py-3 shadow-sm">
         <span className="text-lg font-bold">🎲 Klasspelen</span>
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">live</span>
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-tekst)]">live</span>
         {deelname && (
           <>
             <span className="ml-auto font-medium">{deelname.naam}</span>
@@ -112,7 +112,7 @@ export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo:
 }
 
 function Kaart({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl bg-white p-8 shadow-sm">{children}</div>;
+  return <div className="rounded-2xl bg-surface p-8 shadow-sm">{children}</div>;
 }
 
 function Aanmelden({ be, startCode, melding, onKlaar }: { be: LiveBackend; startCode: string; melding: string | null; onKlaar: (d: Omit<Deelname, 'soort'>) => void }) {
@@ -328,7 +328,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
         <span className="ml-auto font-mono">{totaal} punten</span>
         {sessie.status === 'vraag' && sessie.timer && !mijn && <Aftellen key={sessie.vraagNr} seconden={sessie.timer} />}
       </div>
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
+      <div className="rounded-2xl bg-surface p-6 shadow-sm">
         <RichText text={v.tekst} className="text-2xl leading-snug font-medium" />
       </div>
 
@@ -362,7 +362,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
       )}
 
       {sessie.status === 'antwoord' && sessie.oplossing && (
-        <div className="rounded-2xl border-2 border-emerald-400 bg-white p-5">
+        <div className="rounded-2xl border-2 border-emerald-400 bg-surface p-5">
           <div className="text-sm font-semibold tracking-wide text-emerald-700 uppercase">Juiste antwoord</div>
           <RichText text={sessie.oplossing.antwoord} className="mt-1 text-2xl font-semibold" />
           {sessie.oplossing.uitleg && <RichText text={sessie.oplossing.uitleg} className="mt-2 text-slate-700" />}
@@ -438,6 +438,6 @@ function Aftellen({ seconden }: { seconden: number }) {
     return () => window.clearInterval(id);
   }, []);
   const rest = Math.max(0, seconden - Math.floor((nu - start) / 1000));
-  return <span className={`rounded-full px-3 py-1 font-mono text-xl font-bold ${rest <= 5 ? 'bg-red-100 text-red-700' : 'bg-white'}`}>{rest}s</span>;
+  return <span className={`rounded-full px-3 py-1 font-mono text-xl font-bold ${rest <= 5 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>{rest}s</span>;
 }
 

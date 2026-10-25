@@ -1,13 +1,86 @@
 @import 'tailwindcss';
 
+/* Achtergrond van kaarten en velden (wit, of donker in dark mode). */
+@theme {
+  --color-surface: #fff;
+}
+
 :root {
   --accent: #4f46e5;
   --accent-soft: #e0e7ff;
+  --accent-tekst: #4f46e5;
+  --pagina: #f8fafc;
+  --tekst: #0f172a;
+  color-scheme: light;
 }
 
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--pagina);
+  color: var(--tekst);
+}
+
+/*
+ * Dark mode: <html data-theme="dark"> (zie thema.ts). De grijstinten worden omgekeerd en lichte
+ * tinten (bv. bg-emerald-50 met text-emerald-900) worden donkere tinten met lichte tekst. De
+ * middelste tinten (knoppen met witte tekst) blijven gelijk. Elementen die altijd donker moeten
+ * zijn (bord van vier op een rij, codeblokken) gebruiken gray in plaats van slate.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --pagina: oklch(16% 0.035 264);
+  --tekst: oklch(96.8% 0.007 247.896);
+  --color-surface: oklch(20.8% 0.042 265.755);
+  --accent: #6366f1;
+  --accent-soft: oklch(30% 0.11 278);
+  --accent-tekst: #a5b4fc;
+
+  --color-slate-50: oklch(24.5% 0.042 263);
+  --color-slate-100: oklch(27.9% 0.041 260.031);
+  --color-slate-200: oklch(33% 0.043 258);
+  --color-slate-300: oklch(41% 0.044 257.287);
+  --color-slate-400: oklch(60% 0.042 257);
+  --color-slate-500: oklch(70.4% 0.04 256.788);
+  --color-slate-600: oklch(80% 0.03 254);
+  --color-slate-700: oklch(86.9% 0.022 252.894);
+  --color-slate-800: oklch(92.9% 0.013 255.508);
+  --color-slate-900: oklch(96.8% 0.007 247.896);
+
+  --color-red-50: oklch(27% 0.07 26);
+  --color-red-100: oklch(32% 0.1 26);
+  --color-red-200: oklch(40% 0.13 26);
+  --color-red-300: oklch(50.5% 0.213 27.518);
+  --color-red-700: oklch(80.8% 0.114 19.571);
+  --color-red-800: oklch(88.5% 0.062 18.334);
+  --color-red-900: oklch(93.6% 0.032 17.717);
+
+  --color-amber-50: oklch(27% 0.06 46);
+  --color-amber-100: oklch(32% 0.08 46);
+  --color-amber-200: oklch(41.4% 0.112 45.904);
+  --color-amber-300: oklch(55.5% 0.163 48.998);
+  --color-amber-700: oklch(87.9% 0.169 91.605);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+  --color-amber-900: oklch(96.2% 0.059 95.617);
+
+  --color-emerald-50: oklch(26% 0.045 170);
+  --color-emerald-100: oklch(31% 0.06 168);
+  --color-emerald-200: oklch(37.8% 0.077 168.94);
+  --color-emerald-300: oklch(50.8% 0.118 165.612);
+  --color-emerald-700: oklch(84.5% 0.143 164.978);
+  --color-emerald-800: oklch(90.5% 0.093 164.15);
+  --color-emerald-900: oklch(95% 0.052 163.051);
+}
+/* Gekleurde tekst op een donkere achtergrond iets lichter (knoppen met deze kleur als achtergrond blijven gelijk). */
+:root[data-theme='dark'] .text-red-600 {
+  color: var(--color-red-400);
+}
+:root[data-theme='dark'] .text-emerald-600 {
+  color: var(--color-emerald-400);
+}
+:root[data-theme='dark'] .text-indigo-600 {
+  color: var(--color-indigo-300);
+}
+:root[data-theme='dark'] .hover\:text-red-600:hover {
+  color: var(--color-red-400);
 }
 
 .rich-text {
@@ -49,9 +122,10 @@ body {
   width: 100%;
   font-size: 1.6rem;
   padding: 0.5rem 0.75rem;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--color-slate-300);
   border-radius: 0.75rem;
-  background: white;
+  background: var(--color-surface);
+  color: var(--tekst);
   --primary: var(--accent);
 }
 .wiskunde-invoer math-field:focus-within {

@@ -72,7 +72,20 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c !== ''));
 }
 
-type Kolom = 'type' | 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'ookjuist' | 'fout' | 'tolerantie' | 'uitleg';
+export type Kolom = 'type' | 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'ookjuist' | 'fout' | 'tolerantie' | 'uitleg';
+
+/** Kolommen in de volgorde van de keuzelijst bij het importeren. */
+export const KOLOM_NAMEN: Record<Kolom, string> = {
+  vraag: 'Vraag',
+  antwoord: 'Antwoord',
+  fout: 'Fout antwoord',
+  ookjuist: 'Ook juist',
+  categorie: 'Categorie',
+  punten: 'Punten',
+  type: 'Type',
+  tolerantie: 'Tolerantie',
+  uitleg: 'Uitleg',
+};
 
 const ALIASES: Record<Kolom, string[]> = {
   type: ['type', 'soort', 'vraagtype'],
@@ -80,18 +93,29 @@ const ALIASES: Record<Kolom, string[]> = {
   ookjuist: ['ook juist', 'ook juist 1', 'ook juist 2', 'ook juist 3', 'ander juist antwoord', 'alternatief'],
   categorie: ['categorie', 'onderwerp', 'thema', 'hoofdstuk'],
   punten: ['punten', 'score', 'waarde'],
-  vraag: ['vraag', 'opgave'],
-  antwoord: ['antwoord', 'juist antwoord', 'oplossing'],
-  fout: ['fout antwoord', 'fout antwoord 1', 'fout antwoord 2', 'fout antwoord 3', 'fout', 'fout 1', 'fout 2', 'fout 3', 'optie', 'afleider'],
+  vraag: ['vraag', 'opgave', 'vragen'],
+  antwoord: ['antwoord', 'juist antwoord', 'oplossing', 'antwoorden', 'juist'],
+  fout: ['fout antwoord', 'fout antwoord 1', 'fout antwoord 2', 'fout antwoord 3', 'fout', 'fout 1', 'fout 2', 'fout 3', 'optie', 'afleider', 'foute antwoorden'],
   uitleg: ['uitleg', 'toelichting', 'feedback'],
 };
 
-function kolomVan(titel: string): Kolom | null {
+export function kolomVan(titel: string): Kolom | null {
   const t = titel.trim().toLocaleLowerCase('nl');
   for (const [kolom, aliases] of Object.entries(ALIASES) as [Kolom, string[]][]) {
-    if (aliases.includes(t)) return kolom;
+    if (aliases.includes(t) || aliases.includes(t.replace(/\s+\d+$/, ''))) return kolom;
   }
   return null;
+}
+
+/**
+ * Herkent de kolommen: met een titelrij (Vraag, Antwoord ...) volgens de titels; zonder titelrij
+ * is de eerste kolom de vraag, de tweede het antwoord en de rest foute antwoorden (meerkeuze).
+ */
+export function herkenKolommen(rows: readonly (readonly string[])[]): { kolommen: (Kolom | null)[]; metTitels: boolean } {
+  const breedte = Math.max(0, ...rows.map((r) => r.length));
+  const titels = (rows[0] ?? []).map(kolomVan);
+  if (titels.includes('vraag')) return { kolommen: Array.from({ length: breedte }, (_, i) => titels[i] ?? null), metTitels: true };
+  return { kolommen: Array.from({ length: breedte }, (_, i) => (i === 0 ? 'vraag' : i === 1 ? 'antwoord' : 'fout')), metTitels: false };
 }
 
 export class QuestionImportError extends Error {}
@@ -115,46 +139,66 @@ function lijnenUit(cel: string): string[] {
   return delen.map((d) => d.replace(/\s+$/, '')).filter((d) => d.trim());
 }
 
+/** Eén ingelezen vraag, of waarom een rij niet gelezen kon worden. */
+export interface ImportItem {
+  /** Waar het vandaan komt, bv. "rij 3". */
+  bron: string;
+  vraag?: Vraag;
+  fout?: string;
+}
+
+const isWaarOnwaar = (a: string) => /^(waar|onwaar|juist|fout)$/i.test(a.trim());
+
 /**
- * Zet rijen met een titelrij om naar vragen. Verplicht: "Vraag" en "Antwoord".
- * Zonder kolom "Type": met kolommen "Fout antwoord" wordt het meerkeuze, met [[gaten]] invullen,
- * anders een open vraag. Met "Type" kan ook: waar/onwaar (Antwoord = waar of onwaar), getal
- * (met optionele kolom Tolerantie), ordenen (items in de juiste volgorde, elk op een eigen lijn
- * of gescheiden door |) en koppelen (paren als "links -> rechts", elk op een eigen lijn of met |).
+ * Zet rijen om naar vragen volgens de gekozen kolommen. Zonder kolom "Type": met foute antwoorden
+ * wordt het meerkeuze, met [[gaten]] invullen, met antwoord waar/onwaar een waar-of-onwaarvraag,
+ * anders een open vraag. Met "Type" kan ook: getal (met optionele kolom Tolerantie), ordenen (items
+ * in de juiste volgorde, elk op een eigen lijn of gescheiden door |) en koppelen (paren als
+ * "links -> rechts", elk op een eigen lijn of met |).
  */
-export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
-  if (rows.length === 0) return [];
-  const kolommen = rows[0].map(kolomVan);
-  if (!kolommen.includes('vraag') || !kolommen.includes('antwoord')) {
-    throw new QuestionImportError('De eerste rij moet minstens de kolommen "Vraag" en "Antwoord" bevatten. Download het sjabloon als voorbeeld.');
-  }
-  const vind = (row: readonly string[], k: Kolom) => (row[kolommen.indexOf(k)] ?? '').trim();
+export function rijenNaarVragen(rows: readonly (readonly string[])[], kolommen: readonly (Kolom | null)[], metTitels: boolean): ImportItem[] {
+  const index = (k: Kolom) => kolommen.indexOf(k);
+  const vind = (row: readonly string[], k: Kolom) => (index(k) >= 0 ? (row[index(k)] ?? '').trim() : '');
+  const alle = (row: readonly string[], k: Kolom) => kolommen.flatMap((kk, i) => (kk === k && row[i]?.trim() ? [row[i].trim()] : []));
+  const items: ImportItem[] = [];
 
-  return rows
-    .slice(1)
-    .filter((row) => vind(row, 'vraag'))
-    .map((row, nr) => {
-      const tekst = vind(row, 'vraag');
-      // Ruwe cel (niet getrimd), zodat inspringing van codelijnen behouden blijft.
-      const antwoordCel = row[kolommen.indexOf('antwoord')] ?? '';
-      const antwoord = antwoordCel.trim();
-      const fouten = kolommen.flatMap((k, i) => (k === 'fout' && row[i]?.trim() ? [row[i].trim()] : []));
-      const punten = Number.parseInt(vind(row, 'punten'), 10);
-      const typeCel = vind(row, 'type').toLocaleLowerCase('nl');
-      const type: VraagType | undefined = typeCel ? TYPE_NAMEN[typeCel] : fouten.length > 0 ? 'meerkeuze' : /\[\[.+?\]\]/.test(tekst) ? 'invullen' : 'open';
-      if (!type) throw new QuestionImportError(`Onbekend type "${vind(row, 'type')}" in rij ${nr + 2}. Gebruik: ${Object.keys(TYPE_NAMEN).join(', ')}.`);
+  rows.forEach((row, i) => {
+    if (metTitels && i === 0) return;
+    const tekst = vind(row, 'vraag');
+    if (!tekst) return;
+    const bron = `rij ${i + 1}`;
+    // Ruwe cel (niet getrimd), zodat inspringing van codelijnen behouden blijft.
+    const antwoordCel = index('antwoord') >= 0 ? (row[index('antwoord')] ?? '') : '';
+    const antwoord = antwoordCel.trim();
+    const fouten = alle(row, 'fout');
+    const punten = Number.parseInt(vind(row, 'punten'), 10);
+    const typeCel = vind(row, 'type').toLocaleLowerCase('nl');
+    const type: VraagType | undefined = typeCel
+      ? TYPE_NAMEN[typeCel]
+      : fouten.length > 0
+        ? 'meerkeuze'
+        : /\[\[.+?\]\]/.test(tekst)
+          ? 'invullen'
+          : isWaarOnwaar(antwoord) && index('type') < 0
+            ? 'waaronwaar'
+            : 'open';
+    if (!type) {
+      items.push({ bron, fout: `Onbekend type "${vind(row, 'type')}" in ${bron}. Gebruik: ${Object.keys(TYPE_NAMEN).join(', ')}.` });
+      return;
+    }
 
-      const v: Vraag = {
-        id: newId(),
-        categorie: vind(row, 'categorie'),
-        punten: Number.isFinite(punten) && punten > 0 ? punten : 100,
-        type,
-        tekst,
-        antwoord: '',
-        opties: ['', '', '', ''],
-        juisteOptie: 0,
-        uitleg: vind(row, 'uitleg'),
-      };
+    const v: Vraag = {
+      id: newId(),
+      categorie: vind(row, 'categorie'),
+      punten: Number.isFinite(punten) && punten > 0 ? punten : 100,
+      type,
+      tekst,
+      antwoord: '',
+      opties: ['', '', '', ''],
+      juisteOptie: 0,
+      uitleg: vind(row, 'uitleg'),
+    };
+    const maak = (): Vraag => {
       switch (type) {
         case 'meerkeuze': {
           const opties = shuffle([antwoord, ...fouten]);
@@ -180,12 +224,27 @@ export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
           // Meerdere juiste antwoorden: kolommen "Ook juist", of in Antwoord gescheiden door " | "
           // (met spaties, zodat een absolute waarde zoals $|x|$ niet gesplitst wordt).
           const [eerste, ...rest] = antwoord.split(/\s+\|\s+/).map((a) => a.trim());
-          const ook = kolommen.flatMap((k, i) => (k === 'ookjuist' && row[i]?.trim() ? [row[i].trim()] : []));
-          const alternatieven = [...rest, ...ook].filter(Boolean);
+          const alternatieven = [...rest, ...alle(row, 'ookjuist')].filter(Boolean);
           return { ...v, antwoord: eerste, ...(alternatieven.length ? { alternatieven } : {}) };
         }
       }
-    });
+    };
+    items.push({ bron, vraag: maak() });
+  });
+  return items;
+}
+
+/** Zet rijen met een titelrij om naar vragen. Verplicht: "Vraag" en "Antwoord". */
+export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
+  if (rows.length === 0) return [];
+  const kolommen = rows[0].map(kolomVan);
+  if (!kolommen.includes('vraag') || !kolommen.includes('antwoord')) {
+    throw new QuestionImportError('De eerste rij moet minstens de kolommen "Vraag" en "Antwoord" bevatten. Download het sjabloon als voorbeeld.');
+  }
+  const items = rijenNaarVragen(rows, kolommen, true);
+  const fout = items.find((it) => it.fout);
+  if (fout) throw new QuestionImportError(fout.fout);
+  return items.map((it) => it.vraag!);
 }
 
 /** Leeg sjabloon met de juiste kolomtitels. */

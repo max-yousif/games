@@ -6,7 +6,7 @@ export function Scorebord({ sessie, scores, actief, eenheid = 'punten' }: { sess
       {sessie.teams.map((t, i) => (
         <div
           key={i}
-          className={`rounded-2xl border-4 bg-white px-4 py-3 transition ${i === actief ? 'scale-[1.02] shadow-lg' : 'opacity-80'}`}
+          className={`rounded-2xl border-4 bg-surface px-4 py-3 transition ${i === actief ? 'scale-[1.02] shadow-lg' : 'opacity-80'}`}
           style={{ borderColor: i === actief ? t.kleur : 'transparent' }}
         >
           <div className="flex items-baseline justify-between gap-2">

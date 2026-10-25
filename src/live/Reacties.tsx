@@ -28,7 +28,7 @@ export function ReactieKnoppen({ be, sessieId, naam }: { be: LiveBackend; sessie
             onClick={() => stuur(r.emoji)}
             title={r.naam}
             aria-label={r.naam}
-            className={`h-14 w-14 rounded-2xl bg-white text-3xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-90 disabled:opacity-50 ${
+            className={`h-14 w-14 rounded-2xl bg-surface text-3xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-90 disabled:opacity-50 ${
               wacht && laatste === r.emoji ? 'ring-4 ring-[var(--accent-soft)]' : ''
             }`}
           >
