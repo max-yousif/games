@@ -1,6 +1,6 @@
-import { juistAntwoord } from '../lib/questions';
+import { juistAntwoord, juisteAntwoorden } from '../lib/questions';
 import type { Beurt, Leerling, Sessie, Vraag } from '../lib/types';
-import { gatenVan, getalJuist, isKeuzeVraag, keuzeOpties, koppelenRechts, leesGetal, LETTERS, ordenenGetoond, tekstMetGaten } from '../lib/vraagtypes';
+import { gatenVan, gatLabel, getalJuist, isKeuzeVraag, keuzeOpties, koppelenRechts, leesGetal, LETTERS, ordenenGetoond, tekstMetGaten } from '../lib/vraagtypes';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, Oplossing, PubliekeVraag, StandRij } from './types';
 
 export function publiekeVraag(v: Vraag): PubliekeVraag {
@@ -41,7 +41,7 @@ export function antwoordWeergave(v: PubliekeVraag, antwoord: string): string {
     }
     case 'invullen':
       return lijstUit(antwoord)
-        .map((a, i) => `(${i + 1}) ${a || '…'}`)
+        .map((a, i) => `${gatLabel(i)} ${a || '…'}`)
         .join('   ');
     case 'ordenen': {
       const gebruikt = new Set<number>();
@@ -114,7 +114,7 @@ export function automatischJuist(v: Vraag, antwoord: string): boolean {
       return l.length === paren.length && paren.every(([, r], i) => l[i] === r);
     }
     default:
-      return tekstJuist(antwoord, v.antwoord);
+      return juisteAntwoorden(v).some((juist) => tekstJuist(antwoord, juist));
   }
 }
 
@@ -145,19 +145,24 @@ export function automatischeBeoordelingen(
     });
 }
 
+/** Naam zoals op het scherm: de bijnaam als die er is, anders de echte naam. */
+export function schermNaam(s: Pick<LiveSpeler, 'naam'> & { bijnaam?: string | null }): string {
+  return s.bijnaam || s.naam;
+}
+
 /** Tussenstand van alle spelers (ook wie nog niets beantwoordde), hoogste eerst. */
 export function berekenStand(spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[]): StandRij[] {
   return spelers
     .map((s) => {
       const eigen = antwoorden.filter((a) => a.spelerId === s.id);
-      return { naam: s.naam, punten: eigen.reduce((t, a) => t + a.punten, 0), juist: eigen.filter((a) => a.juist).length };
+      return { id: s.id, naam: schermNaam(s), punten: eigen.reduce((t, a) => t + a.punten, 0), juist: eigen.filter((a) => a.juist).length };
     })
     .sort((a, b) => b.punten - a.punten || b.juist - a.juist || a.naam.localeCompare(b.naam, 'nl'));
 }
 
-/** Plaats in de stand (1 = eerste); gelijke punten delen dezelfde plaats. */
-export function plaatsVan(stand: readonly StandRij[], naam: string): number | null {
-  const rij = stand.find((r) => r.naam === naam);
+/** Plaats van een speler in de stand (1 = eerste); gelijke punten delen dezelfde plaats. */
+export function plaatsVan(stand: readonly StandRij[], spelerId: string): number | null {
+  const rij = stand.find((r) => r.id === spelerId);
   if (!rij) return null;
   return stand.filter((r) => r.punten > rij.punten).length + 1;
 }
@@ -183,6 +188,11 @@ export function groepeerAntwoorden(antwoorden: readonly LiveAntwoord[]): Antwoor
   return [...groepen.values()].sort((a, b) => b.antwoorden.length - a.antwoorden.length);
 }
 
+/** Bijnamen per echte naam, om in de lokale resultaten te bewaren. */
+export function bijnamenVan(spelers: readonly LiveSpeler[]): Record<string, string> {
+  return Object.fromEntries(spelers.filter((s) => s.bijnaam).map((s) => [s.naam, s.bijnaam!]));
+}
+
 /**
  * Zet de live antwoorden om naar beurten van de lokale sessie, zodat resultaten en
  * Excel-export werken zoals bij de klassikale spellen. Spelers die niet op de klaslijst
@@ -204,5 +214,11 @@ export function synchroniseer(sessie: Sessie, spelers: readonly LiveSpeler[], an
     .filter((a) => a.juist !== null && idVan.has(a.spelerId) && volgorde[a.vraagNr])
     .sort((a, b) => a.vraagNr - b.vraagNr || a.tijdMs - b.tijdMs)
     .map((a) => ({ vraagId: volgorde[a.vraagNr], team: 0, leerlingId: idVan.get(a.spelerId)!, juist: a.juist!, punten: a.punten, tijd: sessie.gestart }));
-  return { ...sessie, teams: [{ ...team, leerlingen }, ...sessie.teams.slice(1)], beurten };
+  const bijnamen = { ...sessie.live?.bijnamen, ...bijnamenVan(spelers) };
+  return {
+    ...sessie,
+    teams: [{ ...team, leerlingen }, ...sessie.teams.slice(1)],
+    beurten,
+    live: sessie.live && { ...sessie.live, ...(Object.keys(bijnamen).length ? { bijnamen } : {}) },
+  };
 }

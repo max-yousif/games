@@ -1,5 +1,3 @@
-import readXlsxFile from 'read-excel-file/browser';
-import writeXlsxFile from 'write-excel-file/browser';
 import { newId } from './ids';
 import { shuffle } from './random';
 import type { Vraag, VraagType } from './types';
@@ -21,6 +19,7 @@ export async function readSpreadsheet(file: File): Promise<string[][]> {
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'csv' || ext === 'txt') return parseCsv(await file.text());
   if (ext === 'xlsx') {
+    const { default: readXlsxFile } = await import('read-excel-file/browser');
     const sheets = await readXlsxFile(file);
     const first = sheets[0];
     if (!first) return [];
@@ -73,11 +72,12 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c !== ''));
 }
 
-type Kolom = 'type' | 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'fout' | 'tolerantie' | 'uitleg';
+type Kolom = 'type' | 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'ookjuist' | 'fout' | 'tolerantie' | 'uitleg';
 
 const ALIASES: Record<Kolom, string[]> = {
   type: ['type', 'soort', 'vraagtype'],
   tolerantie: ['tolerantie', 'foutmarge', 'marge'],
+  ookjuist: ['ook juist', 'ook juist 1', 'ook juist 2', 'ook juist 3', 'ander juist antwoord', 'alternatief'],
   categorie: ['categorie', 'onderwerp', 'thema', 'hoofdstuk'],
   punten: ['punten', 'score', 'waarde'],
   vraag: ['vraag', 'opgave'],
@@ -176,22 +176,30 @@ export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
           };
         case 'invullen':
           return v;
-        default:
-          return { ...v, antwoord };
+        default: {
+          // Meerdere juiste antwoorden: kolommen "Ook juist", of in Antwoord gescheiden door " | "
+          // (met spaties, zodat een absolute waarde zoals $|x|$ niet gesplitst wordt).
+          const [eerste, ...rest] = antwoord.split(/\s+\|\s+/).map((a) => a.trim());
+          const ook = kolommen.flatMap((k, i) => (k === 'ookjuist' && row[i]?.trim() ? [row[i].trim()] : []));
+          const alternatieven = [...rest, ...ook].filter(Boolean);
+          return { ...v, antwoord: eerste, ...(alternatieven.length ? { alternatieven } : {}) };
+        }
       }
     });
 }
 
 /** Leeg sjabloon met de juiste kolomtitels. */
-export function downloadQuestionTemplate(): Promise<void> {
+export async function downloadQuestionTemplate(): Promise<void> {
+  const { default: writeXlsxFile } = await import('write-excel-file/browser');
   return writeXlsxFile([
-    ['Type', 'Categorie', 'Punten', 'Vraag', 'Antwoord', 'Fout antwoord 1', 'Fout antwoord 2', 'Fout antwoord 3', 'Tolerantie', 'Uitleg'],
-    ['open', 'Ontbinden', '100', 'Ontbind: $x^2-49$', '$(x-7)(x+7)$', '', '', '', '', 'Verschil van twee kwadraten'],
-    ['meerkeuze', 'Machten', '200', 'Bereken: $(-3)^{-2}$', '$\\frac{1}{9}$', '$-9$', '$-\\frac{1}{9}$', '$9$', '', ''],
-    ['waar/onwaar', 'Machten', '100', '$2^3 \\cdot 2^2 = 2^6$', 'onwaar', '', '', '', '', 'Exponenten optellen: $2^5$'],
-    ['getal', 'Statistiek', '200', 'Bereken het gemiddelde van 4, 7 en 9.', '6,67', '', '', '', '0,01', ''],
-    ['invullen', 'Python', '100', 'Vul aan: `for i in [[range]](3):`', '', '', '', '', '', ''],
-    ['ordenen', 'Python', '300', 'Zet de lijnen in de juiste volgorde.', 'x = int(input())|if x > 0:|    print("positief")', '', '', '', '', ''],
-    ['koppelen', 'Functies', '200', 'Koppel elk voorschrift aan de grafiek.', '$y=x^2$ -> dalparabool|$y=-x^2$ -> bergparabool', '', '', '', '', ''],
+    ['Type', 'Categorie', 'Punten', 'Vraag', 'Antwoord', 'Ook juist', 'Fout antwoord 1', 'Fout antwoord 2', 'Fout antwoord 3', 'Tolerantie', 'Uitleg'],
+    ['open', 'Ontbinden', '100', 'Ontbind: $x^2-49$', '$(x-7)(x+7)$', '$(x+7)(x-7)$', '', '', '', '', 'Verschil van twee kwadraten'],
+    ['open', 'Vergelijkingen', '100', 'Los op: $2x = 12$', 'x = 6 | 6', '', '', '', '', '', 'Meerdere juiste antwoorden kan ook met " | " in de cel Antwoord.'],
+    ['meerkeuze', 'Machten', '200', 'Bereken: $(-3)^{-2}$', '$\\frac{1}{9}$', '', '$-9$', '$-\\frac{1}{9}$', '$9$', '', ''],
+    ['waar/onwaar', 'Machten', '100', '$2^3 \\cdot 2^2 = 2^6$', 'onwaar', '', '', '', '', '', 'Exponenten optellen: $2^5$'],
+    ['getal', 'Statistiek', '200', 'Bereken het gemiddelde van 4, 7 en 9.', '6,67', '', '', '', '', '0,01', ''],
+    ['invullen', 'Python', '100', 'Vul aan: `for i in [[range]](3):`', '', '', '', '', '', '', ''],
+    ['ordenen', 'Python', '300', 'Zet de lijnen in de juiste volgorde.', 'x = int(input())|if x > 0:|    print("positief")', '', '', '', '', '', ''],
+    ['koppelen', 'Functies', '200', 'Koppel elk voorschrift aan de grafiek.', '$y=x^2$ -> dalparabool|$y=-x^2$ -> bergparabool', '', '', '', '', '', ''],
   ]).toFile('vragen-sjabloon.xlsx');
 }

@@ -2,7 +2,7 @@ import type { VraagType } from '../lib/types';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
-  /** Bij invullen staan de gaten als __(1)__, __(2)__ ... in de tekst. */
+  /** Bij invullen staan de gaten als merktekens ⟦1⟧, ⟦2⟧ ... in de tekst (getoond als ★, ●, ...). */
   tekst: string;
   type: VraagType;
   /** Keuzevragen: de opties. Ordenen: de items door elkaar. */
@@ -25,6 +25,9 @@ export interface Oplossing {
 }
 
 export interface StandRij {
+  /** Id van de speler (om de eigen plaats te vinden). */
+  id?: string;
+  /** Naam zoals op het scherm: de bijnaam als die ingesteld is. */
   naam: string;
   punten: number;
   juist: number;
@@ -59,6 +62,8 @@ export interface LiveSessie {
 export interface LiveSpeler {
   id: string;
   naam: string;
+  /** Bijnaam voor op het scherm, of null. */
+  bijnaam: string | null;
   /** false = losgekoppeld door de leerkracht. */
   verbonden: boolean;
 }
@@ -106,9 +111,11 @@ export type FoutCode =
   | 'te_laat'
   | 'al_opgelost'
   | 'wacht'
+  | 'bijnaam_bezet'
   | 'geen_speler'
   | 'niet_aangemeld'
   | 'anoniem_uit'
+  | 'schema_oud'
   | 'verbinding';
 
 export const FOUT_TEKST: Record<FoutCode, string> = {
@@ -121,9 +128,11 @@ export const FOUT_TEKST: Record<FoutCode, string> = {
   te_laat: 'Te laat: de tijd was om.',
   al_opgelost: 'Dit slot is al open.',
   wacht: 'Even wachten voor je opnieuw probeert.',
+  bijnaam_bezet: 'Die bijnaam kan niet: het is de naam van een klasgenoot of iemand anders gebruikt hem al.',
   geen_speler: 'Je bent niet (meer) aangemeld in dit spel.',
   niet_aangemeld: 'Aanmelden is mislukt. Herlaad de pagina.',
   anoniem_uit: 'Anoniem aanmelden staat uit in Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins).',
+  schema_oud: 'Deze functie vraagt een bijgewerkte database. Leerkracht: voer supabase/schema.sql opnieuw uit in Supabase.',
   verbinding: 'Geen verbinding met de server. Controleer het internet en probeer opnieuw.',
 };
 
@@ -153,6 +162,7 @@ export interface LiveBackend {
   wijzigSessie(sessieId: string, patch: Partial<Pick<LiveSessie, 'status' | 'oplossing' | 'stand'>>): Promise<void>;
   beoordeel(sessieId: string, items: Beoordeling[]): Promise<void>;
   ontkoppel(spelerId: string): Promise<void>;
+  wisBijnaam(spelerId: string): Promise<void>;
   verwijderSessie(sessieId: string): Promise<void>;
   volgSpelers(sessieId: string, cb: (s: LiveSpeler[]) => void): () => void;
   volgAntwoorden(sessieId: string, cb: (a: LiveAntwoord[]) => void): () => void;
@@ -161,6 +171,10 @@ export interface LiveBackend {
   sessieInfo(code: string): Promise<SessieInfo | null>;
   deelnemen(code: string, naam: string): Promise<{ sessieId: string; spelerId: string; naam: string }>;
   mijnSpeler(sessieId: string): Promise<LiveSpeler | null>;
+  /** Bijnaam instellen of wissen (lege tekst); geeft de bewaarde bijnaam terug. */
+  bijnaam(sessieId: string, bijnaam: string): Promise<string | null>;
+  /** Het spel verlaten: de naam komt weer vrij. */
+  verlaten(sessieId: string): Promise<void>;
   antwoord(sessieId: string, vraagNr: number, antwoord: string): Promise<void>;
 
   // Beide (leerlingen zien enkel hun eigen antwoorden)

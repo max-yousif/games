@@ -111,7 +111,7 @@ export function SetsPage({ store }: { store: Store }) {
       <div className="mt-8 space-y-2 text-sm text-slate-600">
         <p>
           <strong>Excel-import:</strong> de eerste rij bevat de kolomtitels <em>Type, Categorie, Punten, Vraag, Antwoord</em>, en optioneel{' '}
-          <em>Fout antwoord 1–3</em> (meerkeuze), <em>Tolerantie</em> (getal) en <em>Uitleg</em>. Types: open, meerkeuze, waar/onwaar, getal, invullen,
+          <em>Ook juist</em> (andere juiste antwoorden bij een open vraag), <em>Fout antwoord 1–3</em> (meerkeuze), <em>Tolerantie</em> (getal) en <em>Uitleg</em>. Types: open, meerkeuze, waar/onwaar, getal, invullen,
           ordenen en koppelen; het sjabloon bevat van elk een voorbeeld.{' '}
           <button type="button" className="text-[var(--accent)] underline" onClick={() => downloadQuestionTemplate()}>
             Download het sjabloon

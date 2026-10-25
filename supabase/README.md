@@ -33,7 +33,13 @@ tweede tabblad), handig om alles uit te proberen.
    standaard aan.
 
 **Na een update van de website** met wijzigingen aan `schema.sql`: voer het script opnieuw uit
-in de SQL Editor (het bewaart bestaande gegevens).
+in de SQL Editor (het bewaart bestaande gegevens). Laatste wijziging: bijnamen, het spel
+verlaten en `live_ping` (om Supabase wakker te houden).
+
+**Supabase wakker houden**: de GitHub-taak *Supabase wakker houden* roept de database elke
+3 dagen aan, zodat het gratis project niet gepauzeerd wordt. Dat werkt automatisch zodra de
+variabelen `SUPABASE_URL` en `SUPABASE_ANON_KEY` ingesteld zijn en het schema `live_ping` bevat.
+Je kan het meteen testen via **Actions → Supabase wakker houden → Run workflow**.
 
 Lokaal ontwikkelen: maak een bestand `.env.local` (wordt niet mee opgeslagen in git):
 

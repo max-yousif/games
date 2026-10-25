@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { EINDCODE } from './escape';
@@ -19,7 +19,20 @@ function laatstePoging(antwoorden: readonly LiveAntwoord[], nr: number): LiveAnt
 }
 
 /** Escape room voor de leerling: sloten openen, cijfers verzamelen en de code ingeven. */
-export function EscapeSpeler({ be, sessie, antwoorden, naam }: { be: LiveBackend; sessie: LiveSessie; antwoorden: LiveAntwoord[]; naam: string }) {
+export function EscapeSpeler({
+  be,
+  sessie,
+  antwoorden,
+  spelerId,
+  nieuwSpel,
+}: {
+  be: LiveBackend;
+  sessie: LiveSessie;
+  antwoorden: LiveAntwoord[];
+  spelerId: string | null;
+  /** Knop om na afloop aan een nieuw spel deel te nemen. */
+  nieuwSpel: ReactNode;
+}) {
   const vragen = sessie.vragen ?? [];
   const [open, setOpen] = useState<number | null>(null);
   const terug = useCallback(() => setOpen(null), []);
@@ -51,7 +64,7 @@ export function EscapeSpeler({ be, sessie, antwoorden, naam }: { be: LiveBackend
   }
 
   if (sessie.status === 'einde') {
-    const plaats = sessie.stand.findIndex((r) => r.naam === naam) + 1;
+    const plaats = sessie.stand.findIndex((r) => r.id === spelerId) + 1;
     return (
       <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
         <div className="text-6xl">{ontsnapt ? '🎉' : '🔒'}</div>
@@ -59,6 +72,7 @@ export function EscapeSpeler({ be, sessie, antwoorden, naam }: { be: LiveBackend
         <p className="mt-2 text-xl text-slate-600">
           Je opende {opgelost} van de {vragen.length} sloten{plaats > 0 && ` · plaats ${plaats}`}.
         </p>
+        {nieuwSpel}
       </div>
     );
   }

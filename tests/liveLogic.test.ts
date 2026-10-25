@@ -63,18 +63,20 @@ describe('live: beoordelen', () => {
 
 describe('live: stand en groepen', () => {
   const spelers = [
-    { id: 'a', naam: 'Anna', verbonden: true },
-    { id: 'b', naam: 'Bert', verbonden: true },
-    { id: 'c', naam: 'Chloé', verbonden: true },
+    { id: 'a', naam: 'Anna', bijnaam: null, verbonden: true },
+    { id: 'b', naam: 'Bert', bijnaam: null, verbonden: true },
+    { id: 'c', naam: 'Chloé', bijnaam: null, verbonden: true },
   ];
   const antwoorden = [ant('1', 'a', 0, '1', { juist: true, punten: 200 }), ant('2', 'b', 0, '1', { juist: true, punten: 200 }), ant('3', 'c', 0, '0', { juist: false })];
 
   it('sorteert op punten en deelt plaatsen bij gelijkstand', () => {
     const stand = berekenStand(spelers, antwoorden);
     expect(stand.map((r) => r.naam)).toEqual(['Anna', 'Bert', 'Chloé']);
-    expect(plaatsVan(stand, 'Bert')).toBe(1);
-    expect(plaatsVan(stand, 'Chloé')).toBe(3);
-    expect(plaatsVan(stand, 'Niemand')).toBeNull();
+    expect(plaatsVan(stand, 'b')).toBe(1);
+    expect(plaatsVan(stand, 'c')).toBe(3);
+    expect(plaatsVan(stand, 'niemand')).toBeNull();
+    // Met bijnaam: op het scherm de bijnaam.
+    expect(berekenStand([{ ...spelers[0], bijnaam: 'Pi' }], antwoorden)[0]).toMatchObject({ id: 'a', naam: 'Pi', punten: 200 });
   });
 
   it('groepeert gelijke open antwoorden', () => {

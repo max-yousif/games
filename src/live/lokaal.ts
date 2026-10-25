@@ -1,3 +1,4 @@
+import { zetVerbinding } from './verbinding';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type PubliekeVraag } from './types';
 
 /*
@@ -69,11 +70,14 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
   const isHost = (r: Rijen, id: string) => sessie(r, id)?.host === uid;
   const isSpeler = (r: Rijen, id: string) => r.spelers.some((p) => p.sessieId === id && p.uid === uid);
   const zonderIntern = ({ host: _h, aangemaakt: _a, vraagStartMs: _v, ...s }: Rijen['sessies'][number]): LiveSessie => s;
-  const naarSpeler = (p: Rijen['spelers'][number]): LiveSpeler => ({ id: p.id, naam: p.naam, verbonden: p.uid !== null });
+  const naarSpeler = (p: Rijen['spelers'][number]): LiveSpeler => ({ id: p.id, naam: p.naam, bijnaam: p.bijnaam ?? null, verbonden: p.uid !== null });
   const naarAntwoord = ({ sessieId: _s, aangemaaktMs: _a, ...a }: Rijen['antwoorden'][number]): LiveAntwoord => a;
 
   function volg<T>(ophalen: () => T, cb: (t: T) => void): () => void {
-    const f = () => cb(ophalen());
+    const f = () => {
+      cb(ophalen());
+      zetVerbinding('verbonden');
+    };
     luisteraars.add(f);
     queueMicrotask(f);
     return () => luisteraars.delete(f);
@@ -160,6 +164,13 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
       });
     },
 
+    async wisBijnaam(spelerId) {
+      wijzig((r) => {
+        const p = r.spelers.find((x) => x.id === spelerId);
+        if (p && isHost(r, p.sessieId)) p.bijnaam = null;
+      });
+    },
+
     async verwijderSessie(sessieId) {
       wijzig((r) => {
         if (!isHost(r, sessieId)) return;
@@ -207,7 +218,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
         for (const x of r.spelers) if (x.sessieId === s.id && x.uid === uid && x !== p) x.uid = null;
         if (p) p.uid = uid;
         else {
-          p = { id: crypto.randomUUID(), sessieId: s.id, uid, naam: n, verbonden: true };
+          p = { id: crypto.randomUUID(), sessieId: s.id, uid, naam: n, bijnaam: null, verbonden: true };
           r.spelers.push(p);
         }
         return { sessieId: s.id, spelerId: p.id, naam: p.naam };
@@ -217,6 +228,31 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
     async mijnSpeler(sessieId) {
       const p = lees().spelers.find((x) => x.sessieId === sessieId && x.uid === uid);
       return p ? naarSpeler(p) : null;
+    },
+
+    async bijnaam(sessieId, bijnaam) {
+      return wijzig((r) => {
+        const s = sessie(r, sessieId);
+        const p = r.spelers.find((x) => x.sessieId === sessieId && x.uid === uid);
+        if (!s || !p) throw new LiveFout('geen_speler');
+        const b = normNaam(bijnaam).slice(0, 30) || null;
+        const klein = b?.toLocaleLowerCase('nl');
+        if (
+          klein &&
+          (s.namen.some((n) => n.toLocaleLowerCase('nl') === klein && n !== p.naam) ||
+            r.spelers.some((o) => o.sessieId === sessieId && o.id !== p.id && (o.naam.toLocaleLowerCase('nl') === klein || o.bijnaam?.toLocaleLowerCase('nl') === klein)))
+        ) {
+          throw new LiveFout('bijnaam_bezet');
+        }
+        p.bijnaam = b;
+        return b;
+      });
+    },
+
+    async verlaten(sessieId) {
+      wijzig((r) => {
+        for (const p of r.spelers) if (p.sessieId === sessieId && p.uid === uid) p.uid = null;
+      });
     },
 
     async antwoord(sessieId, vraagNr, antwoord) {

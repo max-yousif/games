@@ -45,7 +45,7 @@ describe('escape room: logica', () => {
   });
 
   it('rangschikt: ontsnapt (snelste eerst), dan meeste sloten', () => {
-    const spelers = ['Anna', 'Bert', 'Chloé', 'Dries'].map((naam) => ({ id: naam, naam, verbonden: true }));
+    const spelers = ['Anna', 'Bert', 'Chloé', 'Dries'].map((naam) => ({ id: naam, naam, bijnaam: null, verbonden: true }));
     const v = escapeVoortgang(spelers, [
       ant('1', 'Anna', 0, '', { juist: true }),
       ant('2', 'Bert', 0, '', { juist: true }),
@@ -60,7 +60,7 @@ describe('escape room: logica', () => {
     expect(v.map((x) => x.speler.naam)).toEqual(['Chloé', 'Bert', 'Anna', 'Dries']);
     expect(v[3].fout.get(1)).toBe(1);
     expect(v[3].bezig.has(1)).toBe(true);
-    expect(escapeStand(v)[0]).toEqual({ naam: 'Chloé', punten: 2, juist: 2, tijdMs: 60000 });
+    expect(escapeStand(v)[0]).toEqual({ id: 'Chloé', naam: 'Chloé', punten: 2, juist: 2, tijdMs: 60000 });
   });
 });
 

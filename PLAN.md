@@ -93,7 +93,11 @@ sneltoetsen, eindstand met podium.
 1. De leerkracht kiest *Spelen → Live quiz*, een vragenset en een klas (afwezigen aanvinken),
    timer en snelheidsbonus. Op het bord verschijnt een **code van 6 tekens**.
 2. Leerlingen surfen naar `…/#/live`, geven de code in en **kiezen hun naam uit de klaslijst**
-   (een gekozen naam verdwijnt voor de anderen). Zonder klas typen ze zelf hun naam.
+   (een gekozen naam verdwijnt voor de anderen). Zonder klas typen ze zelf hun naam. In de
+   wachtzaal kunnen ze een **bijnaam** instellen die op het bord verschijnt (niet de naam van een
+   klasgenoot); de leerkracht ziet de echte naam (tooltip, resultaten, Excel) en kan een
+   ongepaste bijnaam wissen. Met **Verlaten** komt de naam weer vrij; wie terugkeert met
+   dezelfde naam behoudt de punten.
 3. De leerkracht ziet live wie aangemeld is en start de quiz.
 4. Per vraag: de vraag staat op het bord én op elke laptop. Op het bord kleurt elke naam groen
    zodra die leerling geantwoord heeft (zonder te tonen of het juist is), met een teller
@@ -118,6 +122,10 @@ sneltoetsen, eindstand met podium.
   wisselen: de leerkracht koppelt de naam los, de leerling meldt zich opnieuw aan.
 - Sessies worden gewist na *Afsluiten* of automatisch na 2 dagen.
 - **Demo-modus** zonder server: leerlingenschermen in andere tabbladen van dezelfde browser.
+- **Testtabblad** (🧪 in de wachtzaal): met Supabase meldt elk testtabblad zich apart aan, zodat
+  de leerkracht op één laptop meerdere leerlingen kan spelen (geen incognitovenster nodig).
+- **Verbindingsbolletje** bij leerkracht en leerling; na een verbroken verbinding of slaapstand
+  wordt alles meteen opnieuw opgehaald.
 - Installatie: zie [`supabase/README.md`](supabase/README.md).
 
 ## 4c. Escape room (elke leerling op de eigen laptop, in eigen tempo)
@@ -207,7 +215,23 @@ tests/
 - Waar/onwaar, getal met foutmarge, invullen, ordenen (Parsons) en koppelen, in de editor,
   op het bord, in de live quiz en in de Excel-import
 
-**Fase 1d: escape room (deze versie)**
+**Fase 1d: escape room (klaar)**
+
+**Fase 1e: optimalisatie (deze versie)**
+- Supabase wakker houden met een geplande GitHub-taak (elke 3 dagen)
+- Sneller laden: startpagina van 279 kB naar 78 kB (gecomprimeerd); Supabase, KaTeX, Excel en
+  de spellen worden pas geladen wanneer nodig
+- Verbindingsbolletje en automatisch opnieuw verbinden
+- Onderhoud: nieuwere GitHub-acties, KaTeX-beveiligingsupdate, browsertests (Playwright) die op
+  GitHub draaien vóór elke publicatie
+- Bijnaam, verlaten/terugkeren, testtabblad, lopende spellen beëindigen
+- Gaten bij invulvragen als gekleurde symbolen (★ ● ▲ …) in plaats van cijfers
+- Open vragen met meerdere juiste antwoorden ("+ ook juist", Excel-kolom *Ook juist*)
+
+**Volgende stap (voorstel): leerkrachtlogin + cloudopslag**
+- Enkel de leerkracht kan spellen starten (magische link per e-mail); leerlingen blijven anoniem
+- Vragensets, klassen en resultaten in Supabase: op elke laptop beschikbaar, geen verlies meer
+- Anonieme gebruikers automatisch opruimen na 30 dagen; CAPTCHA/rate limits in Supabase
 
 **Fase 2: meer spellen**
 - Race op het bord, Kaboom, Miljonairsladder
@@ -232,5 +256,7 @@ tests/
 - Automatische tests voor de spellogica (quizbord, vier op een rij, live quiz), scores,
   imports en de weergave van formules.
 - Het Supabase-schema (beveiliging en functies) wordt getest op een echte Postgres (PGlite).
-- Voor elke push: `npm test` en `npm run build` (ook in GitHub Actions).
+- Browsertests (Playwright, `npm run test:e2e`): quizbord, live quiz (bijnaam, verlaten en
+  terugkeren) en escape room, met leerlingen in aparte tabbladen.
+- GitHub Actions voert voor elke publicatie typecheck, alle tests en de build uit.
 - Testen op een laptop met projector (1280×720 en 1920×1080).

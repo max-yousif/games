@@ -1,0 +1,36 @@
+name: Supabase wakker houden
+
+# Een gratis Supabase-project wordt gepauzeerd na 7 dagen zonder gebruik (bv. tijdens een
+# vakantie). Deze taak roept de database elke 3 dagen even aan, zodat live spelen altijd werkt.
+# Let op: GitHub zet geplande taken uit als er 60 dagen niets aan de repository verandert; je
+# krijgt daarover een e-mail en kan ze met één klik terug aanzetten (Actions → deze taak → Enable).
+
+on:
+  schedule:
+    - cron: '23 6 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Database aanroepen
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Supabase is niet ingesteld (variabelen SUPABASE_URL en SUPABASE_ANON_KEY); niets te doen."
+            exit 0
+          fi
+          URL="${SUPABASE_URL%/}"
+          # live_ping staat in supabase/schema.sql. Faalt dit met 404, voer het schema dan opnieuw uit.
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 10 \
+            -X POST "$URL/rest/v1/rpc/live_ping" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          echo
+          echo "Supabase is wakker."

@@ -5,6 +5,7 @@ import { VierOpEenRij, wachtOpZet } from '../games/VierOpEenRij';
 import { QuizBord } from '../games/QuizBord';
 import { EscapeHost } from '../live/EscapeHost';
 import { LiveHost } from '../live/LiveHost';
+import { VerbindingsBolletje } from '../live/VerbindingsBolletje';
 import { bouwRooster, winnaar } from '../lib/connectFour';
 import { SPEL_NAMEN } from '../lib/exportResults';
 import { speelbareVragen } from '../lib/questions';
@@ -71,7 +72,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
             {SPEL_NAMEN[sessie.spelType]} · {sessie.klasNaam}
           </div>
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
+          {isLive && !sessie.live?.afgesloten && <VerbindingsBolletje />}
           {!isLive && (
             <ToolKnop onClick={() => store.bewaarSessie(ongedaanMaken(sessie))} disabled={!kanOngedaan} title="Laatste beurt ongedaan maken">
               ↶ Ongedaan maken

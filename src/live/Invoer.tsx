@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { RichText } from '../components/RichText';
-import { LETTERS } from '../lib/vraagtypes';
+import { GatSymbool, RichText } from '../components/RichText';
+import { gatKleur, LETTERS } from '../lib/vraagtypes';
 import { antwoordWeergave } from './logic';
 import { LiveFout, type PubliekeVraag } from './types';
 
@@ -116,7 +116,7 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
     >
       {waarden.map((w, i) => (
         <label key={i} className="flex items-center gap-3">
-          <span className="w-12 text-right font-mono text-xl font-bold text-slate-500">({i + 1})</span>
+          <GatSymbool nr={i} groot />
           <input
             autoFocus={i === 0}
             value={w}
@@ -124,6 +124,7 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
             aria-label={`Gat ${i + 1}`}
             onChange={(e) => setWaarden((ws) => ws.map((x, j) => (j === i ? e.target.value : x)))}
             className={`flex-1 ${invoerKlasse}`}
+            style={{ borderColor: gatKleur(i) }}
           />
         </label>
       ))}

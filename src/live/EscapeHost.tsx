@@ -7,7 +7,7 @@ import type { Sessie, Vraag } from '../lib/types';
 import { backend } from './config';
 import { escapeBeoordelingen, escapeStand, escapeVoortgang, type EscapeVoortgang } from './escape';
 import { Wachtruimte } from './LiveHost';
-import { synchroniseer } from './logic';
+import { schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 
 export function EscapeHost({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
@@ -75,7 +75,8 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
     if (
       JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
-      JSON.stringify(ontsnapt) !== JSON.stringify(huidig.live?.ontsnapt ?? {})
+      JSON.stringify(ontsnapt) !== JSON.stringify(huidig.live?.ontsnapt ?? {}) ||
+      JSON.stringify(s.live?.bijnamen ?? {}) !== JSON.stringify(huidig.live?.bijnamen ?? {})
     ) {
       onUpdate({ ...s, live: { ...s.live!, ontsnapt } });
     }
@@ -155,6 +156,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
           startTekst="Start de escape room"
           onStart={() => actie(() => be.startEscape(live.sessieId))}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
+          onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
         />
       )}
 
@@ -205,7 +207,9 @@ function VoortgangTabel({ voortgang, vragen }: { voortgang: EscapeVoortgang[]; v
           {voortgang.map((v, i) => (
             <tr key={v.speler.id} className={`border-t border-slate-100 text-lg ${v.speler.verbonden ? '' : 'opacity-40'}`}>
               <td className="px-4 py-2 font-bold text-slate-400">{i + 1}</td>
-              <td className="px-4 py-2 font-medium">{v.speler.naam}</td>
+              <td className="px-4 py-2 font-medium" title={v.speler.bijnaam ? v.speler.naam : undefined}>
+                {schermNaam(v.speler)}
+              </td>
               {vragen.map((vraag, nr) => {
                 const fouten = v.fout.get(nr) ?? 0;
                 return (
@@ -246,9 +250,9 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
   // Zonder server: rangschikking uit de bewaarde resultaten.
   const rijen = resultatenPerLeerling(sessie).filter((r) => r.naam !== '(hele team)');
   const ranking = voortgang
-    ? voortgang.map((v) => ({ naam: v.speler.naam, sloten: v.opgelost.size, tijd: v.ontsnaptMs }))
+    ? voortgang.map((v) => ({ naam: schermNaam(v.speler), sloten: v.opgelost.size, tijd: v.ontsnaptMs }))
     : rijen
-        .map((r) => ({ naam: r.naam, sloten: r.juist, tijd: ontsnapt[r.naam] ?? null }))
+        .map((r) => ({ naam: sessie.live?.bijnamen?.[r.naam] ?? r.naam, sloten: r.juist, tijd: ontsnapt[r.naam] ?? null }))
         .sort((a, b) => (a.tijd ?? Infinity) - (b.tijd ?? Infinity) || b.sloten - a.sloten);
   const podium = ranking.filter((r) => r.tijd !== null).slice(0, 3);
 

@@ -1,13 +1,18 @@
-import { LiveSpelerPage } from './live/LiveSpelerPage';
-import { KlassenPage } from './pages/KlassenPage';
-import { ResultatenPage } from './pages/ResultatenPage';
-import { SessiePage } from './pages/SessiePage';
-import { SetEditorPage } from './pages/SetEditorPage';
-import { SetsPage } from './pages/SetsPage';
-import { SpelenPage } from './pages/SpelenPage';
+import { lazy, Suspense } from 'react';
 import { StartPage } from './pages/StartPage';
 import { href, useRoute, type Route } from './lib/route';
 import { useStore } from './lib/store';
+
+// Pagina's worden pas geladen wanneer ze nodig zijn, zodat de startpagina snel opent.
+const KlassenPage = lazy(() => import('./pages/KlassenPage').then((m) => ({ default: m.KlassenPage })));
+const ResultatenPage = lazy(() => import('./pages/ResultatenPage').then((m) => ({ default: m.ResultatenPage })));
+const SessiePage = lazy(() => import('./pages/SessiePage').then((m) => ({ default: m.SessiePage })));
+const SetEditorPage = lazy(() => import('./pages/SetEditorPage').then((m) => ({ default: m.SetEditorPage })));
+const SetsPage = lazy(() => import('./pages/SetsPage').then((m) => ({ default: m.SetsPage })));
+const SpelenPage = lazy(() => import('./pages/SpelenPage').then((m) => ({ default: m.SpelenPage })));
+const LiveSpelerPage = lazy(() => import('./live/LiveSpelerPage').then((m) => ({ default: m.LiveSpelerPage })));
+
+const laden = <div className="p-10 text-center text-slate-400">Laden…</div>;
 
 const MENU: { route: Route; label: string }[] = [
   { route: { pagina: 'spelen' }, label: 'Spelen' },
@@ -21,9 +26,19 @@ export default function App() {
   const store = useStore();
 
   // Een lopend spel gebruikt het volledige scherm, zonder menu.
-  if (route.pagina === 'sessie') return <SessiePage key={route.id} id={route.id} store={store} />;
+  if (route.pagina === 'sessie')
+    return (
+      <Suspense fallback={laden}>
+        <SessiePage key={route.id} id={route.id} store={store} />
+      </Suspense>
+    );
   // Leerlingen zien enkel het live-scherm, niet het menu van de leerkracht.
-  if (route.pagina === 'live') return <LiveSpelerPage code={route.code} demo={route.demo} />;
+  if (route.pagina === 'live')
+    return (
+      <Suspense fallback={laden}>
+        <LiveSpelerPage code={route.code} demo={route.demo} apart={route.apart} />
+      </Suspense>
+    );
 
   return (
     <div className="min-h-screen">
@@ -48,12 +63,14 @@ export default function App() {
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
+        <Suspense fallback={laden}>
         {route.pagina === 'start' && <StartPage store={store} />}
         {route.pagina === 'sets' && <SetsPage store={store} />}
         {route.pagina === 'set' && <SetEditorPage key={route.id} id={route.id} store={store} />}
         {route.pagina === 'klassen' && <KlassenPage store={store} />}
         {route.pagina === 'spelen' && <SpelenPage key={route.setId ?? ''} setId={route.setId} store={store} />}
         {route.pagina === 'resultaten' && <ResultatenPage store={store} />}
+        </Suspense>
       </main>
     </div>
   );

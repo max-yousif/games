@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test';
+import { geenFouten, kiesSpel, maakKlas } from './helpers';
+
+test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', async ({ page }) => {
+  const controleer = geenFouten(page);
+  page.on('dialog', (d) => void d.accept());
+  await maakKlas(page, '3A', ['Anna Peeters', 'Bert Claes', 'Chloé Janssens', 'Dries Mertens']);
+  await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Quizbord');
+  await page.getByRole('button', { name: /Start het spel/ }).click();
+
+  // Merkwaardige producten 100: meerkeuze, juiste antwoord B.
+  await page.getByRole('button', { name: '100', exact: true }).first().click();
+  await expect(page.getByText('Wie antwoordt?')).toBeVisible();
+  // Teams zijn willekeurig: kies de eerste leerling van het team dat aan de beurt is.
+  await page.locator('aside button').filter({ hasNotText: /Hele team|Willekeurig/ }).first().click();
+  await page.keyboard.press('b');
+  await expect(page.getByText('Enter = juist')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('span.font-mono', { hasText: /^100\s*punten$/ }).first()).toBeVisible();
+
+  // Merkwaardige producten 200: open vraag, fout.
+  await page.getByRole('button', { name: '200', exact: true }).first().click();
+  await page.keyboard.press(' ');
+  await page.keyboard.press('f');
+
+  await page.getByRole('button', { name: /Stoppen/ }).click();
+  await expect(page.getByText(/wint!|Gelijkspel/)).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: /Resultaten exporteren/ }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.xlsx$/);
+  controleer();
+});

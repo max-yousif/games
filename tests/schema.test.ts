@@ -218,3 +218,57 @@ describe('supabase-schema: escape room', () => {
     expect(await fout(als(ANNA, 'select live_antwoord($1, 1, $2)', [id, 'x']))).toContain('te_laat');
   });
 });
+
+describe('supabase-schema: bijnaam, verlaten en ping', () => {
+  let id = '';
+  let c = '';
+  const DRIES = '00000000-0000-0000-0000-0000000000d1';
+
+  it('bijnaam instellen, maar niet de naam van een klasgenoot', async () => {
+    const [s] = await als<{ id: string; code: string }>(
+      LEERKRACHT,
+      `insert into live_sessies (titel, namen, aantal_vragen) values ('B', array['Anna Peeters','Bert Claes','Dries Mertens'], 1) returning id, code`,
+    );
+    id = s.id;
+    c = s.code;
+    await als(ANNA, 'select * from live_deelnemen($1, $2)', [c, 'Anna Peeters']);
+    await als(BERT, 'select * from live_deelnemen($1, $2)', [c, 'Bert Claes']);
+    const [r] = await als<{ live_bijnaam: string }>(ANNA, 'select live_bijnaam($1, $2)', [id, '  De   Rekenkoningin ']);
+    expect(r.live_bijnaam).toBe('De Rekenkoningin');
+    // Naam van een klasgenoot (ook als die nog niet aangemeld is) of bijnaam van een ander: geweigerd.
+    expect(await fout(als(BERT, 'select live_bijnaam($1, $2)', [id, 'dries mertens']))).toContain('bijnaam_bezet');
+    expect(await fout(als(BERT, 'select live_bijnaam($1, $2)', [id, 'de rekenkoningin']))).toContain('bijnaam_bezet');
+    // Eigen echte naam als bijnaam mag; leeg = wissen.
+    await als(BERT, 'select live_bijnaam($1, $2)', [id, 'Bert Claes']);
+    await als(BERT, 'select live_bijnaam($1, $2)', [id, '   ']);
+    const rijen = await als<{ naam: string; bijnaam: string | null }>(LEERKRACHT, 'select naam, bijnaam from live_spelers where sessie_id = $1 order by naam', [id]);
+    expect(rijen).toEqual([
+      { naam: 'Anna Peeters', bijnaam: 'De Rekenkoningin' },
+      { naam: 'Bert Claes', bijnaam: null },
+    ]);
+    expect(await fout(als(DRIES, 'select live_bijnaam($1, $2)', [id, 'x']))).toContain('geen_speler');
+  });
+
+  it('verlaten geeft de naam vrij; terugkeren behoudt antwoorden en bijnaam', async () => {
+    await als(LEERKRACHT, `select live_start_vraag($1, 0, '{"tekst":"x"}')`, [id]);
+    await als(ANNA, 'select live_antwoord($1, 0, $2)', [id, '1']);
+    await als(ANNA, 'select live_verlaten($1)', [id]);
+    expect(await als(ANNA, 'select * from live_sessies where id = $1', [id])).toEqual([]);
+    const [info] = await als<{ vrije_namen: string[] }>(DRIES, 'select * from live_sessie_info($1)', [c]);
+    expect(info.vrije_namen).toContain('Anna Peeters');
+    await als(ANNA, 'select * from live_deelnemen($1, $2)', [c, 'Anna Peeters']);
+    expect(await als(ANNA, 'select antwoord from live_antwoorden where sessie_id = $1', [id])).toEqual([{ antwoord: '1' }]);
+    const [p] = await als<{ bijnaam: string }>(ANNA, 'select bijnaam from live_spelers where sessie_id = $1', [id]);
+    expect(p.bijnaam).toBe('De Rekenkoningin');
+  });
+
+  it('ping werkt zonder aanmelden', async () => {
+    await db.exec(`reset role; set role anon;`);
+    try {
+      const r = await db.query('select live_ping() is not null as ok');
+      expect(r.rows).toEqual([{ ok: true }]);
+    } finally {
+      await db.exec('reset role;');
+    }
+  });
+});

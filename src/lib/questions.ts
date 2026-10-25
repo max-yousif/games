@@ -1,6 +1,6 @@
 import { newId, nu } from './ids';
 import type { Vraag, Vragenset } from './types';
-import { gatenVan, WAAR_ONWAAR } from './vraagtypes';
+import { gatenVan, gatLabel, WAAR_ONWAAR } from './vraagtypes';
 
 export function nieuweVraag(vorige?: Vraag): Vraag {
   return {
@@ -25,7 +25,7 @@ export function nieuweVraag(vorige?: Vraag): Vraag {
 
 /** Kopie van een vraag met een nieuw id (lijsten worden mee gekopieerd). */
 export function kopieVraag(v: Vraag): Vraag {
-  return { ...v, id: newId(), opties: [...v.opties], paren: v.paren?.map((p) => [...p] as [string, string]) };
+  return { ...v, id: newId(), opties: [...v.opties], alternatieven: v.alternatieven && [...v.alternatieven], paren: v.paren?.map((p) => [...p] as [string, string]) };
 }
 
 export function nieuweSet(): Vragenset {
@@ -64,15 +64,20 @@ export function juistAntwoord(v: Vraag): string {
       return v.tolerantie ? `${v.antwoord} (± ${String(v.tolerantie).replace('.', ',')})` : v.antwoord;
     case 'invullen':
       return gatenVan(v.tekst)
-        .map((g, i) => `(${i + 1}) ${g.join(' of ')}`)
+        .map((g, i) => `${gatLabel(i)} ${g.join(' of ')}`)
         .join('\n');
     case 'ordenen':
       return v.alsCode ? `\`\`\`\n${v.opties.join('\n')}\n\`\`\`` : v.opties.map((o, i) => `${i + 1}. ${o}`).join('\n');
     case 'koppelen':
       return (v.paren ?? []).map(([l, r]) => `${l}  →  ${r}`).join('\n');
     default:
-      return v.antwoord;
+      return juisteAntwoorden(v).join('  of  ');
   }
+}
+
+/** Open vraag: het antwoord en de andere antwoorden die ook juist zijn (zonder lege). */
+export function juisteAntwoorden(v: Vraag): string[] {
+  return [v.antwoord, ...(v.alternatieven ?? [])].filter((a) => a.trim());
 }
 
 /** Problemen die verhinderen dat een vraag gespeeld kan worden. */
@@ -121,6 +126,7 @@ export function speelbareVragen(set: Vragenset): Vraag[] {
       }
       if (v.type === 'ordenen') return { ...v, opties: v.opties.filter((o) => o.trim()) };
       if (v.type === 'koppelen') return { ...v, paren: (v.paren ?? []).filter(([l, r]) => l.trim() && r.trim()) };
+      if (v.type === 'open' && v.alternatieven) return { ...v, alternatieven: v.alternatieven.filter((a) => a.trim()) };
       return v;
     });
 }

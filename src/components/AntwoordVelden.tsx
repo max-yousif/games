@@ -1,5 +1,6 @@
 import type { Vraag } from '../lib/types';
 import { gatenVan, LETTERS, WAAR_ONWAAR } from '../lib/vraagtypes';
+import { GatSymbool } from './RichText';
 import { Button, inputClass, labelClass } from './ui';
 
 type Wijzig = (f: (v: Vraag) => Vraag) => void;
@@ -7,14 +8,42 @@ type Wijzig = (f: (v: Vraag) => Vraag) => void;
 /** De invulvelden voor het antwoord, afhankelijk van het type vraag. */
 export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange: Wijzig }) {
   switch (v.type) {
-    case 'open':
+    case 'open': {
+      const extra = v.alternatieven ?? [];
+      const zetExtra = (lijst: string[]) => onChange((x) => ({ ...x, alternatieven: lijst }));
       return (
         <div>
           <label className={labelClass}>Antwoord</label>
           <input className={`${inputClass} font-mono`} value={v.antwoord} onChange={(e) => onChange((x) => ({ ...x, antwoord: e.target.value }))} />
-          <p className="mt-1 text-xs text-slate-500">Bij een live quiz wordt het antwoord automatisch nagekeken (spaties, hoofdletters en $…$ maken niet uit); jij kan afwijkende antwoorden nog goedkeuren.</p>
+          {extra.map((a, i) => (
+            <div key={i} className="mt-2 flex items-center gap-2">
+              <span className="w-16 shrink-0 text-xs font-medium text-slate-500">ook juist</span>
+              <input
+                className={`${inputClass} font-mono`}
+                value={a}
+                autoFocus={a === ''}
+                onChange={(e) => zetExtra(extra.map((y, j) => (j === i ? e.target.value : y)))}
+              />
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                aria-label="Dit juiste antwoord verwijderen"
+                onClick={() => zetExtra(extra.filter((_, j) => j !== i))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <Button variant="ghost" className="mt-1" onClick={() => zetExtra([...extra, ''])}>
+            + ook juist
+          </Button>
+          <p className="mt-1 text-xs text-slate-500">
+            Voeg andere schrijfwijzen toe die ook juist zijn (bv. <code>x=6</code> en <code>6</code>, of <code>dalparabool</code> en <code>parabool met top onderaan</code>). Bij een live quiz
+            wordt automatisch nagekeken (spaties, hoofdletters en $…$ maken niet uit); jij kan afwijkende antwoorden nog goedkeuren.
+          </p>
         </div>
       );
+    }
     case 'getal':
       return (
         <div className="flex flex-wrap gap-3">
@@ -64,14 +93,16 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
             <code>|</code>, bv. <code>{'[[0,5|1/2]]'}</code>. Gaten mogen ook in Python-code staan, niet binnen een formule <code>$…$</code>.
           </p>
           {gaten.length > 0 && (
-            <ol className="mt-2 list-decimal pl-5">
+            <ul className="mt-2 space-y-1">
               {gaten.map((g, i) => (
-                <li key={i}>
+                <li key={i} className="flex items-center gap-2">
+                  <GatSymbool nr={i} />
                   <span className="font-mono">{g.join('  of  ') || '(leeg)'}</span>
                 </li>
               ))}
-            </ol>
+            </ul>
           )}
+          <p className="mt-2">Leerlingen zien elk gat als een gekleurd symbool (★, ●, ▲ …), niet als een cijfer.</p>
         </div>
       );
     }

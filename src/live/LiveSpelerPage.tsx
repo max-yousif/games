@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { backend, supabaseIngesteld } from './config';
 import { EscapeSpeler } from './EscapeSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
-import { plaatsVan } from './logic';
-import { LiveFout, type LiveAntwoord, type LiveBackend, type LiveSessie, type SessieInfo } from './types';
+import { plaatsVan, schermNaam } from './logic';
+import { LiveFout, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
+import { VerbindingsBolletje } from './VerbindingsBolletje';
+
 const BEWAARD = 'klasspelen.live-deelname';
 
 interface Deelname {
@@ -14,64 +16,94 @@ interface Deelname {
   naam: string;
 }
 
-/** In de demo is elk tabblad een andere leerling, dus dan per tabblad bewaren. */
-const opslagVoor = (soort: LiveBackend['soort']) => (soort === 'lokaal' ? sessionStorage : localStorage);
+/** In de demo en bij "apart per tabblad" is elk tabblad een andere leerling, dus dan per tabblad bewaren. */
+const opslagVoor = (perTabblad: boolean) => (perTabblad ? sessionStorage : localStorage);
 
-function leesDeelname(soort: LiveBackend['soort']): Deelname | null {
+function leesDeelname(perTabblad: boolean): Deelname | null {
   try {
-    return JSON.parse(opslagVoor(soort).getItem(BEWAARD) ?? 'null') as Deelname | null;
+    return JSON.parse(opslagVoor(perTabblad).getItem(BEWAARD) ?? 'null') as Deelname | null;
   } catch {
     return null;
   }
 }
 
-function bewaarDeelname(soort: LiveBackend['soort'], d: Deelname | null) {
+function bewaarDeelname(perTabblad: boolean, d: Deelname | null) {
   try {
-    if (d) opslagVoor(soort).setItem(BEWAARD, JSON.stringify(d));
-    else opslagVoor(soort).removeItem(BEWAARD);
+    if (d) opslagVoor(perTabblad).setItem(BEWAARD, JSON.stringify(d));
+    else opslagVoor(perTabblad).removeItem(BEWAARD);
   } catch {
     // privévenster: herladen vraagt dan opnieuw de naam
   }
 }
 
 
-/** Scherm voor leerlingen: code ingeven, naam kiezen en meespelen. */
-export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo: boolean }) {
+/**
+ * Scherm voor leerlingen: code ingeven, naam kiezen en meespelen.
+ * @param apart elk tabblad is een andere leerling (om als leerkracht te testen op één laptop).
+ */
+export function LiveSpelerPage({ code: startCode, demo, apart = false }: { code?: string; demo: boolean; apart?: boolean }) {
   const soort: LiveBackend['soort'] = demo || !supabaseIngesteld ? 'lokaal' : 'supabase';
-  const be = backend(soort);
+  const perTabblad = soort === 'lokaal' || apart;
+  const be = backend(soort, apart);
   const [deelname, setDeelname] = useState<Deelname | null>(() => {
-    const d = leesDeelname(soort);
+    const d = leesDeelname(perTabblad);
     return d && d.soort === soort && (!startCode || d.code === startCode.toUpperCase()) ? d : null;
   });
   const [melding, setMelding] = useState<string | null>(null);
+  const [laatsteCode, setLaatsteCode] = useState(startCode ?? '');
+
+  const weg = useCallback(
+    (tekst: string) => {
+      bewaarDeelname(perTabblad, null);
+      setDeelname((d) => {
+        if (d) setLaatsteCode(d.code);
+        return null;
+      });
+      setMelding(tekst);
+    },
+    [perTabblad],
+  );
+
+  async function verlaat() {
+    if (!deelname || !confirm('Het spel verlaten? Je kan later terugkeren met dezelfde naam; je punten blijven bewaard.')) return;
+    // Eerst het spelscherm sluiten, dan pas de server verwittigen: zo meldt het spelscherm niet
+    // nog "losgekoppeld" wanneer de server de naam vrijgeeft.
+    weg('Je hebt het spel verlaten. Kies opnieuw je naam om terug te keren, of geef een andere code in.');
+    try {
+      await be.verlaten(deelname.sessieId);
+    } catch {
+      // Ook zonder verbinding verlaten; de leerkracht kan de naam zo nodig loskoppelen.
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
       <header className="flex items-center gap-3 bg-white px-6 py-3 shadow-sm">
         <span className="text-lg font-bold">🎲 Klasspelen</span>
         <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">live</span>
-        {deelname && <span className="ml-auto font-medium">{deelname.naam}</span>}
+        {apart && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">testtabblad</span>}
+        {deelname && (
+          <>
+            <span className="ml-auto font-medium">{deelname.naam}</span>
+            <VerbindingsBolletje />
+            <button type="button" onClick={() => void verlaat()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+              Verlaten
+            </button>
+          </>
+        )}
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-8">
         {deelname ? (
-          <Spel
-            key={deelname.sessieId}
-            be={be}
-            deelname={deelname}
-            onWeg={(tekst) => {
-              bewaarDeelname(soort, null);
-              setDeelname(null);
-              setMelding(tekst);
-            }}
-          />
+          <Spel key={deelname.sessieId} be={be} deelname={deelname} onWeg={weg} />
         ) : (
           <Aanmelden
+            key={laatsteCode}
             be={be}
-            startCode={startCode ?? ''}
+            startCode={laatsteCode}
             melding={melding}
             onKlaar={(d) => {
               const nieuw = { ...d, soort };
-              bewaarDeelname(soort, nieuw);
+              bewaarDeelname(perTabblad, nieuw);
               setMelding(null);
               setDeelname(nieuw);
             }}
@@ -163,6 +195,7 @@ function Aanmelden({ be, startCode, melding, onKlaar }: { be: LiveBackend; start
 
   return (
     <Kaart>
+      {melding && <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-amber-900">{melding}</p>}
       <h1 className="text-3xl font-bold">{info.titel}</h1>
       <p className="mt-2 text-lg text-slate-600">Wie ben jij?</p>
       {fout && <p className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-red-700">{fout}</p>}
@@ -207,24 +240,37 @@ function Aanmelden({ be, startCode, melding, onKlaar }: { be: LiveBackend; start
 function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; onWeg: (melding: string) => void }) {
   const [sessie, setSessie] = useState<LiveSessie | null | undefined>(undefined);
   const [antwoorden, setAntwoorden] = useState<LiveAntwoord[]>([]);
+  // De leerling ziet enkel de eigen rij (beveiliging in de database).
+  const [ik, setIk] = useState<LiveSpeler | null>(null);
 
   useEffect(() => be.volgSessie(deelname.sessieId, setSessie), [be, deelname.sessieId]);
   useEffect(() => be.volgAntwoorden(deelname.sessieId, setAntwoorden), [be, deelname.sessieId]);
+  useEffect(() => be.volgSpelers(deelname.sessieId, (s) => setIk(s.find((x) => x.verbonden) ?? null)), [be, deelname.sessieId]);
 
   // Geen toegang meer: losgekoppeld door de leerkracht of het spel is afgesloten.
   useEffect(() => {
     if (sessie !== null) return;
+    // Niets meer melden als dit scherm intussen gesloten is (bv. na zelf "Verlaten").
+    let actief = true;
     void be.sessieInfo(deelname.code).then(
-      (info) => onWeg(info ? 'Je bent losgekoppeld. Kies opnieuw je naam.' : 'Het spel is afgesloten. Bedankt om mee te spelen!'),
-      () => onWeg('De verbinding met het spel is verbroken. Geef de code opnieuw in.'),
+      (info) => actief && onWeg(info ? 'Je bent losgekoppeld. Kies opnieuw je naam.' : 'Het spel is afgesloten. Bedankt om mee te spelen!'),
+      () => actief && onWeg('De verbinding met het spel is verbroken. Geef de code opnieuw in.'),
     );
+    return () => {
+      actief = false;
+    };
   }, [sessie, be, deelname.code, onWeg]);
 
   if (!sessie) return <p className="text-center text-xl text-slate-500">Verbinden…</p>;
 
   const mijn = antwoorden.find((a) => a.vraagNr === sessie.vraagNr);
   const totaal = antwoorden.reduce((t, a) => t + a.punten, 0);
-  const plaats = plaatsVan(sessie.stand, deelname.naam);
+  const plaats = ik ? plaatsVan(sessie.stand, ik.id) : null;
+  const nieuwSpel = (
+    <button type="button" onClick={() => onWeg('Geef de code van het nieuwe spel in.')} className="mt-6 rounded-xl bg-[var(--accent)] px-6 py-3 text-lg font-semibold text-white hover:brightness-110">
+      Nieuw spel meespelen
+    </button>
+  );
 
   if (sessie.status === 'lobby') {
     return (
@@ -235,11 +281,12 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
           <p className="mt-2 text-xl text-slate-600">Je doet mee aan “{sessie.titel}”. Wacht tot de leerkracht start…</p>
           <div className="mt-6 animate-pulse text-slate-400">●●●</div>
         </div>
+        <Bijnaam be={be} sessieId={deelname.sessieId} ik={ik} />
       </Kaart>
     );
   }
 
-  if (sessie.modus === 'escape') return <EscapeSpeler be={be} sessie={sessie} antwoorden={antwoorden} naam={deelname.naam} />;
+  if (sessie.modus === 'escape') return <EscapeSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
 
   if (sessie.status === 'einde') {
     return (
@@ -252,13 +299,14 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
           </p>
           <ol className="mx-auto mt-6 max-w-sm space-y-1 text-left">
             {sessie.stand.slice(0, 3).map((r, i) => (
-              <li key={r.naam} className="flex gap-3 rounded-lg bg-slate-50 px-4 py-2 text-lg">
+              <li key={r.id ?? r.naam} className="flex gap-3 rounded-lg bg-slate-50 px-4 py-2 text-lg">
                 <span>{['🥇', '🥈', '🥉'][i]}</span>
                 <span className="flex-1 font-medium">{r.naam}</span>
                 <span className="font-mono">{r.punten}</span>
               </li>
             ))}
           </ol>
+          {nieuwSpel}
         </div>
       </Kaart>
     );
@@ -316,6 +364,62 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
           {sessie.oplossing.uitleg && <RichText text={sessie.oplossing.uitleg} className="mt-2 text-slate-700" />}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Bijnaam instellen in de wachtzaal: die verschijnt op het bord in plaats van de echte naam. */
+function Bijnaam({ be, sessieId, ik }: { be: LiveBackend; sessieId: string; ik: LiveSpeler | null }) {
+  const [tekst, setTekst] = useState('');
+  const [fout, setFout] = useState<string | null>(null);
+  const [bezig, setBezig] = useState(false);
+  const huidig = ik?.bijnaam ?? null;
+
+  async function bewaar(waarde: string) {
+    setBezig(true);
+    setFout(null);
+    try {
+      await be.bijnaam(sessieId, waarde);
+      setTekst('');
+    } catch (e) {
+      setFout(foutTekst(e));
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto mt-8 max-w-md rounded-xl bg-slate-50 p-4 text-left">
+      <div className="font-semibold">Bijnaam (optioneel)</div>
+      <p className="text-sm text-slate-500">Op het bord verschijnt je bijnaam in plaats van je echte naam. De leerkracht ziet wie je bent.</p>
+      {huidig && (
+        <p className="mt-2">
+          Op het bord: <strong>{schermNaam({ naam: ik!.naam, bijnaam: huidig })}</strong>{' '}
+          <button type="button" className="text-sm text-slate-500 underline" disabled={bezig} onClick={() => void bewaar('')}>
+            wissen
+          </button>
+        </p>
+      )}
+      <form
+        className="mt-2 flex gap-2"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (tekst.trim()) void bewaar(tekst);
+        }}
+      >
+        <input
+          value={tekst}
+          maxLength={30}
+          onChange={(e) => setTekst(e.target.value)}
+          placeholder={huidig ? 'Andere bijnaam' : 'bv. De Rekenkoning'}
+          aria-label="Bijnaam"
+          className="min-w-0 flex-1 rounded-lg border-2 border-slate-300 px-3 py-2 outline-none focus:border-[var(--accent)]"
+        />
+        <button type="submit" disabled={!tekst.trim() || bezig} className="rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white disabled:opacity-50">
+          Opslaan
+        </button>
+      </form>
+      {fout && <p className="mt-2 text-sm text-red-600">{fout}</p>}
     </div>
   );
 }

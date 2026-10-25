@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Notice, PageHeader } from '../components/ui';
+import { beeindigSpel } from '../lib/beeindigen';
 import { datumTekst, exporteerAlles, exporteerSessie, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
 import { leerlingNaam, resultatenPerLeerling, teamScores } from '../lib/session';
@@ -48,7 +49,15 @@ export function ResultatenPage({ store }: { store: Store }) {
               </span>
               <span className="text-slate-400">{open === s.id ? '▲' : '▼'}</span>
             </button>
-            {open === s.id && <SessieDetail sessie={s} onDelete={() => confirm('Dit resultaat verwijderen?') && store.setSessies((all) => all.filter((x) => x.id !== s.id))} />}
+            {open === s.id && (
+              <SessieDetail
+                sessie={s}
+                onDelete={() => confirm('Dit resultaat verwijderen?') && store.setSessies((all) => all.filter((x) => x.id !== s.id))}
+                onBeeindig={async () => {
+                  if (confirm('Dit spel beëindigen? De resultaten blijven bewaard.')) store.bewaarSessie(await beeindigSpel(s));
+                }}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -56,7 +65,7 @@ export function ResultatenPage({ store }: { store: Store }) {
   );
 }
 
-function SessieDetail({ sessie: s, onDelete }: { sessie: Sessie; onDelete: () => void }) {
+function SessieDetail({ sessie: s, onDelete, onBeeindig }: { sessie: Sessie; onDelete: () => void; onBeeindig: () => void }) {
   return (
     <div className="border-t border-slate-100 px-5 py-4">
       <div className="grid gap-6 lg:grid-cols-2">
@@ -103,9 +112,12 @@ function SessieDetail({ sessie: s, onDelete }: { sessie: Sessie; onDelete: () =>
           ⬇ Exporteren (Excel)
         </Button>
         {!s.beeindigd && (
-          <a href={href({ pagina: 'sessie', id: s.id })} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
-            Hervatten
-          </a>
+          <>
+            <a href={href({ pagina: 'sessie', id: s.id })} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
+              Hervatten
+            </a>
+            <Button onClick={onBeeindig}>Beëindigen</Button>
+          </>
         )}
         <Button variant="danger" className="ml-auto" onClick={onDelete}>
           Verwijderen

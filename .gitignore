@@ -5,3 +5,6 @@ dist
 *.tsbuildinfo
 .wrangler
 .dev.vars
+dist-e2e
+test-results
+playwright-report

@@ -35,10 +35,22 @@ export function gatenVan(tekst: string): string[][] {
   );
 }
 
-/** Label van een gat zoals het in de tekst verschijnt. */
-export const gatLabel = (i: number) => `__(${i + 1})__`;
+/**
+ * Merkteken van een gat in de tekst. RichText toont het als een gekleurd symbool (★, ●, ▲ ...),
+ * zodat het niet te verwarren is met cijfers in een formule of in code.
+ */
+export const gatLabel = (i: number) => `⟦${i + 1}⟧`;
+export const GAT_MERK = /⟦(\d+)⟧/g;
 
-/** Vervangt de gaten door (1), (2) ... of door de ingevulde antwoorden. */
+export const GAT_SYMBOLEN = ['★', '●', '▲', '■', '◆', '♥', '✚', '⬢'];
+export const GAT_KLEUREN = ['#f59e0b', '#0ea5e9', '#10b981', '#f43f5e', '#8b5cf6', '#f97316', '#14b8a6', '#ec4899'];
+export const gatSymbool = (i: number) => GAT_SYMBOLEN[i % GAT_SYMBOLEN.length];
+export const gatKleur = (i: number) => GAT_KLEUREN[i % GAT_KLEUREN.length];
+
+/** Merktekens vervangen door het symbool (voor Excel en gewone tekst). */
+export const gatenAlsTekst = (t: string) => t.replace(GAT_MERK, (_, n: string) => gatSymbool(Number(n) - 1));
+
+/** Vervangt de gaten door merktekens (getoond als ★, ●, ▲ ...) of door de ingevulde antwoorden. */
 export function tekstMetGaten(tekst: string, invul?: readonly string[]): string {
   let i = 0;
   return tekst.replace(GAT, () => {

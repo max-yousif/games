@@ -15,6 +15,8 @@ export interface Vraag {
   tekst: string;
   /** Antwoord bij een open vraag of een getal. */
   antwoord: string;
+  /** Open vraag: andere antwoorden die ook juist zijn. */
+  alternatieven?: string[];
   /** Meerkeuze: de opties. Ordenen: de items in de juiste volgorde. */
   opties: string[];
   /** Meerkeuze: index van de juiste optie. Waar/onwaar: 0 = waar, 1 = onwaar. */
@@ -87,6 +89,8 @@ export interface LiveInfo {
   escapeCode?: string;
   /** Escape room: tijd tot ontsnappen (ms) per leerlingnaam. */
   ontsnapt?: Record<string, number>;
+  /** Bijnamen per leerlingnaam (voor op het scherm). */
+  bijnamen?: Record<string, string>;
 }
 
 export interface Sessie {

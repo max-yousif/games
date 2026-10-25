@@ -1,6 +1,6 @@
-import writeXlsxFile from 'write-excel-file/browser';
 import { bestandsnaam } from './backup';
 import { juistAntwoord } from './questions';
+import { gatenAlsTekst } from './vraagtypes';
 import { leerlingNaam, resultatenPerLeerling, teamScores } from './session';
 import type { Sessie } from './types';
 
@@ -27,9 +27,28 @@ function sessieBladen(s: Sessie, prefix = '') {
   const scores = teamScores(s);
   const ontsnapt = s.live?.ontsnapt;
   const tijd = (naam: string) => (ontsnapt?.[naam] !== undefined ? tijdTekst(ontsnapt[naam]) : '');
+  const bijnamen = s.live?.bijnamen;
   const perLeerling = [
-    [bold('Leerling'), bold('Team'), bold('Pogingen'), bold('Juist'), bold('Fout'), bold('Punten'), ...(ontsnapt ? [bold('Ontsnapt na')] : [])],
-    ...resultatenPerLeerling(s).map((r) => [r.naam, r.team, r.beurten, r.juist, r.fout, r.punten, ...(ontsnapt ? [tijd(r.naam)] : [])]),
+    [
+      bold('Leerling'),
+      ...(bijnamen ? [bold('Bijnaam')] : []),
+      bold('Team'),
+      bold('Pogingen'),
+      bold('Juist'),
+      bold('Fout'),
+      bold('Punten'),
+      ...(ontsnapt ? [bold('Ontsnapt na')] : []),
+    ],
+    ...resultatenPerLeerling(s).map((r) => [
+      r.naam,
+      ...(bijnamen ? [bijnamen[r.naam] ?? ''] : []),
+      r.team,
+      r.beurten,
+      r.juist,
+      r.fout,
+      r.punten,
+      ...(ontsnapt ? [tijd(r.naam)] : []),
+    ]),
     [],
     [bold('Team'), bold('Score')],
     ...s.teams.map((t, i) => [t.naam, scores[i]]),
@@ -44,7 +63,7 @@ function sessieBladen(s: Sessie, prefix = '') {
     [bold('Nr'), bold('Team'), bold('Leerling'), bold('Categorie'), bold('Vraag'), bold('Antwoord'), bold('Juist'), bold('Punten')],
     ...s.beurten.map((b, i) => {
       const v = vraagTekst(b.vraagId);
-      return [i + 1, s.teams[b.team]?.naam ?? '', leerlingNaam(s, b.leerlingId), v?.categorie ?? '', v?.tekst ?? '', v ? juistAntwoord(v) : '', b.juist ? 'ja' : 'nee', b.punten];
+      return [i + 1, s.teams[b.team]?.naam ?? '', leerlingNaam(s, b.leerlingId), v?.categorie ?? '', v?.tekst ?? '', v ? gatenAlsTekst(juistAntwoord(v)) : '', b.juist ? 'ja' : 'nee', b.punten];
     }),
   ];
   return [
@@ -53,13 +72,18 @@ function sessieBladen(s: Sessie, prefix = '') {
   ];
 }
 
-export function exporteerSessie(s: Sessie): Promise<void> {
+/** De Excel-bibliotheek wordt pas geladen bij het exporteren. */
+const excel = () => import('write-excel-file/browser').then((m) => m.default);
+
+export async function exporteerSessie(s: Sessie): Promise<void> {
   const datum = s.gestart.slice(0, 10);
+  const writeXlsxFile = await excel();
   return writeXlsxFile(sessieBladen(s)).toFile(bestandsnaam(`${datum} ${s.klasNaam} ${s.setTitel}`, 'xlsx'));
 }
 
 /** Eén bestand met een overzicht en per leerling de totalen over alle gekozen sessies. */
-export function exporteerAlles(sessies: readonly Sessie[]): Promise<void> {
+export async function exporteerAlles(sessies: readonly Sessie[]): Promise<void> {
+  const writeXlsxFile = await excel();
   const overzicht = [
     [bold('Datum'), bold('Klas'), bold('Set'), bold('Spel'), bold('Leerling'), bold('Team'), bold('Beurten'), bold('Juist'), bold('Fout'), bold('Punten')],
     ...sessies.flatMap((s) =>

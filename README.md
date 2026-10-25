@@ -29,8 +29,10 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
   Python-code in codeblokken, importeren uit Excel, dupliceren en bewaren als bestand.
 - **Resultaten** per leerling bekijken en **exporteren naar Excel**.
 - Spellen **pauzeren en hervatten**, laatste beurt **ongedaan maken**, timer, volledig scherm.
-- **Live quiz en escape room**: code op het bord, leerlingen kiezen hun naam, je volgt alles
-  live, automatisch nakijken (ook open vragen), tussenstand en eindstand. Vereist een gratis
+- **Live quiz en escape room**: code op het bord, leerlingen kiezen hun naam (en eventueel een
+  bijnaam voor op het bord), je volgt alles live, automatisch nakijken (ook open vragen),
+  tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren; met
+  🧪 *test als leerling* speel je zelf meerdere leerlingen op één laptop. Vereist een gratis
   Supabase-project: zie [supabase/README.md](supabase/README.md). Zonder Supabase werkt een demo
   in één browser.
 - **Back-up** van alles in één bestand. Klassen, sets en resultaten blijven in je browser.
@@ -48,6 +50,7 @@ Zie [PLAN.md](PLAN.md) voor het volledige plan en de volgende fases.
 npm install
 npm run dev      # ontwikkelserver op http://localhost:5173
 npm test         # tests
+npm run test:e2e # browsertests (Playwright)
 npm run build    # productieversie in dist/
 ```
 

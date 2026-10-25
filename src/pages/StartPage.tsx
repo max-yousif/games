@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, FileButton, Notice, Section } from '../components/ui';
 import { BackupError, downloadJson, leesBestand, maakBackup, voegSamen } from '../lib/backup';
+import { beeindigSpel } from '../lib/beeindigen';
 import { datumTekst, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
@@ -58,6 +59,13 @@ export function StartPage({ store }: { store: Store }) {
                 <a href={href({ pagina: 'sessie', id: s.id })} className="ml-auto rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-110">
                   Hervatten
                 </a>
+                <Button
+                  onClick={async () => {
+                    if (confirm(`"${s.setTitel}" (${s.klasNaam}) beëindigen? De resultaten blijven bewaard onder Resultaten.`)) store.bewaarSessie(await beeindigSpel(s));
+                  }}
+                >
+                  Beëindigen
+                </Button>
               </li>
             ))}
           </ul>

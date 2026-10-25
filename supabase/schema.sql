@@ -42,6 +42,8 @@ create table if not exists public.live_spelers (
   -- null = losgekoppeld door de leerkracht; de leerling kan zich opnieuw aanmelden.
   uid uuid default auth.uid(),
   naam text not null check (length(naam) between 1 and 60),
+  -- Bijnaam voor op het scherm (de leerkracht ziet in de resultaten de echte naam).
+  bijnaam text check (bijnaam is null or length(bijnaam) between 1 and 30),
   aangemaakt timestamptz not null default now(),
   unique (sessie_id, naam)
 );
@@ -72,6 +74,7 @@ alter table public.live_sessies add column if not exists vragen jsonb;
 alter table public.live_sessies add column if not exists wachttijd int not null default 0;
 alter table public.live_sessies drop constraint if exists live_sessies_status_check;
 alter table public.live_sessies add constraint live_sessies_status_check check (status in ('lobby', 'vraag', 'antwoord', 'bezig', 'einde'));
+alter table public.live_spelers add column if not exists bijnaam text check (bijnaam is null or length(bijnaam) between 1 and 30);
 alter table public.live_antwoorden add column if not exists poging int not null default 1;
 alter table public.live_antwoorden add column if not exists beloning text;
 alter table public.live_antwoorden drop constraint if exists live_antwoorden_speler_id_vraag_nr_key;
@@ -217,6 +220,45 @@ begin
 end;
 $$;
 
+-- Een bijnaam instellen (of wissen met een lege tekst). Een bijnaam mag niet de naam van een
+-- andere leerling zijn, zodat niemand zich als een klasgenoot kan voordoen.
+create or replace function public.live_bijnaam(p_sessie uuid, p_bijnaam text)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  s live_sessies;
+  p live_spelers;
+  b text := left(nullif(trim(regexp_replace(coalesce(p_bijnaam, ''), '\s+', ' ', 'g')), ''), 30);
+begin
+  select * into s from live_sessies where id = p_sessie;
+  select * into p from live_spelers where sessie_id = p_sessie and uid = auth.uid();
+  if s.id is null or p.id is null then raise exception 'geen_speler'; end if;
+  if b is not null and (
+    exists (select 1 from unnest(s.namen) as n where lower(n) = lower(b) and n <> p.naam)
+    or exists (select 1 from live_spelers o where o.sessie_id = p_sessie and o.id <> p.id and (lower(o.naam) = lower(b) or lower(o.bijnaam) = lower(b)))
+  ) then
+    raise exception 'bijnaam_bezet';
+  end if;
+  update live_spelers set bijnaam = b where id = p.id;
+  return b;
+end;
+$$;
+
+-- Het spel verlaten: de naam komt weer vrij. Wie later terugkeert met dezelfde naam, behoudt
+-- de antwoorden en de bijnaam.
+create or replace function public.live_verlaten(p_sessie uuid)
+returns void
+language sql security definer set search_path = public as $$
+  update live_spelers set uid = null where sessie_id = p_sessie and uid = auth.uid();
+$$;
+
+-- Een lichte aanroep om het gratis Supabase-project wakker te houden (zie .github/workflows).
+create or replace function public.live_ping()
+returns timestamptz
+language sql stable as $$
+  select now();
+$$;
+
 -- Een antwoord geven. Quiz: één keer op de huidige vraag. Escape room: op eender welk slot
 -- (of -1 voor de eindcode), opnieuw proberen na een fout antwoord en de wachttijd.
 -- De tijd wordt door de server gemeten.
@@ -300,9 +342,12 @@ $$;
 revoke all on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code(), public.live_opruimen() from public, anon;
 grant execute on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code() to authenticated;
 revoke all on function public.live_sessie_info(text), public.live_deelnemen(text, text), public.live_antwoord(uuid, int, text),
+  public.live_bijnaam(uuid, text), public.live_verlaten(uuid),
   public.live_start_vraag(uuid, int, jsonb), public.live_start_escape(uuid), public.live_beoordeel(uuid, jsonb) from public, anon;
 grant execute on function public.live_sessie_info(text), public.live_deelnemen(text, text), public.live_antwoord(uuid, int, text),
+  public.live_bijnaam(uuid, text), public.live_verlaten(uuid),
   public.live_start_vraag(uuid, int, jsonb), public.live_start_escape(uuid), public.live_beoordeel(uuid, jsonb) to authenticated;
+grant execute on function public.live_ping() to anon, authenticated;
 grant select, insert, update, delete on public.live_sessies to authenticated;
 grant select, update, delete on public.live_spelers, public.live_antwoorden to authenticated;
 

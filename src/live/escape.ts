@@ -1,6 +1,6 @@
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { Vraag } from '../lib/types';
-import { automatischJuist } from './logic';
+import { automatischJuist, schermNaam } from './logic';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
 
 /** Vraagnummer van de eindcode. */
@@ -73,5 +73,5 @@ export function escapeVoortgang(spelers: readonly LiveSpeler[], antwoorden: read
 
 /** Stand voor de leerlingen: wie ontsnapt is eerst (snelste eerst), daarna het aantal open sloten. */
 export function escapeStand(voortgang: readonly EscapeVoortgang[]): StandRij[] {
-  return voortgang.map((v) => ({ naam: v.speler.naam, punten: v.opgelost.size, juist: v.opgelost.size, tijdMs: v.ontsnaptMs }));
+  return voortgang.map((v) => ({ id: v.speler.id, naam: schermNaam(v.speler), punten: v.opgelost.size, juist: v.opgelost.size, tijdMs: v.ontsnaptMs }));
 }

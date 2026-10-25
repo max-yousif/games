@@ -16,6 +16,7 @@ import {
   oplossingVan,
   publiekeVraag,
   puntenVoor,
+  schermNaam,
   synchroniseer,
   type AntwoordGroep,
 } from './logic';
@@ -55,8 +56,13 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
   const sessieRef = useRef(sessie);
   sessieRef.current = sessie;
   useEffect(() => {
-    const s = synchroniseer(sessieRef.current, spelers, antwoorden, sessieRef.current.vraagVolgorde);
-    if (JSON.stringify(s.beurten) !== JSON.stringify(sessieRef.current.beurten) || s.teams[0].leerlingen.length !== sessieRef.current.teams[0].leerlingen.length) {
+    const huidig = sessieRef.current;
+    const s = synchroniseer(huidig, spelers, antwoorden, huidig.vraagVolgorde);
+    if (
+      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
+      JSON.stringify(s.live?.bijnamen ?? {}) !== JSON.stringify(huidig.live?.bijnamen ?? {})
+    ) {
       onUpdate(s);
     }
   }, [spelers, antwoorden, onUpdate]);
@@ -184,6 +190,7 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
           startTekst="Start de quiz"
           onStart={volgende}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
+          onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
         />
       )}
 
@@ -214,7 +221,13 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
               <div className="text-2xl font-semibold">
                 {huidige.length} / {verbonden.length} geantwoord
               </div>
-              <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={new Set(huidige.map((a) => a.spelerId))} onOntkoppel={(id) => actie(() => be.ontkoppel(id))} />
+              <SpelersRaster
+                sessie={sessie}
+                spelers={spelers}
+                beantwoord={new Set(huidige.map((a) => a.spelerId))}
+                onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
+                onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
+              />
               <div className="mt-auto flex gap-3">
                 <Button variant="primary" className="px-8 py-3 text-lg" disabled={bezig} onClick={toonAntwoord}>
                   Toon antwoord
@@ -253,6 +266,7 @@ export function Wachtruimte({
   startTekst,
   onStart,
   onOntkoppel,
+  onWisBijnaam,
 }: {
   sessie: Sessie;
   spelers: LiveSpeler[];
@@ -260,9 +274,12 @@ export function Wachtruimte({
   startTekst: string;
   onStart: () => void;
   onOntkoppel: (spelerId: string) => void;
+  onWisBijnaam: (spelerId: string) => void;
 }) {
   const live = sessie.live!;
   const link = deelnameLink(live.code, live.backend === 'lokaal');
+  // Testtabblad: elk tabblad meldt zich apart aan, zodat je op één laptop meerdere leerlingen kan spelen.
+  const testLink = live.backend === 'lokaal' ? link : `${link}&apart=1`;
   const aantal = spelers.filter((s) => s.verbonden).length;
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-4">
@@ -276,9 +293,13 @@ export function Wachtruimte({
           <a className="underline" href={link} target="_blank" rel="noreferrer">
             {link}
           </a>
+          {' · '}
+          <a className="underline" href={testLink} target="_blank" rel="noreferrer" title="Opent een leerlingenscherm in een nieuw tabblad; elk testtabblad is een andere leerling.">
+            🧪 test als leerling
+          </a>
         </div>
       </div>
-      <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={null} onOntkoppel={onOntkoppel} />
+      <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={null} onOntkoppel={onOntkoppel} onWisBijnaam={onWisBijnaam} />
       <Button variant="primary" className="px-10 py-4 text-xl" disabled={bezig || sessie.vraagVolgorde.length === 0} onClick={onStart}>
         ▶ {startTekst} ({aantal} {aantal === 1 ? 'speler' : 'spelers'})
       </Button>
@@ -291,11 +312,13 @@ export function SpelersRaster({
   spelers,
   beantwoord,
   onOntkoppel,
+  onWisBijnaam,
 }: {
   sessie: Sessie;
   spelers: LiveSpeler[];
   beantwoord: Set<string> | null;
   onOntkoppel: (spelerId: string) => void;
+  onWisBijnaam: (spelerId: string) => void;
 }) {
   const afwezig = sessie.teams[0].leerlingen.map((l) => l.naam).filter((n) => !spelers.some((s) => s.naam === n && s.verbonden));
   return (
@@ -310,7 +333,17 @@ export function SpelersRaster({
               className={`pop group inline-flex items-center gap-1 rounded-full px-4 py-2 text-lg font-medium ${klaar ? 'bg-emerald-500 text-white' : beantwoord ? 'bg-white text-slate-700 shadow-sm' : 'bg-[var(--accent-soft)] text-[var(--accent)]'}`}
             >
               {klaar && '✓ '}
-              {s.naam}
+              <span title={s.bijnaam ? s.naam : undefined}>{schermNaam(s)}</span>
+              {s.bijnaam && (
+                <button
+                  type="button"
+                  className="ml-1 hidden rounded-full px-1 text-sm opacity-60 group-hover:inline hover:opacity-100"
+                  title={`Bijnaam van ${s.naam} wissen`}
+                  onClick={() => confirm(`De bijnaam "${s.bijnaam}" van ${s.naam} wissen?`) && onWisBijnaam(s.id)}
+                >
+                  🚫
+                </button>
+              )}
               <button
                 type="button"
                 className="ml-1 hidden rounded-full px-1 text-sm opacity-60 group-hover:inline hover:opacity-100"
@@ -346,7 +379,10 @@ function Antwoorden({
   bezig: boolean;
   onZetGroep: (g: AntwoordGroep, juist: boolean) => void;
 }) {
-  const naam = (id: string) => spelers.find((s) => s.id === id)?.naam ?? '?';
+  const naam = (id: string) => {
+    const s = spelers.find((x) => x.id === id);
+    return s ? schermNaam(s) : '?';
+  };
   const publiek = publiekeVraag(vraag);
   const juistAantal = antwoorden.filter((a) => a.juist).length;
   const opl = oplossingVan(vraag);
@@ -422,7 +458,12 @@ function Antwoorden({
 /** Eindstand: podium, alle resultaten, export en afsluiten. Werkt ook zonder server (na afsluiten). */
 function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stand?: { naam: string; punten: number }[]; onAfsluiten?: () => void; bezig?: boolean }) {
   const rijen = resultatenPerLeerling(sessie);
-  const ranking = stand ?? [...rijen].filter((r) => r.naam !== '(hele team)').sort((a, b) => b.punten - a.punten);
+  const ranking =
+    stand ??
+    [...rijen]
+      .filter((r) => r.naam !== '(hele team)')
+      .map((r) => ({ ...r, naam: sessie.live?.bijnamen?.[r.naam] ?? r.naam }))
+      .sort((a, b) => b.punten - a.punten);
   const podium = ranking.slice(0, 3);
   return (
     <div className="mx-auto w-full max-w-5xl py-6">
@@ -454,7 +495,9 @@ function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stan
             .sort((a, b) => b.punten - a.punten || a.naam.localeCompare(b.naam, 'nl'))
             .map((r) => (
               <tr key={r.naam} className={`border-t border-slate-100 ${r.beurten === 0 ? 'text-slate-400' : ''}`}>
-                <td className="px-4 py-2 font-medium">{r.naam}</td>
+                <td className="px-4 py-2 font-medium" title={sessie.live?.bijnamen?.[r.naam] ? r.naam : undefined}>
+                  {sessie.live?.bijnamen?.[r.naam] ?? r.naam}
+                </td>
                 <td className="px-4 py-2 text-right">
                   {r.beurten} / {sessie.vraagVolgorde.length}
                 </td>

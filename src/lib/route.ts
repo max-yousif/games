@@ -8,7 +8,7 @@ export type Route =
   | { pagina: 'spelen'; setId?: string }
   | { pagina: 'sessie'; id: string }
   | { pagina: 'resultaten' }
-  | { pagina: 'live'; code?: string; demo: boolean };
+  | { pagina: 'live'; code?: string; demo: boolean; apart?: boolean };
 
 export function parseHash(hash: string): Route {
   const [pad, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -28,7 +28,7 @@ export function parseHash(hash: string): Route {
     case 'resultaten':
       return { pagina: 'resultaten' };
     case 'live':
-      return { pagina: 'live', code: params.get('code') ?? undefined, demo: params.get('demo') === '1' };
+      return { pagina: 'live', code: params.get('code') ?? undefined, demo: params.get('demo') === '1', apart: params.get('apart') === '1' };
     default:
       return { pagina: 'start' };
   }
@@ -48,6 +48,7 @@ export function href(r: Route): string {
       const q = new URLSearchParams();
       if (r.code) q.set('code', r.code);
       if (r.demo) q.set('demo', '1');
+      if (r.apart) q.set('apart', '1');
       return `#/live${q.size ? `?${q}` : ''}`;
     }
     default:
