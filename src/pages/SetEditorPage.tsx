@@ -1,15 +1,16 @@
 import { useState } from 'react';
+import { AntwoordVelden } from '../components/AntwoordVelden';
 import { RichText } from '../components/RichText';
 import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
-import { newId, nu } from '../lib/ids';
+import { VraagWeergave } from '../components/VraagWeergave';
+import { nu } from '../lib/ids';
 import { QuestionImportError, readSpreadsheet, rowsToQuestions, UnsupportedFileError } from '../lib/importFile';
-import { nieuweVraag, vraagProblemen } from '../lib/questions';
+import { juistAntwoord, kopieVraag, nieuweVraag, vraagProblemen } from '../lib/questions';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
-import type { Vak, Vraag, Vragenset } from '../lib/types';
+import type { Vak, Vraag, VraagType, Vragenset } from '../lib/types';
+import { isKeuzeVraag, VRAAG_TYPES } from '../lib/vraagtypes';
 import { VAK_LABELS } from './SetsPage';
-
-const LETTERS = 'ABCDEFGH';
 
 export function SetEditorPage({ id, store }: { id: string; store: Store }) {
   const set = store.sets.find((s) => s.id === id);
@@ -123,7 +124,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
             onUp={i > 0 ? () => verplaats(i, -1) : undefined}
             onDown={i < set.vragen.length - 1 ? () => verplaats(i, 1) : undefined}
             onDuplicate={() =>
-              update((s) => ({ ...s, vragen: [...s.vragen.slice(0, i + 1), { ...v, id: newId(), opties: [...v.opties] }, ...s.vragen.slice(i + 1)] }))
+              update((s) => ({ ...s, vragen: [...s.vragen.slice(0, i + 1), kopieVraag(v), ...s.vragen.slice(i + 1)] }))
             }
             onDelete={() => update((s) => ({ ...s, vragen: s.vragen.filter((x) => x.id !== v.id) }))}
           />
@@ -180,17 +181,28 @@ function VraagEditor({
             onChange={(e) => onChange((x) => ({ ...x, punten: Math.max(0, Number(e.target.value) || 0) }))}
           />
         </div>
-        <div className="flex overflow-hidden rounded-lg border border-slate-300 text-sm">
-          {(['open', 'meerkeuze'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => onChange((x) => ({ ...x, type: t }))}
-              className={`px-3 py-2 ${v.type === t ? 'bg-[var(--accent)] text-white' : 'bg-white hover:bg-slate-50'}`}
-            >
-              {t === 'open' ? 'Open vraag' : 'Meerkeuze'}
-            </button>
-          ))}
+        <div className="w-52">
+          <label className={labelClass}>Type</label>
+          <select
+            className={inputClass}
+            value={v.type}
+            onChange={(e) => {
+              const type = e.target.value as VraagType;
+              onChange((x) => ({
+                ...x,
+                type,
+                juisteOptie: type === 'waaronwaar' ? Math.min(x.juisteOptie, 1) : x.juisteOptie,
+                opties: type === 'meerkeuze' && x.opties.length < 2 ? ['', '', '', ''] : x.opties,
+                paren: x.paren ?? [['', ''], ['', ''], ['', '']],
+              }));
+            }}
+          >
+            {VRAAG_TYPES.map((t) => (
+              <option key={t.type} value={t.type}>
+                {t.icoon} {t.naam}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="ml-auto flex gap-1">
           <Button variant="ghost" onClick={onUp} disabled={!onUp} title="Omhoog">
@@ -211,7 +223,7 @@ function VraagEditor({
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-3">
           <div>
-            <label className={labelClass}>Vraag</label>
+            <label className={labelClass}>{v.type === 'waaronwaar' ? 'Stelling' : v.type === 'invullen' ? 'Tekst met [[gaten]]' : 'Vraag'}</label>
             <textarea
               className={`${inputClass} min-h-24 font-mono`}
               rows={Math.min(12, Math.max(3, v.tekst.split('\n').length + 1))}
@@ -219,53 +231,7 @@ function VraagEditor({
               onChange={(e) => onChange((x) => ({ ...x, tekst: e.target.value }))}
             />
           </div>
-          {v.type === 'open' ? (
-            <div>
-              <label className={labelClass}>Antwoord</label>
-              <input className={`${inputClass} font-mono`} value={v.antwoord} onChange={(e) => onChange((x) => ({ ...x, antwoord: e.target.value }))} />
-            </div>
-          ) : (
-            <div>
-              <label className={labelClass}>Opties (duid het juiste antwoord aan)</label>
-              <div className="space-y-2">
-                {v.opties.map((o, oi) => (
-                  <div key={oi} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`juist-${v.id}`}
-                      checked={v.juisteOptie === oi}
-                      onChange={() => onChange((x) => ({ ...x, juisteOptie: oi }))}
-                      className="h-4 w-4 accent-emerald-600"
-                      title="Juiste antwoord"
-                    />
-                    <span className="w-5 text-sm font-bold text-slate-500">{LETTERS[oi]}</span>
-                    <input
-                      className={`${inputClass} font-mono ${v.juisteOptie === oi ? 'border-emerald-400 bg-emerald-50' : ''}`}
-                      value={o}
-                      onChange={(e) => onChange((x) => ({ ...x, opties: x.opties.map((y, yi) => (yi === oi ? e.target.value : y)) }))}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 flex gap-2">
-                {v.opties.length < LETTERS.length && (
-                  <Button variant="ghost" onClick={() => onChange((x) => ({ ...x, opties: [...x.opties, ''] }))}>
-                    + optie
-                  </Button>
-                )}
-                {v.opties.length > 2 && (
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      onChange((x) => ({ ...x, opties: x.opties.slice(0, -1), juisteOptie: Math.min(x.juisteOptie, x.opties.length - 2) }))
-                    }
-                  >
-                    − optie
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          <AntwoordVelden vraag={v} onChange={onChange} />
           <div>
             <label className={labelClass}>Uitleg bij het antwoord (optioneel)</label>
             <input className={`${inputClass} font-mono`} value={v.uitleg} onChange={(e) => onChange((x) => ({ ...x, uitleg: e.target.value }))} />
@@ -274,25 +240,11 @@ function VraagEditor({
 
         <div className="rounded-xl bg-slate-50 p-4">
           <div className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Voorbeeld</div>
-          {v.tekst.trim() ? <RichText text={v.tekst} className="text-lg" /> : <p className="text-slate-400 italic">Typ een vraag…</p>}
-          {v.type === 'meerkeuze' ? (
-            <ul className="mt-3 space-y-1">
-              {v.opties.map(
-                (o, oi) =>
-                  o.trim() && (
-                    <li key={oi} className={`flex gap-2 rounded-lg px-3 py-1.5 ${v.juisteOptie === oi ? 'bg-emerald-100' : 'bg-white'}`}>
-                      <span className="font-bold">{LETTERS[oi]}</span>
-                      <RichText text={o} />
-                    </li>
-                  ),
-              )}
-            </ul>
-          ) : (
-            v.antwoord.trim() && (
-              <div className="mt-3 rounded-lg bg-emerald-100 px-3 py-2">
-                <RichText text={v.antwoord} />
-              </div>
-            )
+          {v.tekst.trim() ? <VraagWeergave vraag={v} getoond /> : <p className="text-slate-400 italic">Typ een vraag…</p>}
+          {!isKeuzeVraag(v) && juistAntwoord(v).trim() && (
+            <div className="mt-3 rounded-lg bg-emerald-100 px-3 py-2">
+              <RichText text={juistAntwoord(v)} />
+            </div>
           )}
           {v.uitleg.trim() && <RichText text={v.uitleg} className="mt-2 text-sm text-slate-600" />}
           {problemen.length > 0 && <p className="mt-3 text-sm text-amber-700">⚠ {problemen.join(' ')}</p>}

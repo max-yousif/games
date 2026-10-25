@@ -6,7 +6,8 @@ leerling speelt op de eigen laptop terwijl jij live meevolgt op het bord.
 
 - **Klassen** met namen van leerlingen (plakken uit Excel/Smartschool of Excel importeren);
   elke beurt wordt aan een leerling gekoppeld (of 🎲 willekeurig gekozen).
-- **Vragensets** zelf maken: open vragen en meerkeuze, formules in LaTeX (`$x^2$`),
+- **Vragensets** zelf maken met 7 vraagtypes: open vraag, meerkeuze, waar/onwaar, getal (met
+  foutmarge), invullen, ordenen (bv. Python-lijnen) en koppelen. Formules in LaTeX (`$x^2$`),
   Python-code in codeblokken, importeren uit Excel, dupliceren en bewaren als bestand.
 - **Resultaten** per leerling bekijken en **exporteren naar Excel**.
 - Spellen **pauzeren en hervatten**, laatste beurt **ongedaan maken**, timer, volledig scherm.

@@ -1,19 +1,30 @@
 export type Vak = 'wiskunde' | 'python' | 'andere';
 
+export type VraagType = 'open' | 'meerkeuze' | 'waaronwaar' | 'getal' | 'invullen' | 'ordenen' | 'koppelen';
+
 export interface Vraag {
   id: string;
   /** Kolom op het quizbord, bv. "Ontbinden". */
   categorie: string;
   punten: number;
-  type: 'open' | 'meerkeuze';
-  /** Tekst met $LaTeX$, `code` en ```codeblokken```. */
+  type: VraagType;
+  /**
+   * Tekst met $LaTeX$, `code` en ```codeblokken```.
+   * Bij invullen staan de gaten tussen dubbele vierkante haken: [[antwoord]] of [[0,5|1/2]].
+   */
   tekst: string;
-  /** Antwoord bij een open vraag. */
+  /** Antwoord bij een open vraag of een getal. */
   antwoord: string;
-  /** Opties bij een meerkeuzevraag. */
+  /** Meerkeuze: de opties. Ordenen: de items in de juiste volgorde. */
   opties: string[];
-  /** Index van de juiste optie. */
+  /** Meerkeuze: index van de juiste optie. Waar/onwaar: 0 = waar, 1 = onwaar. */
   juisteOptie: number;
+  /** Getal: toegelaten afwijking (absoluut), bv. 0,01. */
+  tolerantie?: number;
+  /** Koppelen: paren [links, rechts]. */
+  paren?: [string, string][];
+  /** Ordenen: items tonen als code (bv. Python-lijnen met inspringing). */
+  alsCode?: boolean;
   uitleg: string;
 }
 

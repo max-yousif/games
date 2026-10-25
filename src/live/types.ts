@@ -1,8 +1,18 @@
+import type { VraagType } from '../lib/types';
+
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
+  /** Bij invullen staan de gaten als __(1)__, __(2)__ ... in de tekst. */
   tekst: string;
-  type: 'open' | 'meerkeuze';
+  type: VraagType;
+  /** Keuzevragen: de opties. Ordenen: de items door elkaar. */
   opties: string[];
+  /** Koppelen: linkerkolom (vaste volgorde) en rechterkolom (door elkaar). */
+  links: string[];
+  rechts: string[];
+  /** Invullen: aantal gaten. */
+  gaten: number;
+  alsCode: boolean;
   punten: number;
   categorie: string;
 }
@@ -49,7 +59,10 @@ export interface LiveAntwoord {
   id: string;
   spelerId: string;
   vraagNr: number;
-  /** Index van de optie (als tekst) bij meerkeuze, anders de getypte tekst. */
+  /**
+   * Keuzevragen: index van de optie (als tekst). Open en getal: de getypte tekst.
+   * Invullen, ordenen en koppelen: een JSON-lijst met teksten (zie antwoordUit in logic.ts).
+   */
   antwoord: string;
   tijdMs: number;
   juist: boolean | null;

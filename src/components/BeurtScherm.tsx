@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { juistAntwoord } from '../lib/questions';
 import { aantalBeurten, kiesLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
+import { isKeuzeVraag, keuzeOpties, LETTERS } from '../lib/vraagtypes';
 import { RichText } from './RichText';
-
-const LETTERS = 'ABCDEFGH';
+import { VraagWeergave } from './VraagWeergave';
 
 export interface BeurtUitkomst {
   leerlingId: string | null;
@@ -38,7 +38,7 @@ export function BeurtScherm({
   const [resterend, setResterend] = useState(sessie.timer);
   const rolTimer = useRef<number | undefined>(undefined);
 
-  const voorstel = vraag.type === 'meerkeuze' && gekozenOptie !== null ? gekozenOptie === vraag.juisteOptie : null;
+  const voorstel = isKeuzeVraag(vraag) && gekozenOptie !== null ? gekozenOptie === vraag.juisteOptie : null;
 
   // Timer loopt tot het antwoord getoond wordt.
   useEffect(() => {
@@ -80,9 +80,9 @@ export function BeurtScherm({
       else if (getoond && k === 'j') klaar(true);
       else if (getoond && k === 'f') klaar(false);
       else if (getoond && k === 'enter' && voorstel !== null) klaar(voorstel);
-      else if (!getoond && vraag.type === 'meerkeuze') {
+      else if (!getoond && isKeuzeVraag(vraag)) {
         const i = LETTERS.toLowerCase().indexOf(k);
-        if (i >= 0 && i < vraag.opties.length) kiesOptie(i);
+        if (i >= 0 && i < keuzeOpties(vraag).length) kiesOptie(i);
       }
     }
     window.addEventListener('keydown', onKey);
@@ -123,28 +123,7 @@ export function BeurtScherm({
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto px-10 py-8">
-          <RichText text={vraag.tekst} className="text-4xl leading-snug font-medium" />
-
-          {vraag.type === 'meerkeuze' && (
-            <div className="mt-8 grid grid-cols-2 gap-4">
-              {vraag.opties.map((o, i) => {
-                const isJuist = i === vraag.juisteOptie;
-                const kleur = !getoond
-                  ? 'border-slate-200 bg-white hover:border-slate-400'
-                  : isJuist
-                    ? 'border-emerald-500 bg-emerald-100'
-                    : i === gekozenOptie
-                      ? 'border-red-400 bg-red-100'
-                      : 'border-slate-200 bg-white opacity-50';
-                return (
-                  <button key={i} type="button" onClick={() => kiesOptie(i)} className={`flex items-center gap-4 rounded-2xl border-2 px-6 py-5 text-left text-3xl transition ${kleur}`}>
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-800 text-2xl font-bold text-white">{LETTERS[i]}</span>
-                    <RichText text={o} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <VraagWeergave vraag={vraag} groot getoond={getoond} gekozenOptie={gekozenOptie} onKiesOptie={isKeuzeVraag(vraag) ? kiesOptie : undefined} />
 
           {getoond && (
             <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} className="pop mt-8 rounded-2xl border-2 border-emerald-400 bg-emerald-50 px-6 py-5">

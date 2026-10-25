@@ -63,7 +63,7 @@ describe('lokale live server (demo)', () => {
     await bert.deelnemen(s.code, 'Bert');
 
     expect(await fout(anna.antwoord(s.id, 0, '1'))).toBe('geen_vraag');
-    await host.startVraag(s.id, 0, { tekst: '2+2?', type: 'meerkeuze', opties: ['3', '4'], punten: 100, categorie: '' });
+    await host.startVraag(s.id, 0, { tekst: '2+2?', type: 'meerkeuze', opties: ['3', '4'], links: [], rechts: [], gaten: 0, alsCode: false, punten: 100, categorie: '' });
     verstrijk(1500);
     await anna.antwoord(s.id, 0, '1');
     expect(await fout(anna.antwoord(s.id, 0, '0'))).toBe('al_geantwoord');

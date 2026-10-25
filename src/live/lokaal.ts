@@ -218,7 +218,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
         const ms = Math.max(0, klok() - (s.vraagStartMs ?? klok()));
         if (s.timer !== null && ms > (s.timer + 2) * 1000) throw new LiveFout('te_laat');
         if (r.antwoorden.some((a) => a.spelerId === p.id && a.vraagNr === vraagNr)) throw new LiveFout('al_geantwoord');
-        r.antwoorden.push({ id: crypto.randomUUID(), sessieId, spelerId: p.id, vraagNr, antwoord: antwoord.slice(0, 500), tijdMs: ms, juist: null, punten: 0 });
+        r.antwoorden.push({ id: crypto.randomUUID(), sessieId, spelerId: p.id, vraagNr, antwoord: antwoord.slice(0, 2000), tijdMs: ms, juist: null, punten: 0 });
       });
     },
 

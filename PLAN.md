@@ -44,15 +44,18 @@ Klas (leerlingen)      Vragenset (vragen)      Speltype
 
 ## 3. Vraagtypes
 
-| Fase | Type | Gebruik in de klas |
-|---|---|---|
-| 1 | **Open vraag** | De leerling antwoordt mondeling of op een wisbordje; de leerkracht toont het antwoord en klikt *juist* of *fout*. |
-| 1 | **Meerkeuze** (A–D) | De leerkracht klikt de gekozen optie aan; het juiste antwoord kleurt groen. |
-| 2 | Getal met tolerantie | Wordt automatisch gecontroleerd (nodig voor zelfstandig oefenen). |
-| 2 | Waar/onwaar, invullen | |
-| 3 | Algebraïsche uitdrukking | Controle op wiskundige gelijkwaardigheid. |
-| 3 | Python: Parsons (codelijnen ordenen), zoek de bug | |
-| 4 | Python: code schrijven met tests | Python in de browser via Pyodide. |
+| Type | Voorbeeld | In de klas (bord) | Live quiz (laptop) |
+|---|---|---|---|
+| **Open vraag** | Werk uit: $(2a-5)^2$ | Mondeling of wisbordje; leerkracht klikt juist/fout | Typen; automatisch nagekeken (spaties, hoofdletters, $…$ maken niet uit), leerkracht kan groepen antwoorden goed- of afkeuren |
+| **Meerkeuze** (2–8 opties) | Welke grafiek…? | Leerkracht klikt de gekozen optie | Gekleurde knoppen |
+| **Waar of onwaar** | $2^3 \cdot 2^4 = 2^{12}$ | Idem, twee opties | Twee grote knoppen |
+| **Getal** (met foutmarge) | Groeifactor op 0,01 nauwkeurig | Idem open vraag | Komma, punt, breuk (3/4) en "x = …" worden herkend |
+| **Invullen** | `for i in [[range]](3):` | Gaten genummerd (1), (2)…; antwoorden per gat | Invulvak per gat; meerdere juiste antwoorden per gat mogelijk (`[[0,5\|1/2]]`) |
+| **Ordenen** | Python-lijnen in de juiste volgorde (Parsons) | Items met letters door elkaar; oplossing als "C – A – B" | Items verschuiven met pijltjes; inspringing telt |
+| **Koppelen** | Voorschrift ↔ grafiek | Links genummerd, rechts letters; oplossing "1 → C" | Per item de juiste letter kiezen |
+
+Later nog: algebraïsche uitdrukking met controle op gelijkwaardigheid, punt aanklikken op een
+grafiek, Python-code schrijven met tests (Pyodide).
 
 **Opmaak van vragen**
 - Formules met LaTeX tussen dollartekens: `$x^2 + 6x + 9$` of `$$\frac{a}{b}$$` (KaTeX).
@@ -146,7 +149,7 @@ sneltoetsen, eindstand met podium.
 
 | Onderdeel | Keuze |
 |---|---|
-| Framework | React 19 + TypeScript + Vite (zoals Gotcha) |
+| Framework | React 19 + TypeScript + Vite |
 | Opmaak | Tailwind CSS |
 | Formules | KaTeX |
 | Excel | read-excel-file / write-excel-file |
@@ -175,9 +178,13 @@ tests/
 - Back-up van alles in één bestand
 - Voorbeeldsets: 3e jaar algebra, 6 HW statistiek & kansen, 4e Python basis
 
-**Fase 1b: live quiz op eigen laptops (deze versie)**
+**Fase 1b: live quiz op eigen laptops (klaar)**
 - Supabase-schema met beveiliging, live wachtruimte, live meevolgen, automatisch nakijken,
   tussenstand, eindstand, Excel-export, demo-modus
+
+**Fase 1c: meer vraagtypes (deze versie)**
+- Waar/onwaar, getal met foutmarge, invullen, ordenen (Parsons) en koppelen, in de editor,
+  op het bord, in de live quiz en in de Excel-import
 
 **Fase 2: meer spellen**
 - Race op het bord, Kaboom, Miljonairsladder
@@ -186,7 +193,7 @@ tests/
 
 **Fase 3: Python-cursus**
 - Cursus van de leerkracht omzetten naar vragensets per hoofdstuk
-- Vraagtypes Parsons en zoek-de-bug, syntaxkleuring
+- Vraagtype zoek-de-bug (lijn aanklikken), syntaxkleuring
 
 **Fase 4: zelfstandig oefenen op laptops**
 - Leerling kiest naam, oefent een set in eigen tempo (getal, uitdrukking, meerkeuze, Python met Pyodide)

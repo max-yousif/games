@@ -45,7 +45,7 @@ create table if not exists public.live_antwoorden (
   sessie_id uuid not null references public.live_sessies (id) on delete cascade,
   speler_id uuid not null references public.live_spelers (id) on delete cascade,
   vraag_nr int not null,
-  antwoord text not null check (length(antwoord) <= 500),
+  antwoord text not null check (length(antwoord) <= 2000),
   tijd_ms int not null,
   juist boolean,
   punten int not null default 0,
@@ -206,7 +206,7 @@ begin
   -- 2 seconden speling voor trage verbindingen.
   if s.timer is not null and ms > (s.timer + 2) * 1000 then raise exception 'te_laat'; end if;
   insert into live_antwoorden (sessie_id, speler_id, vraag_nr, antwoord, tijd_ms)
-  values (p_sessie, p.id, s.vraag_nr, left(p_antwoord, 500), ms)
+  values (p_sessie, p.id, s.vraag_nr, left(p_antwoord, 2000), ms)
   on conflict (speler_id, vraag_nr) do nothing;
   if not found then raise exception 'al_geantwoord'; end if;
 end;

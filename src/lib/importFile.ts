@@ -2,7 +2,7 @@ import readXlsxFile from 'read-excel-file/browser';
 import writeXlsxFile from 'write-excel-file/browser';
 import { newId } from './ids';
 import { shuffle } from './random';
-import type { Vraag } from './types';
+import type { Vraag, VraagType } from './types';
 
 export class UnsupportedFileError extends Error {
   constructor() {
@@ -73,9 +73,11 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c !== ''));
 }
 
-type Kolom = 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'fout' | 'uitleg';
+type Kolom = 'type' | 'categorie' | 'punten' | 'vraag' | 'antwoord' | 'fout' | 'tolerantie' | 'uitleg';
 
 const ALIASES: Record<Kolom, string[]> = {
+  type: ['type', 'soort', 'vraagtype'],
+  tolerantie: ['tolerantie', 'foutmarge', 'marge'],
   categorie: ['categorie', 'onderwerp', 'thema', 'hoofdstuk'],
   punten: ['punten', 'score', 'waarde'],
   vraag: ['vraag', 'opgave'],
@@ -94,9 +96,31 @@ function kolomVan(titel: string): Kolom | null {
 
 export class QuestionImportError extends Error {}
 
+const TYPE_NAMEN: Record<string, VraagType> = {
+  open: 'open',
+  'open vraag': 'open',
+  meerkeuze: 'meerkeuze',
+  'waar/onwaar': 'waaronwaar',
+  'waar of onwaar': 'waaronwaar',
+  waaronwaar: 'waaronwaar',
+  getal: 'getal',
+  invullen: 'invullen',
+  ordenen: 'ordenen',
+  koppelen: 'koppelen',
+};
+
+/** Lijnen in één cel: gescheiden door een regeleinde (Alt+Enter in Excel) of door |. */
+function lijnenUit(cel: string): string[] {
+  const delen = cel.includes('\n') ? cel.split(/\r?\n/) : cel.split('|');
+  return delen.map((d) => d.replace(/\s+$/, '')).filter((d) => d.trim());
+}
+
 /**
  * Zet rijen met een titelrij om naar vragen. Verplicht: "Vraag" en "Antwoord".
- * Met één of meer kolommen "Fout antwoord" wordt het een meerkeuzevraag (opties geschud).
+ * Zonder kolom "Type": met kolommen "Fout antwoord" wordt het meerkeuze, met [[gaten]] invullen,
+ * anders een open vraag. Met "Type" kan ook: waar/onwaar (Antwoord = waar of onwaar), getal
+ * (met optionele kolom Tolerantie), ordenen (items in de juiste volgorde, elk op een eigen lijn
+ * of gescheiden door |) en koppelen (paren als "links -> rechts", elk op een eigen lijn of met |).
  */
 export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
   if (rows.length === 0) return [];
@@ -109,30 +133,65 @@ export function rowsToQuestions(rows: readonly (readonly string[])[]): Vraag[] {
   return rows
     .slice(1)
     .filter((row) => vind(row, 'vraag'))
-    .map((row) => {
-      const antwoord = vind(row, 'antwoord');
+    .map((row, nr) => {
+      const tekst = vind(row, 'vraag');
+      // Ruwe cel (niet getrimd), zodat inspringing van codelijnen behouden blijft.
+      const antwoordCel = row[kolommen.indexOf('antwoord')] ?? '';
+      const antwoord = antwoordCel.trim();
       const fouten = kolommen.flatMap((k, i) => (k === 'fout' && row[i]?.trim() ? [row[i].trim()] : []));
       const punten = Number.parseInt(vind(row, 'punten'), 10);
-      const opties = fouten.length > 0 ? shuffle([antwoord, ...fouten]) : ['', '', '', ''];
-      return {
+      const typeCel = vind(row, 'type').toLocaleLowerCase('nl');
+      const type: VraagType | undefined = typeCel ? TYPE_NAMEN[typeCel] : fouten.length > 0 ? 'meerkeuze' : /\[\[.+?\]\]/.test(tekst) ? 'invullen' : 'open';
+      if (!type) throw new QuestionImportError(`Onbekend type "${vind(row, 'type')}" in rij ${nr + 2}. Gebruik: ${Object.keys(TYPE_NAMEN).join(', ')}.`);
+
+      const v: Vraag = {
         id: newId(),
         categorie: vind(row, 'categorie'),
         punten: Number.isFinite(punten) && punten > 0 ? punten : 100,
-        type: fouten.length > 0 ? 'meerkeuze' : 'open',
-        tekst: vind(row, 'vraag'),
-        antwoord: fouten.length > 0 ? '' : antwoord,
-        opties,
-        juisteOptie: fouten.length > 0 ? opties.indexOf(antwoord) : 0,
+        type,
+        tekst,
+        antwoord: '',
+        opties: ['', '', '', ''],
+        juisteOptie: 0,
         uitleg: vind(row, 'uitleg'),
-      } satisfies Vraag;
+      };
+      switch (type) {
+        case 'meerkeuze': {
+          const opties = shuffle([antwoord, ...fouten]);
+          return { ...v, opties, juisteOptie: opties.indexOf(antwoord) };
+        }
+        case 'waaronwaar':
+          return { ...v, juisteOptie: /^(onwaar|fout|nee|o|f|false)$/i.test(antwoord) ? 1 : 0 };
+        case 'getal':
+          return { ...v, antwoord, tolerantie: Math.abs(Number(vind(row, 'tolerantie').replace(',', '.'))) || 0 };
+        case 'ordenen':
+          return { ...v, opties: lijnenUit(antwoordCel), alsCode: lijnenUit(antwoordCel).some((l) => /^\s/.test(l)) };
+        case 'koppelen':
+          return {
+            ...v,
+            paren: lijnenUit(antwoordCel).map((l) => {
+              const [links, ...rest] = l.split(/\s*(?:->|→)\s*/);
+              return [links.trim(), rest.join(' -> ').trim()] as [string, string];
+            }),
+          };
+        case 'invullen':
+          return v;
+        default:
+          return { ...v, antwoord };
+      }
     });
 }
 
 /** Leeg sjabloon met de juiste kolomtitels. */
 export function downloadQuestionTemplate(): Promise<void> {
   return writeXlsxFile([
-    ['Categorie', 'Punten', 'Vraag', 'Antwoord', 'Fout antwoord 1', 'Fout antwoord 2', 'Fout antwoord 3', 'Uitleg'],
-    ['Ontbinden', '100', 'Ontbind: $x^2-49$', '$(x-7)(x+7)$', '', '', '', 'Verschil van twee kwadraten'],
-    ['Machten', '200', 'Bereken: $(-3)^{-2}$', '$\\frac{1}{9}$', '$-9$', '$-\\frac{1}{9}$', '$9$', ''],
+    ['Type', 'Categorie', 'Punten', 'Vraag', 'Antwoord', 'Fout antwoord 1', 'Fout antwoord 2', 'Fout antwoord 3', 'Tolerantie', 'Uitleg'],
+    ['open', 'Ontbinden', '100', 'Ontbind: $x^2-49$', '$(x-7)(x+7)$', '', '', '', '', 'Verschil van twee kwadraten'],
+    ['meerkeuze', 'Machten', '200', 'Bereken: $(-3)^{-2}$', '$\\frac{1}{9}$', '$-9$', '$-\\frac{1}{9}$', '$9$', '', ''],
+    ['waar/onwaar', 'Machten', '100', '$2^3 \\cdot 2^2 = 2^6$', 'onwaar', '', '', '', '', 'Exponenten optellen: $2^5$'],
+    ['getal', 'Statistiek', '200', 'Bereken het gemiddelde van 4, 7 en 9.', '6,67', '', '', '', '0,01', ''],
+    ['invullen', 'Python', '100', 'Vul aan: `for i in [[range]](3):`', '', '', '', '', '', ''],
+    ['ordenen', 'Python', '300', 'Zet de lijnen in de juiste volgorde.', 'x = int(input())|if x > 0:|    print("positief")', '', '', '', '', ''],
+    ['koppelen', 'Functies', '200', 'Koppel elk voorschrift aan de grafiek.', '$y=x^2$ -> dalparabool|$y=-x^2$ -> bergparabool', '', '', '', '', ''],
   ]).toFile('vragen-sjabloon.xlsx');
 }

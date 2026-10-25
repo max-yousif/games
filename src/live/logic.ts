@@ -1,14 +1,65 @@
+import { juistAntwoord } from '../lib/questions';
 import type { Beurt, Leerling, Sessie, Vraag } from '../lib/types';
+import { gatenVan, getalJuist, isKeuzeVraag, keuzeOpties, koppelenRechts, leesGetal, LETTERS, ordenenGetoond, tekstMetGaten } from '../lib/vraagtypes';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, Oplossing, PubliekeVraag, StandRij } from './types';
 
 export function publiekeVraag(v: Vraag): PubliekeVraag {
-  return { tekst: v.tekst, type: v.type, opties: v.type === 'meerkeuze' ? v.opties : [], punten: v.punten, categorie: v.categorie };
+  return {
+    tekst: v.type === 'invullen' ? tekstMetGaten(v.tekst) : v.tekst,
+    type: v.type,
+    opties: isKeuzeVraag(v) ? keuzeOpties(v) : v.type === 'ordenen' ? ordenenGetoond(v) : [],
+    links: v.type === 'koppelen' ? (v.paren ?? []).map((p) => p[0]) : [],
+    rechts: v.type === 'koppelen' ? koppelenRechts(v) : [],
+    gaten: v.type === 'invullen' ? gatenVan(v.tekst).length : 0,
+    alsCode: v.alsCode ?? false,
+    punten: v.punten,
+    categorie: v.categorie,
+  };
 }
 
 export function oplossingVan(v: Vraag): Oplossing {
-  return v.type === 'meerkeuze'
-    ? { juisteOptie: v.juisteOptie, antwoord: v.opties[v.juisteOptie] ?? '', uitleg: v.uitleg }
-    : { juisteOptie: null, antwoord: v.antwoord, uitleg: v.uitleg };
+  return { juisteOptie: isKeuzeVraag(v) ? v.juisteOptie : null, antwoord: juistAntwoord(v), uitleg: v.uitleg };
+}
+
+/** Een antwoord dat als JSON-lijst verstuurd wordt (invullen, ordenen, koppelen). */
+export function lijstUit(antwoord: string): string[] {
+  try {
+    const l: unknown = JSON.parse(antwoord);
+    return Array.isArray(l) ? l.map((x) => String(x ?? '')) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Het antwoord van een leerling leesbaar gemaakt (voor het bord en het eigen scherm). */
+export function antwoordWeergave(v: PubliekeVraag, antwoord: string): string {
+  switch (v.type) {
+    case 'meerkeuze':
+    case 'waaronwaar': {
+      const i = Number(antwoord);
+      return `${LETTERS[i] ?? '?'}: ${v.opties[i] ?? ''}`;
+    }
+    case 'invullen':
+      return lijstUit(antwoord)
+        .map((a, i) => `(${i + 1}) ${a || '…'}`)
+        .join('   ');
+    case 'ordenen': {
+      const gebruikt = new Set<number>();
+      return lijstUit(antwoord)
+        .map((item) => {
+          const i = v.opties.findIndex((o, j) => o === item && !gebruikt.has(j));
+          gebruikt.add(i);
+          return LETTERS[i] ?? '?';
+        })
+        .join(' – ');
+    }
+    case 'koppelen':
+      return lijstUit(antwoord)
+        .map((r, i) => `${i + 1}→${LETTERS[v.rechts.indexOf(r)] ?? '?'}`)
+        .join('  ');
+    default:
+      return antwoord;
+  }
 }
 
 /**
@@ -27,14 +78,44 @@ export function normaliseer(antwoord: string): string {
 }
 
 /** Automatische beoordeling: meerkeuze exact, open vraag als het genormaliseerde antwoord overeenkomt. */
-export function automatischJuist(v: Vraag, antwoord: string): boolean {
-  if (v.type === 'meerkeuze') return antwoord === String(v.juisteOptie);
-  const doel = normaliseer(v.antwoord);
+/** Vergelijkt een getypt antwoord met het verwachte: als tekst (genormaliseerd) of als getal. */
+function tekstJuist(antwoord: string, verwacht: string): boolean {
+  const doel = normaliseer(verwacht);
   if (doel === '') return false;
   const a = normaliseer(antwoord);
   // "x=7" en "7" tellen allebei als juist.
   const zonderVar = (t: string) => t.replace(/^[a-z]=/, '');
-  return a === doel || zonderVar(a) === zonderVar(doel);
+  if (a === doel || zonderVar(a) === zonderVar(doel)) return true;
+  return leesGetal(verwacht) !== null && getalJuist(antwoord, verwacht);
+}
+
+/** Codelijnen vergelijken: inspringing telt, spaties achteraan niet. */
+const lijn = (t: string) => t.replace(/\s+$/, '');
+
+export function automatischJuist(v: Vraag, antwoord: string): boolean {
+  switch (v.type) {
+    case 'meerkeuze':
+    case 'waaronwaar':
+      return antwoord === String(v.juisteOptie);
+    case 'getal':
+      return getalJuist(antwoord, v.antwoord, v.tolerantie ?? 0);
+    case 'invullen': {
+      const gaten = gatenVan(v.tekst);
+      const ingevuld = lijstUit(antwoord);
+      return gaten.length > 0 && gaten.every((alternatieven, i) => alternatieven.some((alt) => tekstJuist(ingevuld[i] ?? '', alt)));
+    }
+    case 'ordenen': {
+      const l = lijstUit(antwoord);
+      return l.length === v.opties.length && l.every((x, i) => lijn(x) === lijn(v.opties[i]));
+    }
+    case 'koppelen': {
+      const l = lijstUit(antwoord);
+      const paren = v.paren ?? [];
+      return l.length === paren.length && paren.every(([, r], i) => l[i] === r);
+    }
+    default:
+      return tekstJuist(antwoord, v.antwoord);
+  }
 }
 
 /**

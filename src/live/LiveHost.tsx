@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RichText } from '../components/RichText';
 import { Button, Notice } from '../components/ui';
+import { VraagWeergave } from '../components/VraagWeergave';
 import { exporteerSessie } from '../lib/exportResults';
 import { href } from '../lib/route';
 import { beeindig, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
+import { isKeuzeVraag, keuzeOpties, LETTERS, tekstMetGaten } from '../lib/vraagtypes';
 import { backend } from './config';
 import {
+  antwoordWeergave,
   automatischeBeoordelingen,
   berekenStand,
   groepeerAntwoorden,
@@ -18,7 +21,6 @@ import {
 } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 
-const LETTERS = 'ABCDEFGH';
 
 /** Link die leerlingen openen op hun laptop. */
 export function deelnameLink(code: string, demo: boolean): string {
@@ -208,20 +210,18 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
               <span className={`rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend <= 5 ? 'bg-red-100 text-red-700' : 'bg-white'}`}>{resterend}s</span>
             )}
           </div>
-          <RichText text={vraag.tekst} className="text-4xl leading-snug font-medium" />
+          {server.status === 'vraag' ? (
+            <VraagWeergave vraag={vraag} groot />
+          ) : vraag.type === 'ordenen' || vraag.type === 'koppelen' ? (
+            <div className="text-2xl">
+              <VraagWeergave vraag={vraag} getoond />
+            </div>
+          ) : (
+            <RichText text={vraag.type === 'invullen' ? tekstMetGaten(vraag.tekst) : vraag.tekst} className="text-4xl leading-snug font-medium" />
+          )}
 
           {server.status === 'vraag' ? (
             <>
-              {vraag.type === 'meerkeuze' && (
-                <div className="grid grid-cols-2 gap-3">
-                  {vraag.opties.map((o, i) => (
-                    <div key={i} className="flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-5 py-4 text-2xl">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xl font-bold text-white">{LETTERS[i]}</span>
-                      <RichText text={o} />
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="text-2xl font-semibold">
                 {huidige.length} / {verbonden.length} geantwoord
               </div>
@@ -317,6 +317,7 @@ function Antwoorden({
   onZetGroep: (g: AntwoordGroep, juist: boolean) => void;
 }) {
   const naam = (id: string) => spelers.find((s) => s.id === id)?.naam ?? '?';
+  const publiek = publiekeVraag(vraag);
   const juistAantal = antwoorden.filter((a) => a.juist).length;
   const opl = oplossingVan(vraag);
 
@@ -331,9 +332,9 @@ function Antwoorden({
         <div className="text-xl font-semibold">
           {juistAantal} van {antwoorden.length} juist
         </div>
-        {vraag.type === 'meerkeuze' ? (
+        {isKeuzeVraag(vraag) ? (
           <div className="space-y-2">
-            {vraag.opties.map((o, i) => {
+            {keuzeOpties(vraag).map((o, i) => {
               const n = antwoorden.filter((a) => a.antwoord === String(i)).length;
               const juist = i === vraag.juisteOptie;
               return (
@@ -357,7 +358,7 @@ function Antwoorden({
               <div key={g.sleutel} className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-2 ${g.juist ? 'border-emerald-400' : 'border-red-200'}`}>
                 <span className="font-mono text-xl font-bold">{g.antwoorden.length}×</span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-mono text-xl">{g.tekst}</div>
+                  <RichText text={antwoordWeergave(publiek, g.tekst)} className="truncate font-mono text-xl" />
                   <div className="truncate text-sm text-slate-500">{g.antwoorden.map((a) => naam(a.spelerId)).join(', ')}</div>
                 </div>
                 <button type="button" disabled={bezig} onClick={() => onZetGroep(g, true)} className={`rounded-lg px-3 py-1.5 text-lg ${g.juist ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-100'}`}>
