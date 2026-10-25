@@ -51,10 +51,11 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(veld).toBeVisible();
   await veld.click();
   await bert.keyboard.type('4a');
+  // De knop houdt de focus in het veld; de cursor staat na het kwadraat. (Niet in het veld klikken:
+  // dat zet de cursor waar de klik valt, bv. in de exponent.)
   await bert.getByRole('button', { name: 'x²' }).click();
-  await veld.click();
-  await bert.keyboard.press('End');
   await bert.keyboard.type('-20a+25');
+  await expect.poll(() => veld.evaluate((el) => (el as HTMLElement & { value: string }).value)).toBe('4a^2-20a+25');
   await bert.keyboard.press('Enter');
   await expect(bert.getByText('Antwoord verstuurd!')).toBeVisible();
   await anna.getByLabel('Je antwoord').fill('16a^2');
