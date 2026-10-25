@@ -28,5 +28,11 @@ test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', asy
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /Resultaten exporteren/ }).click();
   expect((await download).suggestedFilename()).toMatch(/\.xlsx$/);
+
+  // Resultaten per leerling over alle spellen: wie de meerkeuzevraag juist had, staat er met 100%.
+  await page.goto('#/resultaten');
+  await page.getByRole('tab', { name: 'Per leerling' }).click();
+  await expect(page.getByRole('heading', { name: '3A' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '100%' }).first()).toBeVisible();
   controleer();
 });

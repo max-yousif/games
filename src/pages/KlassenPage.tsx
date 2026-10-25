@@ -4,8 +4,8 @@ import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
-import { naamKandidaten, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
-import type { Klas } from '../lib/types';
+import { korteNamen, naamKandidaten, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
+import type { Klas, NaamVolgorde } from '../lib/types';
 
 export function KlassenPage({ store }: { store: Store }) {
   const [gekozen, setGekozen] = useState<string | null>(store.klassen[0]?.id ?? null);
@@ -74,8 +74,8 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
   const [bestand, setBestand] = useState<{ naam: string; rijen: string[][] } | null>(null);
   const [fout, setFout] = useState<string | null>(null);
 
-  function voegToe(namen: string[]) {
-    onChange((k) => ({ ...k, leerlingen: sorteerOpNaam([...k.leerlingen, ...naarLeerlingen(namen)]) }));
+  function voegToe(namen: string[], naamVolgorde: NaamVolgorde) {
+    onChange((k) => ({ ...k, naamVolgorde, leerlingen: sorteerOpNaam([...k.leerlingen, ...naarLeerlingen(namen)]) }));
     setPlak('');
     setBestand(null);
   }
@@ -99,6 +99,20 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
         <div className="w-60">
           <label className={labelClass}>Naam van de klas</label>
           <input className={inputClass} value={klas.naam} onChange={(e) => onChange((k) => ({ ...k, naam: e.target.value }))} />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor="naamvolgorde">
+            Namen staan als
+          </label>
+          <select
+            id="naamvolgorde"
+            className={inputClass}
+            value={klas.naamVolgorde ?? 'voornaam'}
+            onChange={(e) => onChange((k) => ({ ...k, naamVolgorde: e.target.value as NaamVolgorde }))}
+          >
+            <option value="voornaam">Voornaam Achternaam</option>
+            <option value="achternaam">Achternaam Voornaam</option>
+          </select>
         </div>
         <Button variant="danger" className="ml-auto" onClick={onDelete}>
           Klas verwijderen
@@ -146,6 +160,7 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
               key={bestand?.naam ?? 'plak'}
               rijen={rijen}
               bestaand={klas.leerlingen.map((l) => l.naam)}
+              volgorde={klas.naamVolgorde ?? 'voornaam'}
               onToevoegen={voegToe}
               onAnnuleren={() => {
                 setPlak('');
@@ -197,12 +212,14 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
 function KlaslijstVoorbeeld({
   rijen,
   bestaand,
+  volgorde: klasVolgorde,
   onToevoegen,
   onAnnuleren,
 }: {
   rijen: string[][];
   bestaand: string[];
-  onToevoegen: (namen: string[]) => void;
+  volgorde: NaamVolgorde;
+  onToevoegen: (namen: string[], volgorde: NaamVolgorde) => void;
   onAnnuleren: () => void;
 }) {
   const geraden = useMemo(() => raadKlaslijst(rijen), [rijen]);
@@ -213,6 +230,12 @@ function KlaslijstVoorbeeld({
   const breedte = Math.max(...rijen.map((r) => r.length));
   const isAan = (c: NaamKandidaat, i: number) => gekozen[`${i}:${c.naam}`] ?? c.aan;
   const namen = kandidaten.filter(isAan).map((c) => c.naam);
+  // Volgorde: zelf gekozen, anders herkend uit de kolomtitels, anders die van de klas.
+  const [eigenVolgorde, setEigenVolgorde] = useState<NaamVolgorde | null>(null);
+  const volgorde = eigenVolgorde ?? k.volgorde ?? klasVolgorde;
+  // Korte namen van de aangevinkte leerlingen (zoals op het scorebord), per index in de lijst.
+  const kortAan = korteNamen(namen, volgorde);
+  const kort = new Map(kandidaten.flatMap((c, i) => (isAan(c, i) ? [i] : [])).map((i, j) => [i, kortAan[j]]));
 
   function wisselKolom(i: number) {
     setKeuze({ ...k, naamKolommen: k.naamKolommen.includes(i) ? k.naamKolommen.filter((x) => x !== i) : [...k.naamKolommen, i] });
@@ -264,6 +287,17 @@ function KlaslijstVoorbeeld({
         </div>
       )}
 
+      <div className="text-sm">
+        <span className="mr-3 font-medium">De namen staan als:</span>
+        {(['voornaam', 'achternaam'] as const).map((v) => (
+          <label key={v} className="mr-4 inline-flex items-center gap-1.5">
+            <input type="radio" name="volgorde" checked={volgorde === v} onChange={() => setEigenVolgorde(v)} />
+            {v === 'voornaam' ? 'Voornaam Achternaam' : 'Achternaam Voornaam'}
+          </label>
+        ))}
+        <p className="mt-1 text-xs text-slate-500">Achter elke naam zie je de korte naam die tijdens het spel op het scorebord komt.</p>
+      </div>
+
       <div className="flex items-center justify-between text-sm">
         <span>
           <strong>{namen.length}</strong> van {kandidaten.length} aangevinkt
@@ -285,6 +319,7 @@ function KlaslijstVoorbeeld({
               <label className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50 ${aan ? '' : 'text-slate-400'}`}>
                 <input type="checkbox" checked={aan} onChange={(e) => setGekozen((g) => ({ ...g, [`${i}:${c.naam}`]: e.target.checked }))} />
                 <span className={aan ? '' : 'line-through'}>{c.naam}</span>
+                {aan && <span className="text-xs text-slate-400">→ {kort.get(i)}</span>}
                 {c.reden && <span className="ml-auto text-xs italic text-slate-400">{c.reden}</span>}
               </label>
             </li>
@@ -293,7 +328,7 @@ function KlaslijstVoorbeeld({
         {kandidaten.length === 0 && <li className="px-2 py-1 text-sm text-slate-500">Geen namen gevonden. Kies een andere kolom.</li>}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" disabled={namen.length === 0} onClick={() => onToevoegen(namen)}>
+        <Button variant="primary" disabled={namen.length === 0} onClick={() => onToevoegen(namen, volgorde)}>
           ✓ {namen.length} {namen.length === 1 ? 'leerling' : 'leerlingen'} toevoegen
         </Button>
         <Button variant="ghost" onClick={onAnnuleren}>

@@ -1,6 +1,6 @@
 import { newId, nu } from './ids';
 import { randomInt as defaultRandomInt, shuffle, type RandomInt } from './random';
-import type { Beurt, Leerling, Sessie, SpelType, Team, Vraag, Vragenset } from './types';
+import type { Beurt, Leerling, NaamVolgorde, Sessie, SpelType, Team, Vraag, Vragenset } from './types';
 
 export const TEAM_KLEUREN = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2'];
 const TEAM_NAMEN = ['Blauw', 'Rood', 'Groen', 'Oranje', 'Paars', 'Turkoois'];
@@ -22,6 +22,7 @@ export function nieuweSessie(opts: {
   klasNaam: string;
   teams: Team[];
   timer: number | null;
+  naamVolgorde?: NaamVolgorde;
 }): Sessie {
   return {
     id: newId(),
@@ -37,6 +38,7 @@ export function nieuweSessie(opts: {
     zetten: [],
     gestart: nu(),
     beeindigd: null,
+    ...(opts.naamVolgorde === 'achternaam' ? { naamVolgorde: 'achternaam' as const } : {}),
   };
 }
 
@@ -121,6 +123,46 @@ function rij(naam: string, team: string, bs: readonly Beurt[]): LeerlingResultaa
   const juist = bs.filter((b) => b.juist).length;
   return { naam, team, beurten: bs.length, juist, fout: bs.length - juist, punten: bs.reduce((t, b) => t + b.punten, 0) };
 }
+
+export interface LeerlingOverzicht {
+  naam: string;
+  klas: string;
+  /** Aantal spellen waarin de leerling meespeelde (minstens één beurt). */
+  spellen: number;
+  beurten: number;
+  juist: number;
+  fout: number;
+  punten: number;
+  /** Per spel, recentste eerst. */
+  perSpel: { sessie: Sessie; resultaat: LeerlingResultaat }[];
+}
+
+/**
+ * Resultaten per leerling over meerdere spellen, per klas en naam. Beurten van het hele team en
+ * leerlingen zonder beurt in een spel tellen niet mee voor dat spel.
+ */
+export function overzichtPerLeerling(sessies: readonly Sessie[]): LeerlingOverzicht[] {
+  const per = new Map<string, LeerlingOverzicht>();
+  const gesorteerd = [...sessies].sort((a, b) => b.gestart.localeCompare(a.gestart));
+  for (const s of gesorteerd) {
+    for (const r of resultatenPerLeerling(s)) {
+      if (r.naam === '(hele team)' || r.beurten === 0) continue;
+      const sleutel = `${s.klasNaam}\u0000${r.naam.toLocaleLowerCase('nl')}`;
+      let o = per.get(sleutel);
+      if (!o) per.set(sleutel, (o = { naam: r.naam, klas: s.klasNaam, spellen: 0, beurten: 0, juist: 0, fout: 0, punten: 0, perSpel: [] }));
+      o.spellen++;
+      o.beurten += r.beurten;
+      o.juist += r.juist;
+      o.fout += r.fout;
+      o.punten += r.punten;
+      o.perSpel.push({ sessie: s, resultaat: r });
+    }
+  }
+  return [...per.values()].sort((a, b) => a.klas.localeCompare(b.klas, 'nl', { numeric: true }) || a.naam.localeCompare(b.naam, 'nl', { sensitivity: 'base' }));
+}
+
+/** Percentage juist (afgerond), of null zonder beurten. */
+export const procentJuist = (o: { beurten: number; juist: number }) => (o.beurten ? Math.round((o.juist / o.beurten) * 100) : null);
 
 /** Naam van een leerling in de sessie (ook als de klas intussen gewijzigd is). */
 export function leerlingNaam(s: Sessie, id: string | null): string {

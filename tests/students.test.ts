@@ -10,7 +10,7 @@ describe('parseNamen', () => {
   });
 });
 
-import { naamKandidaten, plakNaarRijen, raadKlaslijst } from '../src/lib/students';
+import { korteNamen, naamKandidaten, plakNaarRijen, raadKlaslijst, roepnaam } from '../src/lib/students';
 
 describe('klaslijst importeren', () => {
   it('slaat titels en klasnummers over', () => {
@@ -24,8 +24,8 @@ describe('klaslijst importeren', () => {
   it('export met kolommen: klasnummer, naam, voornaam, klas', () => {
     const rijen = plakNaarRijen('Klasnummer\tNaam\tVoornaam\tKlas\n1\tPeeters\tAnna\t3A\n2\tClaes\tBert\t3A');
     const keuze = raadKlaslijst(rijen);
-    expect(keuze).toEqual({ kopRij: 0, naamKolommen: [2, 1] });
-    expect(naamKandidaten(rijen, keuze).map((x) => x.naam)).toEqual(['Anna Peeters', 'Bert Claes']);
+    expect(keuze).toEqual({ kopRij: 0, naamKolommen: [1, 2], volgorde: 'achternaam' });
+    expect(naamKandidaten(rijen, keuze).map((x) => x.naam)).toEqual(['Peeters Anna', 'Claes Bert']);
   });
 
   it('zonder titelrij: nummers en klas als kolom worden genegeerd', () => {
@@ -36,13 +36,24 @@ describe('klaslijst importeren', () => {
   it('titellijn boven de kolomtitels', () => {
     const rijen = plakNaarRijen('Klaslijst 3A - schooljaar 2026-2027\nKlasnummer\tNaam\tVoornaam\tKlas\n1\tPeeters\tAnna\t3A');
     const keuze = raadKlaslijst(rijen);
-    expect(keuze).toEqual({ kopRij: 1, naamKolommen: [2, 1] });
-    expect(naamKandidaten(rijen, keuze)).toEqual([{ naam: 'Anna Peeters', aan: true }]);
+    expect(keuze).toEqual({ kopRij: 1, naamKolommen: [1, 2], volgorde: 'achternaam' });
+    expect(naamKandidaten(rijen, keuze)).toEqual([{ naam: 'Peeters Anna', aan: true }]);
   });
 
   it('herkent leerlingen die al in de klas staan en dubbels', () => {
     const rijen = plakNaarRijen('Anna Peeters\nBert Claes\nBert Claes');
     const k = naamKandidaten(rijen, raadKlaslijst(rijen), ['anna peeters']);
     expect(k.map((x) => x.reden)).toEqual(['staat al in de klas', undefined, 'dubbel']);
+  });
+});
+
+describe('korte namen', () => {
+  it('voornaam volgens de naamvolgorde', () => {
+    expect(roepnaam('Anna Peeters')).toBe('Anna');
+    expect(roepnaam('Van den Broeck Anna', 'achternaam')).toBe('Anna');
+  });
+  it('zelfde voornaam: eerste letter van de achternaam erbij', () => {
+    expect(korteNamen(['Peeters Anna', 'Van den Broeck Anna', 'Claes Bert'], 'achternaam')).toEqual(['Anna P.', 'Anna B.', 'Bert']);
+    expect(korteNamen(['Anna Peeters', 'Anna Claes'])).toEqual(['Anna P.', 'Anna C.']);
   });
 });

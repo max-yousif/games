@@ -83,43 +83,47 @@ export function StartPage({ store }: { store: Store }) {
         ))}
       </div>
 
-      <Section title={aangemeld ? 'Back-up (optioneel)' : 'Back-up'}>
-        <p className="mb-4 text-sm text-slate-600">
-          {aangemeld ? (
-            <>
-              ☁️ Je vragensets, klassen en resultaten staan in je account en worden automatisch bewaard. Een back-upbestand is niet meer
-              nodig; af en toe één bewaren (bv. op het einde van een trimester) is een extra zekerheid.
-            </>
-          ) : (
-            <>
-              Alles wordt bewaard in deze browser op deze laptop. Maak regelmatig een back-upbestand: zo verlies je niets als de
-              browsergegevens gewist worden, en kan je alles overzetten naar een andere laptop.
-              {store.account.beschikbaar && (
-                <>
-                  {' '}
-                  Of <a className="font-semibold text-[var(--accent-tekst)] underline" href={href({ pagina: 'aanmelden' })}>meld je aan</a>: dan staat alles automatisch in je account.
-                </>
-              )}
-            </>
-          )}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={aangemeld ? 'secondary' : 'primary'}
-            onClick={() => downloadJson(`klasspelen-backup-${new Date().toISOString().slice(0, 10)}.json`, maakBackup(store.sets, store.klassen, store.sessies))}
-          >
-            Back-up downloaden
-          </Button>
-          <FileButton accept=".json,application/json" onFile={importeer}>
-            Back-up of vragenset terugzetten…
-          </FileButton>
-        </div>
-        {melding && (
-          <div className="mt-4">
-            <Notice tone={melding.tone}>{melding.tekst}</Notice>
+      <details className="group text-sm text-slate-500" open={melding !== null || undefined}>
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg px-2 py-1 hover:bg-slate-100 hover:text-slate-700">
+          <span className="transition group-open:rotate-90">▸</span> Back-up als bestand
+        </summary>
+        <div className="mt-2 rounded-2xl border border-slate-200 bg-surface p-5">
+          <p className="mb-4 text-sm text-slate-600">
+            {aangemeld ? (
+              <>
+                ☁️ Je vragensets, klassen en resultaten staan in je account en worden automatisch bewaard. Een back-upbestand is niet meer
+                nodig; af en toe één bewaren (bv. op het einde van een trimester) is een extra zekerheid.
+              </>
+            ) : (
+              <>
+                Alles wordt bewaard in deze browser op deze laptop. Maak regelmatig een back-upbestand: zo verlies je niets als de
+                browsergegevens gewist worden, en kan je alles overzetten naar een andere laptop.
+                {store.account.beschikbaar && (
+                  <>
+                    {' '}
+                    Of <a className="font-semibold text-[var(--accent-tekst)] underline" href={href({ pagina: 'aanmelden' })}>meld je aan</a>: dan staat alles automatisch in je account.
+                  </>
+                )}
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => downloadJson(`klasspelen-backup-${new Date().toISOString().slice(0, 10)}.json`, maakBackup(store.sets, store.klassen, store.sessies))}
+            >
+              Back-up downloaden
+            </Button>
+            <FileButton accept=".json,application/json" onFile={importeer}>
+              Back-up of vragenset terugzetten…
+            </FileButton>
           </div>
-        )}
-      </Section>
+          {melding && (
+            <div className="mt-4">
+              <Notice tone={melding.tone}>{melding.tekst}</Notice>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

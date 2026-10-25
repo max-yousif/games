@@ -1,6 +1,9 @@
+import { korteNamen } from '../lib/students';
 import type { Sessie } from '../lib/types';
 
 export function Scorebord({ sessie, scores, actief, eenheid = 'punten' }: { sessie: Sessie; scores: number[]; actief: number | null; eenheid?: string }) {
+  const alle = sessie.teams.flatMap((t) => t.leerlingen);
+  const kort = new Map(alle.map((l, i) => [l.id, korteNamen(alle.map((x) => x.naam), sessie.naamVolgorde)[i]]));
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${sessie.teams.length}, minmax(0, 1fr))` }}>
       {sessie.teams.map((t, i) => (
@@ -19,7 +22,7 @@ export function Scorebord({ sessie, scores, actief, eenheid = 'punten' }: { sess
               <span className="ml-1 text-sm font-normal text-slate-500">{eenheid}</span>
             </span>
           </div>
-          {t.leerlingen.length > 0 && <div className="mt-1 truncate text-sm text-slate-500">{t.leerlingen.map((l) => l.naam.split(' ')[0]).join(', ')}</div>}
+          {t.leerlingen.length > 0 && <div className="mt-1 truncate text-sm text-slate-500">{t.leerlingen.map((l) => kort.get(l.id)).join(', ')}</div>}
         </div>
       ))}
     </div>

@@ -1,5 +1,5 @@
 import { newId } from './ids';
-import type { Leerling } from './types';
+import type { Leerling, NaamVolgorde } from './types';
 
 // ---------- Klaslijst importeren ----------
 
@@ -29,6 +29,8 @@ export interface KlaslijstKeuze {
   kopRij: number;
   /** Kolommen die samen de naam vormen, in deze volgorde. */
   naamKolommen: number[];
+  /** Herkende naamvolgorde (uit de kolomtitels), of undefined als dat niet te zien is. */
+  volgorde?: NaamVolgorde;
 }
 
 /** Raadt welke rij de titels bevat en welke kolommen de naam vormen. */
@@ -41,11 +43,11 @@ export function raadKlaslijst(rows: readonly (readonly string[])[]): KlaslijstKe
   });
   if (kopIndex >= 0) {
     const titels = rows[kopIndex].map(kop);
-    // Voornaam vóór achternaam, anders in de volgorde van het bestand.
+    // In de volgorde van het bestand: "Naam, Voornaam" geeft "Peeters Anna".
     const naam = titels.flatMap((t, i) => (NAAM_KOP.includes(t) ? [i] : []));
     const voornaam = titels.findIndex((t) => t === 'voornaam' || t === 'roepnaam');
-    const gesorteerd = voornaam >= 0 ? [voornaam, ...naam.filter((i) => i !== voornaam)] : naam;
-    return { kopRij: kopIndex, naamKolommen: gesorteerd };
+    const volgorde: NaamVolgorde | undefined = voornaam < 0 || naam.length < 2 ? undefined : naam[0] === voornaam ? 'voornaam' : 'achternaam';
+    return { kopRij: kopIndex, naamKolommen: naam, ...(volgorde ? { volgorde } : {}) };
   }
   const data = rows;
   const naamKolommen: number[] = [];
@@ -107,6 +109,28 @@ export function parseNamen(text: string): string[] {
   return naamKandidaten(rows, raadKlaslijst(rows))
     .filter((k) => k.aan)
     .map((k) => k.naam);
+}
+
+/** De voornaam: het eerste woord, of bij "Achternaam Voornaam" het laatste woord. */
+export function roepnaam(naam: string, volgorde: NaamVolgorde = 'voornaam'): string {
+  const w = naam.trim().split(/\s+/);
+  return (volgorde === 'achternaam' ? w.at(-1) : w[0]) ?? naam;
+}
+
+/**
+ * Korte namen voor op het bord. Hebben twee leerlingen dezelfde voornaam, dan komt de eerste letter
+ * van de achternaam erbij (Anna P., Anna V.).
+ */
+export function korteNamen(namen: readonly string[], volgorde: NaamVolgorde = 'voornaam'): string[] {
+  const kort = namen.map((n) => roepnaam(n, volgorde));
+  return kort.map((k, i) => {
+    if (kort.filter((x) => x === k).length < 2) return k;
+    const w = namen[i].trim().split(/\s+/);
+    const achternaam = volgorde === 'achternaam' ? w.slice(0, -1).join(' ') : w.slice(1).join(' ');
+    // Eerste hoofdletter van de achternaam (bij "Van den Broeck" de B).
+    const letter = achternaam.match(/\p{Lu}(?=[\p{Ll}'’-]*$)/u)?.[0] ?? achternaam.match(/\p{L}/u)?.[0];
+    return letter ? `${k} ${letter.toLocaleUpperCase('nl')}.` : k;
+  });
 }
 
 export function naarLeerlingen(namen: readonly string[]): Leerling[] {

@@ -48,10 +48,15 @@ export interface Leerling {
   naam: string;
 }
 
+/** Hoe de namen in een klas geschreven zijn: "Anna Peeters" of "Peeters Anna". */
+export type NaamVolgorde = 'voornaam' | 'achternaam';
+
 export interface Klas {
   id: string;
   naam: string;
   leerlingen: Leerling[];
+  /** Standaard voornaam eerst. */
+  naamVolgorde?: NaamVolgorde;
 }
 
 export type SpelType = 'quizbord' | 'vieropeenrij' | 'live' | 'escape';
@@ -112,4 +117,6 @@ export interface Sessie {
   gestart: string;
   beeindigd: string | null;
   live?: LiveInfo;
+  /** Naamvolgorde van de klas, voor de korte namen op het scorebord. */
+  naamVolgorde?: NaamVolgorde;
 }

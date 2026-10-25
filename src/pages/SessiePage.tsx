@@ -54,6 +54,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
       klasNaam: s.klasNaam,
       teams: s.teams,
       timer: s.timer,
+      naamVolgorde: s.naamVolgorde,
     });
     store.bewaarSessie(nieuw);
     ga({ pagina: 'sessie', id: nieuw.id });

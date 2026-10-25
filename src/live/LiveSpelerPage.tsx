@@ -279,7 +279,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
       <Kaart>
         <div className="text-center">
           <div className="text-5xl">👋</div>
-          <h1 className="mt-3 text-3xl font-bold">Hallo {deelname.naam.split(' ')[0]}!</h1>
+          <h1 className="mt-3 text-3xl font-bold">Hallo {deelname.naam}!</h1>
           <p className="mt-2 text-xl text-slate-600">Je doet mee aan “{sessie.titel}”. Wacht tot de leerkracht start…</p>
           <div className="mt-6 animate-pulse text-slate-400">●●●</div>
         </div>

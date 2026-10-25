@@ -1,7 +1,7 @@
 import { bestandsnaam } from './backup';
 import { juistAntwoord } from './questions';
 import { gatenAlsTekst } from './vraagtypes';
-import { leerlingNaam, resultatenPerLeerling, teamScores } from './session';
+import { leerlingNaam, overzichtPerLeerling, procentJuist, resultatenPerLeerling, teamScores } from './session';
 import type { Sessie } from './types';
 
 /** Tijd als m:ss. */
@@ -90,7 +90,17 @@ export async function exporteerAlles(sessies: readonly Sessie[]): Promise<void> 
       resultatenPerLeerling(s).map((r) => [datumTekst(s.gestart), s.klasNaam, s.setTitel, SPEL_NAMEN[s.spelType], r.naam, r.team, r.beurten, r.juist, r.fout, r.punten]),
     ),
   ];
+  const perLeerling = [
+    [bold('Klas'), bold('Leerling'), bold('Spellen'), bold('Beurten'), bold('Juist'), bold('Fout'), bold('% juist'), bold('Punten')],
+    ...overzichtPerLeerling(sessies).map((o) => [o.klas, o.naam, o.spellen, o.beurten, o.juist, o.fout, procentJuist(o) ?? '', o.punten]),
+  ];
   return writeXlsxFile([
+    {
+      data: perLeerling,
+      sheet: 'Per leerling',
+      stickyRowsCount: 1,
+      columns: [{ width: 10 }, { width: 28 }, {}, {}, {}, {}, {}, {}],
+    },
     {
       data: overzicht,
       sheet: 'Alle resultaten',

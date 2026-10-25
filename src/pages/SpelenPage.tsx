@@ -81,7 +81,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       void startLive();
       return;
     }
-    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer });
+    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer, naamVolgorde: klas?.naamVolgorde });
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
   }
@@ -116,6 +116,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         klasNaam: klas?.naam ?? 'zonder klas',
         teams: [{ naam: klas?.naam ?? 'Spelers', kleur: TEAM_KLEUREN[0], leerlingen: metNamen ? leerlingen : [] }],
         timer: spelTimer,
+        naamVolgorde: klas?.naamVolgorde,
       });
       const sessie = {
         ...basis,

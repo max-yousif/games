@@ -31,7 +31,7 @@ export async function leerling(page: Page, code: string, naam: string): Promise<
   const p = await page.context().newPage();
   await p.goto(`#/live?code=${code}&demo=1`);
   await p.getByRole('button', { name: naam, exact: true }).click();
-  await expect(p.getByText(`Hallo ${naam.split(' ')[0]}!`)).toBeVisible();
+  await expect(p.getByText(`Hallo ${naam}!`)).toBeVisible();
   return p;
 }
 
