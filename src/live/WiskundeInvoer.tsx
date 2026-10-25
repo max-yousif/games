@@ -11,6 +11,9 @@ const KNOPPEN: { label: string; titel: string; latex: string }[] = [
   { label: '( )', titel: 'Haakjes', latex: '\\left(#?\\right)' },
 ];
 
+/** LaTeX uit de editor als antwoord: tussen dollartekens, of leeg. */
+const alsAntwoord = (latex: string) => (latex.trim() ? `$${latex.trim()}$` : '');
+
 /**
  * Invoerveld met een wiskunde-editor (MathLive): breuken, machten, wortels en maal zoals op papier.
  * Geeft het antwoord door als LaTeX tussen dollartekens (bv. "$\frac{1}{2}$"), zodat het op het
@@ -24,7 +27,8 @@ export function WiskundeInvoer({
   kleur,
 }: {
   onChange: (waarde: string) => void;
-  onEnter?: () => void;
+  /** Enter: krijgt de actuele waarde mee (de state kan een toetsaanslag achterlopen). */
+  onEnter?: (waarde: string) => void;
   autoFocus?: boolean;
   label: string;
   kleur?: string;
@@ -47,14 +51,13 @@ export function WiskundeInvoer({
         mf.setAttribute('aria-label', label);
         mf.smartFence = true;
         if (kleur) mf.style.borderColor = kleur;
-        mf.addEventListener('input', () => {
-          const latex = mf.value.trim();
-          callbacks.current.onChange(latex ? `$${latex}$` : '');
-        });
+        mf.addEventListener('input', () => callbacks.current.onChange(alsAntwoord(mf.value)));
         mf.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            callbacks.current.onEnter?.();
+            const waarde = alsAntwoord(mf.value);
+            callbacks.current.onChange(waarde);
+            callbacks.current.onEnter?.(waarde);
           }
         });
         houder.current.appendChild(mf);
@@ -77,8 +80,7 @@ export function WiskundeInvoer({
     if (!mf) return;
     mf.insert(latex, { selectionMode: 'placeholder', focus: true });
     mf.focus();
-    const waarde = mf.value.trim();
-    callbacks.current.onChange(waarde ? `$${waarde}$` : '');
+    callbacks.current.onChange(alsAntwoord(mf.value));
   }
 
   return (

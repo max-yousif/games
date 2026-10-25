@@ -112,8 +112,8 @@ function EditorSchakelaar({ aan, onWissel }: { aan: boolean; onWissel: (aan: boo
 function TekstInvoer({ getal, bezig, onVerstuur }: { getal: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
   const [tekst, setTekst] = useState('');
   const [editor, setEditor] = useWiskundeEditor();
-  const verstuur = () => {
-    if (tekst.trim()) onVerstuur(tekst.trim());
+  const verstuur = (waarde = tekst) => {
+    if (waarde.trim()) onVerstuur(waarde.trim());
   };
   return (
     <>
@@ -165,8 +165,8 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
   const [editor, setEditor] = useWiskundeEditor();
   const klaar = waarden.every((w) => w.trim());
   const zet = (i: number, waarde: string) => setWaarden((ws) => ws.map((x, j) => (j === i ? waarde : x)));
-  const verstuur = () => {
-    if (klaar) onVerstuur(JSON.stringify(waarden.map((w) => w.trim())));
+  const verstuur = (lijst = waarden) => {
+    if (lijst.every((w) => w.trim())) onVerstuur(JSON.stringify(lijst.map((w) => w.trim())));
   };
   return (
     <form
@@ -191,7 +191,13 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
             <GatSymbool nr={i} groot />
           </span>
           {editor ? (
-            <WiskundeInvoer autoFocus={i === 0} label={`Gat ${i + 1}`} kleur={gatKleur(i)} onChange={(waarde) => zet(i, waarde)} onEnter={verstuur} />
+            <WiskundeInvoer
+              autoFocus={i === 0}
+              label={`Gat ${i + 1}`}
+              kleur={gatKleur(i)}
+              onChange={(waarde) => zet(i, waarde)}
+              onEnter={(waarde) => verstuur(waarden.map((x, j) => (j === i ? waarde : x)))}
+            />
           ) : (
             <input
               autoFocus={i === 0}
