@@ -2,8 +2,9 @@
 -- Voer dit één keer uit in Supabase: SQL Editor → New query → plakken → Run.
 -- Het script mag opnieuw uitgevoerd worden (bestaande tabellen blijven behouden).
 --
--- Iedereen (leerkracht en leerlingen) meldt zich anoniem aan (Authentication → Sign In / Providers
--- → "Allow anonymous sign-ins" aanzetten). Er zijn geen wachtwoorden of e-mailadressen nodig.
+-- Leerlingen melden zich anoniem aan (Authentication → Sign In / Providers → "Allow anonymous
+-- sign-ins" aanzetten): zonder wachtwoord of e-mailadres. De leerkracht meldt zich aan met een
+-- account (gebruikersnaam en wachtwoord) dat in de tabel leerkrachten staat.
 -- Leerlingen kunnen enkel hun eigen antwoorden zien; het juiste antwoord staat pas in de database
 -- wanneer de leerkracht het toont. Sessies ouder dan 2 dagen worden automatisch gewist.
 
@@ -131,6 +132,57 @@ drop trigger if exists live_opruimen on public.live_sessies;
 create trigger live_opruimen before insert on public.live_sessies
 for each statement execute function public.live_opruimen();
 
+-- ---------- Leerkrachten ----------
+-- Enkel wie in deze lijst staat, kan live spellen starten en gegevens in de cloud bewaren.
+-- Een leerkracht toevoegen: zie supabase/README.md (gebruiker aanmaken + één regel SQL).
+
+create table if not exists public.leerkrachten (
+  uid uuid primary key references auth.users (id) on delete cascade,
+  naam text not null unique check (naam ~ '^[a-z0-9._-]{3,40}$'),
+  aangemaakt timestamptz not null default now()
+);
+alter table public.leerkrachten enable row level security;
+drop policy if exists leerkracht_lezen on public.leerkrachten;
+create policy leerkracht_lezen on public.leerkrachten for select to authenticated using (uid = auth.uid());
+grant select on public.leerkrachten to authenticated;
+
+create or replace function public.live_is_leerkracht() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from leerkrachten where uid = auth.uid());
+$$;
+
+-- Vragensets, klassen en resultaten van de leerkracht (één rij per item; verwijderd = true
+-- onthoudt dat een item gewist werd, zodat dat ook op de andere toestellen gebeurt).
+create table if not exists public.leerkracht_items (
+  eigenaar uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  soort text not null check (soort in ('set', 'klas', 'sessie')),
+  id text not null check (length(id) between 1 and 100),
+  data jsonb,
+  verwijderd boolean not null default false,
+  bijgewerkt timestamptz not null default now(),
+  primary key (eigenaar, soort, id)
+);
+create index if not exists leerkracht_items_bijgewerkt on public.leerkracht_items (eigenaar, bijgewerkt);
+alter table public.leerkracht_items enable row level security;
+
+-- De tijd van de server, zodat toestellen enkel nieuwere wijzigingen hoeven op te halen.
+create or replace function public.leerkracht_items_tijd() returns trigger
+language plpgsql as $$
+begin
+  new.bijgewerkt := clock_timestamp();
+  return new;
+end;
+$$;
+drop trigger if exists leerkracht_items_tijd on public.leerkracht_items;
+create trigger leerkracht_items_tijd before insert or update on public.leerkracht_items
+for each row execute function public.leerkracht_items_tijd();
+
+drop policy if exists items_eigen on public.leerkracht_items;
+create policy items_eigen on public.leerkracht_items for all to authenticated
+  using (eigenaar = auth.uid() and public.live_is_leerkracht())
+  with check (eigenaar = auth.uid() and public.live_is_leerkracht());
+grant select, insert, update, delete on public.leerkracht_items to authenticated;
+
 -- ---------- Row level security ----------
 
 alter table public.live_sessies enable row level security;
@@ -142,7 +194,7 @@ create policy sessie_lezen on public.live_sessies for select to authenticated
   using (host = auth.uid() or public.live_is_speler(id));
 drop policy if exists sessie_maken on public.live_sessies;
 create policy sessie_maken on public.live_sessies for insert to authenticated
-  with check (host = auth.uid());
+  with check (host = auth.uid() and public.live_is_leerkracht());
 drop policy if exists sessie_wijzigen on public.live_sessies;
 create policy sessie_wijzigen on public.live_sessies for update to authenticated
   using (host = auth.uid()) with check (host = auth.uid());
@@ -339,8 +391,8 @@ begin
 end;
 $$;
 
-revoke all on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code(), public.live_opruimen() from public, anon;
-grant execute on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code() to authenticated;
+revoke all on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code(), public.live_opruimen(), public.live_is_leerkracht() from public, anon;
+grant execute on function public.live_is_host(uuid), public.live_is_speler(uuid), public.live_nieuwe_code(), public.live_is_leerkracht() to authenticated;
 revoke all on function public.live_sessie_info(text), public.live_deelnemen(text, text), public.live_antwoord(uuid, int, text),
   public.live_bijnaam(uuid, text), public.live_verlaten(uuid),
   public.live_start_vraag(uuid, int, jsonb), public.live_start_escape(uuid), public.live_beoordeel(uuid, jsonb) from public, anon;
@@ -350,41 +402,6 @@ grant execute on function public.live_sessie_info(text), public.live_deelnemen(t
 grant execute on function public.live_ping() to anon, authenticated;
 grant select, insert, update, delete on public.live_sessies to authenticated;
 grant select, update, delete on public.live_spelers, public.live_antwoorden to authenticated;
-
--- ---------- Kluis van de leerkracht (klassen op al je toestellen) ----------
--- De klassen worden in de browser versleuteld met de persoonlijke kluiscode van de leerkracht.
--- De database bewaart enkel die onleesbare gegevens, onder een id dat ook uit de kluiscode
--- afgeleid wordt. Zonder kluiscode kan niemand ze lezen, ook de beheerder van Supabase niet.
-
-create table if not exists public.leerkracht_kluis (
-  id text primary key check (id ~ '^[0-9a-f]{64}$'),
-  data text not null check (length(data) <= 2000000),
-  bijgewerkt timestamptz not null default now()
-);
--- Geen policies: de tabel is enkel bereikbaar via de twee functies hieronder.
-alter table public.leerkracht_kluis enable row level security;
-revoke all on public.leerkracht_kluis from anon, authenticated;
-
-create or replace function public.kluis_lees(p_id text)
-returns table (data text, bijgewerkt timestamptz)
-language sql stable security definer set search_path = public as $$
-  select k.data, k.bijgewerkt from leerkracht_kluis k where k.id = p_id;
-$$;
-
-create or replace function public.kluis_schrijf(p_id text, p_data text)
-returns timestamptz
-language plpgsql security definer set search_path = public as $$
-declare
-  t timestamptz := now();
-begin
-  insert into leerkracht_kluis (id, data, bijgewerkt) values (p_id, p_data, t)
-  on conflict (id) do update set data = excluded.data, bijgewerkt = t;
-  return t;
-end;
-$$;
-
-revoke all on function public.kluis_lees(text), public.kluis_schrijf(text, text) from public, anon;
-grant execute on function public.kluis_lees(text), public.kluis_schrijf(text, text) to authenticated;
 
 -- ---------- Realtime ----------
 

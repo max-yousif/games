@@ -168,9 +168,9 @@ pas openen na een vorig slot, of een code die een puzzel vormt (bv. cijfers door
 
 ## 6. Privacy
 
-- Vragensets en resultaten blijven op de laptop van de leerkracht (browseropslag) of in een
-  bestand dat de leerkracht zelf bewaart. Klassen kunnen daarnaast in de **kluis**: versleuteld
-  in de browser met de kluiscode van de leerkracht, zodat Supabase enkel onleesbare tekst bewaart.
+- Vragensets, klassen en resultaten staan in de browser van de leerkracht en, wanneer die
+  aangemeld is, in het leerkrachtaccount in Supabase (EU-regio). Row level security zorgt dat
+  enkel de leerkracht ze kan lezen. Op een gedeelde computer: *Afmelden en deze computer leegmaken*.
 - Enkel tijdens een **live quiz** staan namen en antwoorden op de server (Supabase, EU-regio),
   en enkel voor die ene sessie: na *Afsluiten* of na 2 dagen wordt alles gewist. Het is
   aangeraden de school op de hoogte te brengen (verwerkersovereenkomst/GDPR).
@@ -230,7 +230,7 @@ tests/
 - Gaten bij invulvragen als gekleurde symbolen (★ ● ▲ …) in plaats van cijfers
 - Open vragen met meerdere juiste antwoorden ("+ ook juist", Excel-kolom *Ook juist*)
 
-**Fase 1f: reacties, wiskunde-editor en klassen in de cloud (deze versie)**
+**Fase 1f: reacties, wiskunde-editor en klassen in de cloud**
 - Emoji-reacties tijdens het wachten (😠 😂 ❤️ 😢 💀 🐐), zwevend over het bord met de
   (bij)naam; niet bewaard, enkel doorgestuurd; de leerkracht kan ze verbergen
 - Wiskunde-editor (MathLive) als keuze bij open vragen, getallen en invullen; het nakijken
@@ -238,9 +238,14 @@ tests/
 - Kluis van de leerkracht: klassen versleuteld (AES, sleutel afgeleid uit de kluiscode) in
   Supabase, automatisch gesynchroniseerd tussen toestellen; de server ziet geen namen
 
-**Volgende stap (voorstel): leerkrachtlogin + cloudopslag van vragensets**
-- Enkel de leerkracht kan spellen starten (magische link per e-mail); leerlingen blijven anoniem
-- Vragensets en resultaten ook in de kluis: op elke laptop beschikbaar, geen verlies meer
+**Fase 1g: leerkrachtlogin en cloudopslag (deze versie)**
+- Leerkrachtaccount (gebruikersnaam + wachtwoord, tabel `leerkrachten`); enkel een leerkracht
+  kan live spellen starten, leerlingen blijven anoniem
+- Vragensets, klassen en resultaten per item in de cloud (`leerkracht_items`), automatisch
+  gesynchroniseerd (bij openen, bij terugkeer naar het tabblad, elke minuut en 2 s na elke
+  wijziging); de kluis met kluiscode is vervangen
+
+**Volgende stap (voorstel)**
 - Anonieme gebruikers automatisch opruimen na 30 dagen; CAPTCHA/rate limits in Supabase
 
 **Fase 2: meer spellen**

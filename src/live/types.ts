@@ -138,6 +138,8 @@ export type FoutCode =
   | 'niet_aangemeld'
   | 'anoniem_uit'
   | 'schema_oud'
+  | 'login_fout'
+  | 'geen_leerkracht'
   | 'verbinding';
 
 export const FOUT_TEKST: Record<FoutCode, string> = {
@@ -155,6 +157,8 @@ export const FOUT_TEKST: Record<FoutCode, string> = {
   niet_aangemeld: 'Aanmelden is mislukt. Herlaad de pagina.',
   anoniem_uit: 'Anoniem aanmelden staat uit in Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins).',
   schema_oud: 'Deze functie vraagt een bijgewerkte database. Leerkracht: voer supabase/schema.sql opnieuw uit in Supabase.',
+  login_fout: 'Gebruikersnaam of wachtwoord is niet juist.',
+  geen_leerkracht: 'Dit kan enkel een leerkracht. Meld je aan met je leerkrachtaccount (rechtsboven).',
   verbinding: 'Geen verbinding met de server. Controleer het internet en probeer opnieuw.',
 };
 

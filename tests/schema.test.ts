@@ -12,6 +12,7 @@ const LEERKRACHT = '00000000-0000-0000-0000-00000000000a';
 const ANNA = '00000000-0000-0000-0000-0000000000a1';
 const BERT = '00000000-0000-0000-0000-0000000000b1';
 const VREEMDE = '00000000-0000-0000-0000-0000000000f1';
+const COLLEGA = '00000000-0000-0000-0000-0000000000c1';
 
 let db: PGlite;
 
@@ -48,8 +49,13 @@ beforeAll(async () => {
     grant usage on schema auth to authenticated, anon;
     grant execute on function auth.uid() to authenticated, anon;
     grant usage on schema public to authenticated, anon;
+    create table auth.users (id uuid primary key);
+    insert into auth.users (id) values
+      ('${LEERKRACHT}'), ('${ANNA}'), ('${BERT}'), ('${VREEMDE}'), ('${COLLEGA}');
   `);
   await db.exec(SCHEMA);
+  // Leerkrachten toevoegen zoals in supabase/README.md.
+  await db.exec(`insert into public.leerkrachten (uid, naam) values ('${LEERKRACHT}', 'maxyousif'), ('${COLLEGA}', 'collega')`);
   // Een tweede keer uitvoeren mag geen fouten geven.
   await db.exec(SCHEMA);
 
@@ -273,21 +279,42 @@ describe('supabase-schema: bijnaam, verlaten en ping', () => {
   });
 });
 
-describe('supabase-schema: kluis van de leerkracht', () => {
-  const ID = 'a'.repeat(64);
-
-  it('schrijven en lezen enkel via de functies', async () => {
-    await als(LEERKRACHT, 'select kluis_schrijf($1, $2)', [ID, 'versleuteld-1']);
-    // Op een ander toestel (andere anonieme gebruiker) met dezelfde kluiscode.
-    const [r] = await als<{ data: string }>(VREEMDE, 'select * from kluis_lees($1)', [ID]);
-    expect(r.data).toBe('versleuteld-1');
-    await als(VREEMDE, 'select kluis_schrijf($1, $2)', [ID, 'versleuteld-2']);
-    expect((await als<{ data: string }>(LEERKRACHT, 'select * from kluis_lees($1)', [ID]))[0].data).toBe('versleuteld-2');
-    expect(await als(LEERKRACHT, 'select * from kluis_lees($1)', ['b'.repeat(64)])).toEqual([]);
+describe('supabase-schema: leerkrachten en cloudopslag', () => {
+  it('enkel een leerkracht kan een live spel starten', async () => {
+    expect(await fout(als(ANNA, `insert into live_sessies (titel) values ('Stiekem')`))).toContain('row-level security');
+    const [s] = await als<{ id: string }>(LEERKRACHT, `insert into live_sessies (titel) values ('Echt') returning id`);
+    expect(s.id).toBeTruthy();
+    expect(await als<{ live_is_leerkracht: boolean }>(ANNA, 'select live_is_leerkracht()')).toEqual([{ live_is_leerkracht: false }]);
   });
 
-  it('de tabel zelf is niet leesbaar en een ongeldig id wordt geweigerd', async () => {
-    expect(await fout(als(ANNA, 'select * from leerkracht_kluis'))).toContain('permission denied');
-    expect(await fout(als(ANNA, 'select kluis_schrijf($1, $2)', ['te-kort', 'x']))).toContain('check constraint');
+  it('een leerkracht ziet en wijzigt enkel de eigen items, met tijd van de server', async () => {
+    await als(LEERKRACHT, `insert into leerkracht_items (soort, id, data) values ('klas', 'k1', '{"naam":"3A"}'), ('set', 's1', '{"titel":"Algebra"}')`);
+    await als(COLLEGA, `insert into leerkracht_items (soort, id, data) values ('klas', 'k1', '{"naam":"5B"}')`);
+    const eigen = await als<{ id: string; data: { naam?: string } }>(LEERKRACHT, `select id, data from leerkracht_items where soort = 'klas'`);
+    expect(eigen).toEqual([{ id: 'k1', data: { naam: '3A' } }]);
+
+    // Iemand anders kan niets lezen of wijzigen, ook geen leerling.
+    await als(COLLEGA, `update leerkracht_items set data = '{"naam":"gehackt"}' where eigenaar = '${LEERKRACHT}'`);
+    expect((await als<{ data: { naam: string } }>(LEERKRACHT, `select data from leerkracht_items where id = 'k1'`))[0].data.naam).toBe('3A');
+    expect(await als(ANNA, 'select * from leerkracht_items')).toEqual([]);
+    expect(await fout(als(ANNA, `insert into leerkracht_items (soort, id, data) values ('klas', 'x', '{}')`))).toContain('row-level security');
+    expect(await fout(als(LEERKRACHT, `insert into leerkracht_items (eigenaar, soort, id, data) values ('${COLLEGA}', 'klas', 'x', '{}')`))).toContain('row-level security');
+
+    // Bijwerken (upsert) zet een nieuwere servertijd; wissen onthoudt het item als verwijderd.
+    const [voor] = await als<{ bijgewerkt: string }>(LEERKRACHT, `select bijgewerkt from leerkracht_items where id = 'k1'`);
+    await als(
+      LEERKRACHT,
+      `insert into leerkracht_items (eigenaar, soort, id, data, verwijderd, bijgewerkt) values ($1, 'klas', 'k1', null, true, '2000-01-01')
+       on conflict (eigenaar, soort, id) do update set data = excluded.data, verwijderd = excluded.verwijderd`,
+      [LEERKRACHT],
+    );
+    const [na] = await als<{ bijgewerkt: string; verwijderd: boolean }>(LEERKRACHT, `select bijgewerkt, verwijderd from leerkracht_items where id = 'k1'`);
+    expect(na.verwijderd).toBe(true);
+    expect(new Date(na.bijgewerkt).getTime()).toBeGreaterThan(new Date(voor.bijgewerkt).getTime());
+  });
+
+  it('een leerkracht ziet enkel de eigen rij in leerkrachten', async () => {
+    expect(await als(LEERKRACHT, 'select naam from leerkrachten')).toEqual([{ naam: 'maxyousif' }]);
+    expect(await als(ANNA, 'select naam from leerkrachten')).toEqual([]);
   });
 });

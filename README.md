@@ -34,8 +34,9 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
   tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren, reageren met
   emoji (😠 😂 ❤️ 😢 💀 🐐) terwijl ze wachten, en antwoorden met een **wiskunde-editor**
   (breuken, machten, wortels, maal). Eén browser is één leerling.
-- **Klassen op al je toestellen**: met een persoonlijke kluiscode staan je klassen versleuteld in
-  Supabase en synchroniseren ze automatisch tussen je laptops en computers. Vereist een gratis
+- **Leerkrachtaccount**: meld je aan (rechtsboven) en je vragensets, klassen en resultaten staan
+  in Supabase en synchroniseren automatisch tussen al je toestellen. Enkel een aangemelde
+  leerkracht kan live spellen starten. Vereist een gratis
   Supabase-project: zie [supabase/README.md](supabase/README.md). Zonder Supabase werkt een demo
   in één browser.
 - **Back-up** van alles in één bestand. Klassen, sets en resultaten blijven in je browser.

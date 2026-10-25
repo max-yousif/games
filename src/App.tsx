@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { AccountKnop } from './components/Account';
 import { StartPage } from './pages/StartPage';
 import { href, useRoute, type Route } from './lib/route';
 import { useStore } from './lib/store';
@@ -10,6 +11,7 @@ const SessiePage = lazy(() => import('./pages/SessiePage').then((m) => ({ defaul
 const SetEditorPage = lazy(() => import('./pages/SetEditorPage').then((m) => ({ default: m.SetEditorPage })));
 const SetsPage = lazy(() => import('./pages/SetsPage').then((m) => ({ default: m.SetsPage })));
 const SpelenPage = lazy(() => import('./pages/SpelenPage').then((m) => ({ default: m.SpelenPage })));
+const AanmeldenPage = lazy(() => import('./pages/AanmeldenPage').then((m) => ({ default: m.AanmeldenPage })));
 const LiveSpelerPage = lazy(() => import('./live/LiveSpelerPage').then((m) => ({ default: m.LiveSpelerPage })));
 
 const laden = <div className="p-10 text-center text-slate-400">Laden…</div>;
@@ -60,6 +62,7 @@ export default function App() {
               {m.label}
             </a>
           ))}
+          <AccountKnop store={store} />
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
@@ -70,6 +73,7 @@ export default function App() {
         {route.pagina === 'klassen' && <KlassenPage store={store} />}
         {route.pagina === 'spelen' && <SpelenPage key={route.setId ?? ''} setId={route.setId} store={store} />}
         {route.pagina === 'resultaten' && <ResultatenPage store={store} />}
+        {route.pagina === 'aanmelden' && <AanmeldenPage store={store} />}
         </Suspense>
       </main>
     </div>

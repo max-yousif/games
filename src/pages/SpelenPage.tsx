@@ -312,6 +312,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <input type="checkbox" checked={demo} disabled={!supabaseIngesteld} onChange={(e) => setDemo(e.target.checked)} />
               Demo in deze browser (leerlingen in andere tabbladen van deze browser, zonder internet-server)
             </label>
+            {supabaseIngesteld && !demo && !store.account.leerkracht && (
+              <Notice tone="warn">
+                Live spelen met echte laptops kan enkel als leerkracht.{' '}
+                <a className="font-semibold underline" href={href({ pagina: 'aanmelden' })}>
+                  Meld je aan
+                </a>{' '}
+                of kies de demo.
+              </Notice>
+            )}
             {!supabaseIngesteld && (
               <Notice tone="warn">
                 De live server (Supabase) is nog niet ingesteld, dus enkel de demo werkt: open het leerlingenscherm in een tweede tabblad. Zie{' '}
@@ -394,7 +403,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
       {fout && <Notice tone="warn">{fout}</Notice>}
       <div className="flex justify-end">
-        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig} onClick={start}>
+        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht)} onClick={start}>
           {bezig ? 'Bezig…' : '▶ Start het spel'}
         </Button>
       </div>

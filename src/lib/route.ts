@@ -8,6 +8,7 @@ export type Route =
   | { pagina: 'spelen'; setId?: string }
   | { pagina: 'sessie'; id: string }
   | { pagina: 'resultaten' }
+  | { pagina: 'aanmelden' }
   | { pagina: 'live'; code?: string; demo: boolean };
 
 export function parseHash(hash: string): Route {
@@ -27,6 +28,8 @@ export function parseHash(hash: string): Route {
       return delen[1] ? { pagina: 'sessie', id: delen[1] } : { pagina: 'start' };
     case 'resultaten':
       return { pagina: 'resultaten' };
+    case 'aanmelden':
+      return { pagina: 'aanmelden' };
     case 'live':
       return { pagina: 'live', code: params.get('code') ?? undefined, demo: params.get('demo') === '1' };
     default:

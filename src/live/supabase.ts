@@ -26,6 +26,7 @@ export function vertaal(error: { message?: string; code?: string } | null): neve
   const code = CODES.find((c) => msg.includes(c));
   if (code) throw new LiveFout(code);
   if (/anonymous sign-ins are disabled/i.test(msg)) throw new LiveFout('anoniem_uit');
+  if (/row-level security/i.test(msg)) throw new LiveFout('geen_leerkracht');
   throw new LiveFout('verbinding');
 }
 
@@ -65,12 +66,23 @@ const antwoordUit = (r: any): LiveAntwoord => ({
 });
 
 // Eén client en één anonieme aanmelding per browser, gedeeld door alle tabbladen, de live spellen
-// en de kluis met klassen. Zo is één browser altijd één leerling: in een tweede tabblad een andere
+// en de cloudopslag van de leerkracht. Zo is één browser altijd één leerling: in een tweede tabblad een andere
 // naam kiezen geeft de eerste naam vrij.
 const clients = new Map<string, Promise<SupabaseClient>>();
 const aanmeldingen = new Map<string, Promise<string>>();
 
-export function supabaseClient(url: string, key: string): { sb: () => Promise<SupabaseClient>; uid: () => Promise<string> } {
+export interface SupabaseVerbinding {
+  sb: () => Promise<SupabaseClient>;
+  /** Id van de aangemelde gebruiker; meldt zo nodig anoniem aan (leerlingen). */
+  uid: () => Promise<string>;
+  /** Aanmelden als leerkracht (e-mail en wachtwoord); geeft het id terug. */
+  aanmelden: (email: string, wachtwoord: string) => Promise<string>;
+  afmelden: () => Promise<void>;
+  /** De huidige gebruiker zonder anoniem aan te melden, of null. */
+  gebruiker: () => Promise<{ id: string; anoniem: boolean } | null>;
+}
+
+export function supabaseClient(url: string, key: string): SupabaseVerbinding {
   const sleutel = url;
   // De bibliotheek wordt pas geladen wanneer ze nodig is (snellere startpagina).
   const sb = () => {
@@ -102,7 +114,27 @@ export function supabaseClient(url: string, key: string): { sb: () => Promise<Su
     }
     return a;
   };
-  return { sb, uid };
+  const aanmelden = async (email: string, wachtwoord: string) => {
+    const c = await sb();
+    const { data, error } = await c.auth.signInWithPassword({ email, password: wachtwoord });
+    if (error || !data.user) {
+      if (error && /invalid login credentials|invalid_credentials/i.test(`${error.message} ${error.code ?? ''}`)) throw new LiveFout('login_fout');
+      vertaal(error);
+    }
+    aanmeldingen.set(sleutel, Promise.resolve(data.user!.id));
+    return data.user!.id;
+  };
+  const afmelden = async () => {
+    const c = await sb();
+    await c.auth.signOut();
+    aanmeldingen.delete(sleutel);
+  };
+  const gebruiker = async () => {
+    const { data } = await (await sb()).auth.getSession();
+    const u = data.session?.user;
+    return u ? { id: u.id, anoniem: u.is_anonymous ?? false } : null;
+  };
+  return { sb, uid, aanmelden, afmelden, gebruiker };
 }
 
 export function supabaseBackend(url: string, key: string): LiveBackend {

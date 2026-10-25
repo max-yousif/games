@@ -20,7 +20,10 @@ export function backend(soort: LiveBackend['soort']): LiveBackend {
   return (cache[soort] ??= soort === 'supabase' ? supabaseBackend(URL!, KEY!) : lokaalBackend());
 }
 
-/** Supabase-client van de leerkracht (voor de kluis met klassen); null als Supabase niet ingesteld is. */
+let verbinding: ReturnType<typeof supabaseClient> | undefined;
+
+/** Supabase-client van de leerkracht (aanmelden en cloudopslag); null als Supabase niet ingesteld is. */
 export function cloud() {
-  return supabaseIngesteld ? supabaseClient(URL!, KEY!) : null;
+  if (!supabaseIngesteld) return null;
+  return (verbinding ??= supabaseClient(URL!, KEY!));
 }
