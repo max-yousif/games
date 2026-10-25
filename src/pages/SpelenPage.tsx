@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
+import { backend, supabaseIngesteld } from '../live/config';
+import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
 import { ga, href } from '../lib/route';
-import { maakTeams, nieuweSessie } from '../lib/session';
+import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
 import type { Store } from '../lib/store';
 import type { Leerling, SpelType, Team } from '../lib/types';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
   { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Categorieën × punten. Teams kiezen om beurt een vak. 2 tot 6 teams.' },
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
+  { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
 ];
 
 const TIMERS = [null, 30, 60, 90, 120, 180];
@@ -19,10 +22,16 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [klasId, setKlasId] = useState(store.klassen[0]?.id ?? '');
   const [aantal, setAantal] = useState(2);
   const [timer, setTimer] = useState<number | null>(null);
+  const [snelheidsbonus, setSnelheidsbonus] = useState(true);
+  const [willekeurig, setWillekeurig] = useState(false);
+  const [vrijeNaam, setVrijeNaam] = useState(false);
+  const [demo, setDemo] = useState(!supabaseIngesteld);
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState<string | null>(null);
   const klas = store.klassen.find((k) => k.id === klasId) ?? null;
   const set = store.sets.find((s) => s.id === gekozenSet) ?? null;
   const vragen = set ? speelbareVragen(set) : [];
-  const aantalTeams = spel === 'vieropeenrij' ? 2 : aantal;
+  const aantalTeams = spel === 'vieropeenrij' ? 2 : spel === 'live' ? 1 : aantal;
 
   const [teams, setTeams] = useState<Team[]>(() => maakTeams(klas?.leerlingen ?? [], aantalTeams));
   const [afwezig, setAfwezig] = useState<Leerling[]>([]);
@@ -46,6 +55,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   /** Klik op een naam: de leerling schuift door naar het volgende team. */
   function verplaats(ti: number, leerlingId: string) {
     setTeams((ts) => {
+      if (ts.length < 2) return ts;
       const l = ts[ti].leerlingen.find((x) => x.id === leerlingId)!;
       const doel = (ti + 1) % ts.length;
       return ts.map((t, i) =>
@@ -56,9 +66,50 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   function start() {
     if (!set) return;
+    if (spel === 'live') {
+      void startLive();
+      return;
+    }
     const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer });
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
+  }
+
+  async function startLive() {
+    if (!set) return;
+    setBezig(true);
+    setFout(null);
+    try {
+      const leerlingen = teams.flatMap((t) => t.leerlingen);
+      const soort = demo ? 'lokaal' : 'supabase';
+      const metNamen = klas !== null && leerlingen.length > 0;
+      const server = await backend(soort).maakSessie({
+        titel: set.titel,
+        namen: metNamen ? leerlingen.map((l) => l.naam) : [],
+        vrijeNaam: !metNamen || vrijeNaam,
+        aantalVragen: vragen.length,
+        timer,
+      });
+      const basis = nieuweSessie({
+        spelType: 'live',
+        set,
+        vragen,
+        klasNaam: klas?.naam ?? 'zonder klas',
+        teams: [{ naam: klas?.naam ?? 'Spelers', kleur: TEAM_KLEUREN[0], leerlingen: metNamen ? leerlingen : [] }],
+        timer,
+      });
+      const sessie = {
+        ...basis,
+        vraagVolgorde: willekeurig ? basis.vraagVolgorde : vragen.map((v) => v.id),
+        live: { backend: soort, sessieId: server.id, code: server.code, snelheidsbonus: snelheidsbonus && timer !== null, afgesloten: false },
+      } as const;
+      store.bewaarSessie(sessie);
+      ga({ pagina: 'sessie', id: sessie.id });
+    } catch (e) {
+      setFout(e instanceof LiveFout ? e.message : 'Het live spel kon niet gestart worden. Controleer de internetverbinding.');
+    } finally {
+      setBezig(false);
+    }
   }
 
   if (store.sets.length === 0) {
@@ -97,14 +148,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       </Section>
 
       <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {SPELLEN.map((s) => (
             <button
               key={s.type}
               type="button"
               onClick={() => {
                 setSpel(s.type);
-                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : aantal);
+                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' ? 1 : aantal);
+                if (s.type === 'live' && timer === null) setTimer(30);
               }}
               className={`rounded-xl border-2 p-4 text-left transition ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
             >
@@ -116,7 +168,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </div>
       </Section>
 
-      <Section step={3} title="Klas en teams">
+      <Section step={3} title={spel === 'live' ? 'Klas en instellingen' : 'Klas en teams'}>
         <div className="mb-4 flex flex-wrap items-end gap-4">
           <div className="w-60">
             <label className={labelClass}>Klas</label>
@@ -166,8 +218,38 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               ))}
             </select>
           </div>
-          {klas && <Button onClick={() => verdeel()}>🔀 Opnieuw verdelen</Button>}
+          {klas && spel !== 'live' && <Button onClick={() => verdeel()}>🔀 Opnieuw verdelen</Button>}
         </div>
+
+        {spel === 'live' && (
+          <div className="mb-4 space-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={snelheidsbonus && timer !== null} disabled={timer === null} onChange={(e) => setSnelheidsbonus(e.target.checked)} />
+              Snelheidsbonus: wie sneller juist antwoordt, krijgt meer punten (enkel met timer)
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={willekeurig} onChange={(e) => setWillekeurig(e.target.checked)} />
+              Vragen in willekeurige volgorde
+            </label>
+            {klas && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={vrijeNaam} onChange={(e) => setVrijeNaam(e.target.checked)} />
+                Leerlingen mogen ook een naam typen die niet op de klaslijst staat
+              </label>
+            )}
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={demo} disabled={!supabaseIngesteld} onChange={(e) => setDemo(e.target.checked)} />
+              Demo in deze browser (leerlingen in andere tabbladen van deze browser, zonder internet-server)
+            </label>
+            {!supabaseIngesteld && (
+              <Notice tone="warn">
+                De live server (Supabase) is nog niet ingesteld, dus enkel de demo werkt: open het leerlingenscherm in een tweede tabblad. Zie{' '}
+                <strong>supabase/README.md</strong> om live spelen met echte laptops aan te zetten.
+              </Notice>
+            )}
+            {!klas && <p className="text-slate-500">Zonder klas typen leerlingen zelf hun naam.</p>}
+          </div>
+        )}
 
         {store.klassen.length === 0 && (
           <div className="mb-4">
@@ -177,7 +259,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           </div>
         )}
 
-        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={spel === 'live' && !klas}>
           {teams.map((t, ti) => (
             <div key={ti} className="rounded-xl border-2 p-3" style={{ borderColor: t.kleur }}>
               <input
@@ -232,14 +314,17 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         )}
         {klas && (
           <p className="mt-2 text-xs text-slate-500">
-            Klik op een naam om die leerling naar het volgende team te verplaatsen, of op ✕ als de leerling afwezig is.
+            {spel === 'live'
+              ? 'Klik op ✕ als een leerling afwezig is: die naam verschijnt dan niet in de lijst op de laptops.'
+              : 'Klik op een naam om die leerling naar het volgende team te verplaatsen, of op ✕ als de leerling afwezig is.'}
           </p>
         )}
       </Section>
 
+      {fout && <Notice tone="warn">{fout}</Notice>}
       <div className="flex justify-end">
-        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0} onClick={start}>
-          ▶ Start het spel
+        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig} onClick={start}>
+          {bezig ? 'Bezig…' : '▶ Start het spel'}
         </Button>
       </div>
     </div>

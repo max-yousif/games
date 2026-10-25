@@ -7,6 +7,7 @@ import type { Sessie } from './types';
 export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   quizbord: 'Quizbord',
   vieropeenrij: 'Vier op een rij',
+  live: 'Live quiz',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });

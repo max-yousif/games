@@ -1,3 +1,4 @@
+import { LiveSpelerPage } from './live/LiveSpelerPage';
 import { KlassenPage } from './pages/KlassenPage';
 import { ResultatenPage } from './pages/ResultatenPage';
 import { SessiePage } from './pages/SessiePage';
@@ -21,6 +22,8 @@ export default function App() {
 
   // Een lopend spel gebruikt het volledige scherm, zonder menu.
   if (route.pagina === 'sessie') return <SessiePage key={route.id} id={route.id} store={store} />;
+  // Leerlingen zien enkel het live-scherm, niet het menu van de leerkracht.
+  if (route.pagina === 'live') return <LiveSpelerPage code={route.code} demo={route.demo} />;
 
   return (
     <div className="min-h-screen">

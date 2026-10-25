@@ -10,7 +10,8 @@ kan je met elk speltype spelen. De volledige website is in het **Nederlands**.
 |---|---|
 | Namen van leerlingen zien | Per klas een leerlingenlijst; elke beurt wordt aan een leerling gekoppeld. |
 | Resultaten exporteren als bestand | Na elk spel: export naar Excel (.xlsx) per leerling. |
-| Geen database | Alles blijft in de browser (localStorage) + back-upbestand. Geen accounts, geen server. |
+| Live spelen op eigen laptops, leerkracht volgt live mee | **Live quiz** met een kleine database (Supabase): enkel tijdens het spel, daarna gewist. |
+| Klassen en sets lokaal | Klassen, vragensets en resultaten blijven in de browser van de leerkracht + back-upbestand. Geen accounts. |
 | Enkel laptops | Ontwerp voor een groot scherm (projector) en laptops; geen gsm-lay-out nodig. |
 | Niet delen met collega's | Geen deelfunctie, geen gebruikersbeheer. |
 | Eerst klassikale spellen | Fase 1 = projectorspellen met teams. Zelfstandig oefenen komt later. |
@@ -77,10 +78,44 @@ Gemeenschappelijk verloop van een beurt (één component voor alle spellen):
 | 2 | Miljonairsladder | Steeds moeilijker, met hulplijnen. |
 | 3 | Escape room | Antwoorden vormen samen de code van een slot. |
 | 3 | Bingo | Unieke bingokaarten met antwoorden afdrukken. |
-| later | Zelfstandig: herhalingsoefening, pixelkunst, memory | Op de laptop van de leerling; resultaat als bestand of controlecode naar de leerkracht. |
+| 1b | **Live quiz** | Elke leerling op de eigen laptop (zie §4b). |
+| later | Zelfstandig: herhalingsoefening, pixelkunst, memory | Op de laptop van de leerling; resultaat via de live server naar de leerkracht. |
 
 Extra's voor de klas: **volledig scherm**, grote letters (leesbaar van achteraan),
 sneltoetsen, eindstand met podium.
+
+## 4b. Live quiz (elke leerling op de eigen laptop)
+
+**Verloop**
+1. De leerkracht kiest *Spelen → Live quiz*, een vragenset en een klas (afwezigen aanvinken),
+   timer en snelheidsbonus. Op het bord verschijnt een **code van 6 tekens**.
+2. Leerlingen surfen naar `…/#/live`, geven de code in en **kiezen hun naam uit de klaslijst**
+   (een gekozen naam verdwijnt voor de anderen). Zonder klas typen ze zelf hun naam.
+3. De leerkracht ziet live wie aangemeld is en start de quiz.
+4. Per vraag: de vraag staat op het bord én op elke laptop. Op het bord kleurt elke naam groen
+   zodra die leerling geantwoord heeft (zonder te tonen of het juist is), met een teller
+   "12 / 20 geantwoord" en de timer.
+5. Als de tijd om is of iedereen geantwoord heeft, verschijnt automatisch het antwoord:
+   verdeling over de opties (meerkeuze) of gegroepeerde antwoorden (open vraag), en de
+   tussenstand. Open antwoorden worden automatisch nagekeken (schrijfwijze maakt niet uit:
+   `x=7`, `$x = 7$` en `7` zijn gelijk); de leerkracht kan een groep antwoorden met één klik
+   goed- of afkeuren.
+6. De leerling ziet meteen juist/fout, de punten, het juiste antwoord met uitleg en de eigen plaats.
+7. Eindstand met podium; resultaten per leerling naar Excel; *Afsluiten* wist de gegevens op
+   de server.
+
+**Techniek**
+- Supabase (Postgres + Realtime), EU-regio, gratis plan. De website blijft op GitHub Pages.
+- Iedereen meldt zich **anoniem** aan: geen accounts of wachtwoorden.
+- **Row level security**: leerlingen zien enkel hun eigen antwoorden, kunnen niets wijzigen,
+  en het juiste antwoord staat pas in de database wanneer de leerkracht het toont.
+- De **server meet de tijd** per antwoord (snelheidsbonus: van 100 % tot 50 % van de punten),
+  één antwoord per vraag, te late antwoorden worden geweigerd.
+- Pagina herladen of verbinding kwijt: de leerling speelt verder met dezelfde naam. Van laptop
+  wisselen: de leerkracht koppelt de naam los, de leerling meldt zich opnieuw aan.
+- Sessies worden gewist na *Afsluiten* of automatisch na 2 dagen.
+- **Demo-modus** zonder server: leerlingenschermen in andere tabbladen van dezelfde browser.
+- Installatie: zie [`supabase/README.md`](supabase/README.md).
 
 ## 5. Beheer door de leerkracht
 
@@ -100,8 +135,11 @@ sneltoetsen, eindstand met podium.
 
 ## 6. Privacy
 
-- Leerlingnamen en resultaten blijven op de laptop van de leerkracht (browseropslag) of
-  in een bestand dat de leerkracht zelf bewaart. Er wordt niets doorgestuurd.
+- Klassen, vragensets en resultaten blijven op de laptop van de leerkracht (browseropslag) of
+  in een bestand dat de leerkracht zelf bewaart.
+- Enkel tijdens een **live quiz** staan namen en antwoorden op de server (Supabase, EU-regio),
+  en enkel voor die ene sessie: na *Afsluiten* of na 2 dagen wordt alles gewist. Het is
+  aangeraden de school op de hoogte te brengen (verwerkersovereenkomst/GDPR).
 - De code staat in een publieke repository, maar daar staan **geen** leerlingnamen in.
 
 ## 7. Techniek
@@ -113,6 +151,7 @@ sneltoetsen, eindstand met podium.
 | Formules | KaTeX |
 | Excel | read-excel-file / write-excel-file |
 | Opslag | localStorage, versie in de sleutel (`games.v1.*`) |
+| Live | Supabase (Postgres, Realtime, anonieme aanmelding), schema in `supabase/schema.sql` |
 | Hosting | GitHub Pages via GitHub Actions (push naar `main` = online) |
 | Later | Pyodide (Python), CodeMirror (code-editor), MathLive (formule-invoer), JSXGraph (grafieken) |
 
@@ -128,13 +167,17 @@ tests/
 
 ## 8. Fasering
 
-**Fase 1: klassikaal spelen (deze versie)**
+**Fase 1: klassikaal spelen (klaar)**
 - Klassen beheren (plakken, Excel-import)
 - Vragensets: editor (open + meerkeuze, LaTeX, code), Excel-import, dupliceren, bestand
 - Quizbord en Vier op een rij, teams, leerling kiezen, timer, sneltoetsen
 - Sessies hervatten, resultaten bekijken en exporteren naar Excel
 - Back-up van alles in één bestand
 - Voorbeeldsets: 3e jaar algebra, 6 HW statistiek & kansen, 4e Python basis
+
+**Fase 1b: live quiz op eigen laptops (deze versie)**
+- Supabase-schema met beveiliging, live wachtruimte, live meevolgen, automatisch nakijken,
+  tussenstand, eindstand, Excel-export, demo-modus
 
 **Fase 2: meer spellen**
 - Race op het bord, Kaboom, Miljonairsladder
@@ -146,8 +189,9 @@ tests/
 - Vraagtypes Parsons en zoek-de-bug, syntaxkleuring
 
 **Fase 4: zelfstandig oefenen op laptops**
-- Leerling typt naam, oefent een set (getal, uitdrukking, meerkeuze, Python met Pyodide)
-- Resultaat als bestand dat de leerkracht importeert in het resultatenoverzicht
+- Leerling kiest naam, oefent een set in eigen tempo (getal, uitdrukking, meerkeuze, Python met Pyodide)
+- Resultaten komen via de live server binnen bij de leerkracht
+- Live spelen in teams (teamscore op het bord)
 - Geparametriseerde vragen (andere getallen voor elke leerling)
 
 **Fase 5: grafieken en extra's**
@@ -155,7 +199,8 @@ tests/
 
 ## 9. Kwaliteit
 
-- Automatische tests voor de spellogica (quizbord, vier op een rij), scores, imports en
-  de weergave van formules.
+- Automatische tests voor de spellogica (quizbord, vier op een rij, live quiz), scores,
+  imports en de weergave van formules.
+- Het Supabase-schema (beveiliging en functies) wordt getest op een echte Postgres (PGlite).
 - Voor elke push: `npm test` en `npm run build` (ook in GitHub Actions).
 - Testen op een laptop met projector (1280×720 en 1920×1080).

@@ -3,6 +3,7 @@ import { EindScherm } from '../components/EindScherm';
 import { Notice } from '../components/ui';
 import { VierOpEenRij, wachtOpZet } from '../games/VierOpEenRij';
 import { QuizBord } from '../games/QuizBord';
+import { LiveHost } from '../live/LiveHost';
 import { bouwRooster, winnaar } from '../lib/connectFour';
 import { SPEL_NAMEN } from '../lib/exportResults';
 import { speelbareVragen } from '../lib/questions';
@@ -57,7 +58,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   }
 
   const vierWinnaar = sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : undefined;
-  const kanOngedaan = sessie.beurten.length > 0;
+  const kanOngedaan = sessie.beurten.length > 0 && sessie.spelType !== 'live';
+  const isLive = sessie.spelType === 'live';
 
   return (
     <div className="flex h-screen flex-col bg-slate-100">
@@ -69,24 +71,28 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
           </div>
         </div>
         <div className="ml-auto flex gap-2">
-          <ToolKnop onClick={() => store.bewaarSessie(ongedaanMaken(sessie))} disabled={!kanOngedaan} title="Laatste beurt ongedaan maken">
-            ↶ Ongedaan maken
-          </ToolKnop>
+          {!isLive && (
+            <ToolKnop onClick={() => store.bewaarSessie(ongedaanMaken(sessie))} disabled={!kanOngedaan} title="Laatste beurt ongedaan maken">
+              ↶ Ongedaan maken
+            </ToolKnop>
+          )}
           <ToolKnop onClick={() => (volScherm ? document.exitFullscreen() : document.documentElement.requestFullscreen())}>
             {volScherm ? '⤡ Venster' : '⤢ Volledig scherm'}
           </ToolKnop>
           {!sessie.beeindigd && (
-            <>
-              <ToolKnop onClick={() => ga({ pagina: 'start' })} title="Het spel blijft bewaard; je kan het later hervatten">
-                ⏸ Pauzeren
-              </ToolKnop>
-              <ToolKnop onClick={() => confirm('Het spel beëindigen en de eindstand tonen?') && store.bewaarSessie(beeindig(sessie))}>⏹ Stoppen</ToolKnop>
-            </>
+            <ToolKnop onClick={() => ga({ pagina: 'start' })} title="Het spel blijft bewaard; je kan het later hervatten">
+              ⏸ Pauzeren
+            </ToolKnop>
+          )}
+          {!sessie.beeindigd && !isLive && (
+            <ToolKnop onClick={() => confirm('Het spel beëindigen en de eindstand tonen?') && store.bewaarSessie(beeindig(sessie))}>⏹ Stoppen</ToolKnop>
           )}
         </div>
       </header>
 
-      {sessie.beeindigd ? (
+      {isLive ? (
+        <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} />
+      ) : sessie.beeindigd ? (
         <div className="flex-1 overflow-y-auto">
           <EindScherm sessie={sessie} winnaar={vierWinnaar} onOpnieuw={opnieuw} />
         </div>

@@ -41,7 +41,7 @@ export interface Klas {
   leerlingen: Leerling[];
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'live';
 
 export interface Team {
   naam: string;
@@ -64,6 +64,16 @@ export interface Zet {
   kolom: number;
 }
 
+/** Extra gegevens van een live spel (elke leerling op de eigen laptop). */
+export interface LiveInfo {
+  backend: 'supabase' | 'lokaal';
+  sessieId: string;
+  code: string;
+  snelheidsbonus: boolean;
+  /** true wanneer de server-gegevens gewist zijn (na "Afsluiten"). */
+  afgesloten: boolean;
+}
+
 export interface Sessie {
   id: string;
   spelType: SpelType;
@@ -82,4 +92,5 @@ export interface Sessie {
   zetten: Zet[];
   gestart: string;
   beeindigd: string | null;
+  live?: LiveInfo;
 }

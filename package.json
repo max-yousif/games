@@ -11,6 +11,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "katex": "^0.16.22",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -18,6 +19,7 @@
     "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.3",
     "@types/katex": "^0.16.7",

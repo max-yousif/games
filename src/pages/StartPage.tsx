@@ -36,9 +36,14 @@ export function StartPage({ store }: { store: Store }) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Klasspelen</h1>
-        <p className="mt-1 text-slate-600">Klassikale spelletjes met je eigen vragen: wiskunde en Python.</p>
+      <div className="flex flex-wrap items-start gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Klasspelen</h1>
+          <p className="mt-1 text-slate-600">Klassikale spelletjes met je eigen vragen: wiskunde en Python.</p>
+        </div>
+        <a href={href({ pagina: 'live', demo: false })} className="ml-auto rounded-xl border-2 border-[var(--accent)] px-5 py-3 font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]">
+          💻 Leerling? Live meespelen
+        </a>
       </div>
 
       {lopend.length > 0 && (
