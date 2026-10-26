@@ -3,6 +3,7 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist en bekijkt welke kaart wegvalt. */
 async function juist(p: Page) {
+  await expect(p.getByText(/Hoeveel is \d\+\d\?/)).toBeVisible();
   await p.getByLabel('Je antwoord').fill('7');
   await p.getByRole('button', { name: 'Versturen' }).click();
   await expect(p.getByText(/is niet (de dader|de plaats|het wapen)!|Alle andere kaarten zijn al weg/)).toBeVisible();

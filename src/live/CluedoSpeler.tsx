@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, SOORT_NAMEN, STRAF_MS, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
 import { isActie, leesBeloning, vraagIndex, volgendeActieNr } from './codekraker';
@@ -153,6 +154,7 @@ export function CluedoSpeler({
     inhoud = (
       <Kaart titel="">
         {v.categorie && <div className="mb-1 text-sm font-semibold text-slate-500">{v.categorie}</div>}
+        <RichText text={v.tekst} className="mb-4 text-2xl leading-snug font-medium" />
         <Beantwoord key={volgendeNr} vraag={v} onVerstuur={(a) => stuur(volgendeNr, a)} />
       </Kaart>
     );

@@ -3,6 +3,7 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist, opent een kistje en gaat door (hackkans overslaan). */
 async function ronde(p: Page) {
+  await expect(p.getByText(/Hoeveel is \d\+\d\?/)).toBeVisible();
   await p.getByLabel('Je antwoord').fill('7');
   await p.getByRole('button', { name: 'Versturen' }).click();
   await expect(p.getByText('✅ Juist! Kies een kistje')).toBeVisible();
@@ -36,7 +37,12 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await expect(anna.locator('[data-wachtwoord]')).toHaveCount(3);
   await anna.locator('[data-wachtwoord]').first().click();
   await bert.locator('[data-wachtwoord]').last().click();
-  await expect(anna.getByTitle('Je geheime wachtwoord')).toBeVisible();
+  // Het wachtwoord staat verborgen tot je erop wijst.
+  const wachtwoord = anna.getByTitle(/Je geheime wachtwoord/);
+  await expect(wachtwoord).toContainText('••••••');
+  await expect(anna.locator('[data-wachtwoord-tekst]')).toBeHidden();
+  await wachtwoord.hover();
+  await expect(anna.locator('[data-wachtwoord-tekst]')).toBeVisible();
 
   // Fout antwoord: geen kistje, volgende vraag.
   await anna.getByLabel('Je antwoord').fill('8');

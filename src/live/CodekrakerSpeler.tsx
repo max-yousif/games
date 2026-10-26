@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import {
   codekrakerToestand,
@@ -241,6 +242,7 @@ export function CodekrakerSpeler({
     inhoud = (
       <Kaart titel="">
         {v.categorie && <div className="mb-1 text-sm font-semibold text-slate-500">{v.categorie}</div>}
+        <RichText text={v.tekst} className="mb-4 text-2xl leading-snug font-medium" />
         <Beantwoord key={volgendeNr} vraag={v} onVerstuur={(a) => stuur(volgendeNr, a)} />
       </Kaart>
     );
@@ -253,8 +255,13 @@ export function CodekrakerSpeler({
         {plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
         {rij?.firewall && <span className="rounded-full bg-sky-100 px-3 py-1 font-semibold text-sky-800">🛡️ firewall</span>}
         {t.wachtwoord && (
-          <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-slate-700" title="Je geheime wachtwoord">
-            🔑 {t.wachtwoord}
+          // Verborgen tegen meekijkers: enkel zichtbaar met de muis erop.
+          <span className="group cursor-default rounded-full bg-slate-100 px-3 py-1 font-mono text-slate-700" title="Je geheime wachtwoord (wijs erop om het te zien)">
+            🔑{' '}
+            <span className="group-hover:hidden">••••••</span>
+            <span className="hidden group-hover:inline" data-wachtwoord-tekst>
+              {t.wachtwoord}
+            </span>
           </span>
         )}
         {t.mult > 1 && <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">×{t.mult}</span>}
