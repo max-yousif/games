@@ -123,9 +123,10 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
       </div>
       <p className="mt-3 text-sm text-slate-500">Wijzigingen worden automatisch bewaard.</p>
 
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">🕵️ Whodunit-raadsel</h2>
-        {set.raadsel ? (
+      {/* Het raadsel verschijnt enkel als de set er een heeft (toevoegen via Spelen → Whodunit). */}
+      {set.raadsel && (
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">🕵️ Whodunit-raadsel</h2>
           <div className="mt-4">
             <RaadselEditor
               raadsel={set.raadsel}
@@ -134,15 +135,8 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
               onVerwijder={() => update((s) => ({ ...s, raadsel: undefined }))}
             />
           </div>
-        ) : (
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <p className="text-sm text-slate-600">
-              Voor het spel Whodunit: een logisch raadsel waarbij leerlingen met de vragen van deze set hints verdienen om een tabel in te vullen.
-            </p>
-            <Button onClick={() => update((s) => ({ ...s, raadsel: nieuwRaadsel() }))}>+ Raadsel toevoegen</Button>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

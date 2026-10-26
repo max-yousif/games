@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { maakEscapeCode } from '../live/escape';
-import { publiekRaadsel, raadselProblemen } from '../live/whodunit';
+import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
 import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
@@ -356,14 +356,27 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <>
                 <p className="text-slate-600">
                   Leerlingen lezen het verhaal, lossen de oefeningen op en krijgen voor elk juist antwoord een hint. Met de hints vullen ze de tabel in; wie de tabel als
-                  eerste volledig juist heeft, wint. Het raadsel stel je in bij de vragenset (onderaan de editor).
+                  eerste volledig juist heeft, wint. Het raadsel stel je in onderaan de editor van de vragenset.
                 </p>
                 {raadselFouten.length > 0 && set && (
                   <Notice tone="warn">
                     {raadselFouten.join(' ')}{' '}
-                    <a className="font-semibold underline" href={href({ pagina: 'set', id: set.id })}>
-                      Raadsel instellen
-                    </a>
+                    {set.raadsel ? (
+                      <a className="font-semibold underline" href={href({ pagina: 'set', id: set.id })}>
+                        Raadsel instellen
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="font-semibold underline"
+                        onClick={() => {
+                          store.setSets((all) => all.map((s) => (s.id === set.id ? { ...s, raadsel: nieuwRaadsel() } : s)));
+                          ga({ pagina: 'set', id: set.id });
+                        }}
+                      >
+                        Raadsel toevoegen aan deze vragenset
+                      </button>
+                    )}
                   </Notice>
                 )}
               </>
