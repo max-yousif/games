@@ -20,8 +20,11 @@ import {
   schermNaam,
   synchroniseer,
   type AntwoordGroep,
+  tussenstand,
+  type TussenstandRij,
 } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
+import { speel, useMuziek } from '../lib/geluid';
 
 
 /** Link die leerlingen openen op hun laptop. */
@@ -127,6 +130,30 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
     await be.verwijderSessie(live.sessieId);
   };
 
+  // Muziek: wachtmuziek in de wachtruimte, spelmuziek tijdens de quiz, stil bij de eindstand.
+  useMuziek(server?.status === 'lobby' ? 'wacht' : server && server.status !== 'einde' ? 'spel' : null);
+  // Geluiden: nieuwe vraag, juiste antwoord verschijnt, eindstand, iemand komt binnen.
+  const vorigeStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const st = server?.status;
+    if (vorigeStatus.current !== undefined && st !== vorigeStatus.current) {
+      if (st === 'vraag') speel('start');
+      else if (st === 'antwoord') speel('onthul');
+      else if (st === 'einde') speel('fanfare');
+    }
+    vorigeStatus.current = st;
+  }, [server?.status, nr]);
+  const aantalVerbonden = spelers.filter((s) => s.verbonden).length;
+  const vorigAantal = useRef(aantalVerbonden);
+  useEffect(() => {
+    if (aantalVerbonden > vorigAantal.current && server?.status === 'lobby') speel('binnen');
+    vorigAantal.current = aantalVerbonden;
+  }, [aantalVerbonden, server?.status]);
+
+  // Tussenstand na een vraag (wie gestegen is, punten erbij); weer weg bij de volgende vraag.
+  const [toonStand, setToonStand] = useState(false);
+  useEffect(() => setToonStand(false), [nr]);
+
   // Automatisch het antwoord tonen als de tijd om is of iedereen geantwoord heeft.
   const [resterend, setResterend] = useState<number | null>(null);
   const startRef = useRef<{ nr: number; t: number } | null>(null);
@@ -145,6 +172,9 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
     const id = window.setInterval(tik, 250);
     return () => window.clearInterval(id);
   }, [server?.status, nr, sessie.timer]);
+  useEffect(() => {
+    if (resterend !== null && resterend > 0 && resterend <= 5) speel('tik');
+  }, [resterend]);
   const toonRef = useRef(toonAntwoord);
   toonRef.current = toonAntwoord;
   const moetTonen = server?.status === 'vraag' && (iedereen || resterend === 0);
@@ -247,13 +277,20 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
               </div>
             </>
           ) : (
-            <Antwoorden vraag={vraag} antwoorden={huidige} spelers={spelers} stand={stand} bezig={bezig} onZetGroep={zetGroep} />
+            toonStand ? (
+              <TussenstandScherm rijen={tussenstand(spelers, antwoorden, nr)} nr={nr} aantal={sessie.vraagVolgorde.length} />
+            ) : (
+              <Antwoorden vraag={vraag} antwoorden={huidige} spelers={spelers} stand={tussenstand(spelers, antwoorden, nr)} bezig={bezig} onZetGroep={zetGroep} />
+            )
           )}
 
           {server.status === 'antwoord' && (
             <div className="mt-auto flex gap-3">
               <Button variant="primary" className="px-8 py-3 text-lg" disabled={bezig} onClick={volgende}>
                 {nr + 1 < sessie.vraagVolgorde.length ? 'Volgende vraag ▶' : 'Eindstand 🏆'}
+              </Button>
+              <Button className="px-6 py-3 text-lg" onClick={() => setToonStand((t) => !t)}>
+                {toonStand ? '← Terug naar het antwoord' : '📊 Tussenstand'}
               </Button>
               {nr + 1 < sessie.vraagVolgorde.length && (
                 <Button className="ml-auto" disabled={bezig} onClick={() => confirm('De quiz nu beëindigen en de eindstand tonen?') && void actie(einde)}>
@@ -383,7 +420,7 @@ function Antwoorden({
   vraag: Vraag;
   antwoorden: LiveAntwoord[];
   spelers: LiveSpeler[];
-  stand: { naam: string; punten: number }[];
+  stand: TussenstandRij[];
   bezig: boolean;
   onZetGroep: (g: AntwoordGroep, juist: boolean) => void;
 }) {
@@ -450,15 +487,56 @@ function Antwoorden({
       <div>
         <div className="mb-2 text-xl font-semibold">Tussenstand</div>
         <ol className="space-y-1.5">
-          {stand.slice(0, 10).map((r, i) => (
-            <li key={r.naam} className="flex items-center gap-3 rounded-xl bg-surface px-4 py-2 text-lg shadow-sm">
-              <span className="w-8 font-bold text-slate-400">{i + 1}.</span>
+          {stand.slice(0, 10).map((r) => (
+            <li key={r.id} className="flex items-center gap-3 rounded-xl bg-surface px-4 py-2 text-lg shadow-sm">
+              <span className="w-8 font-bold text-slate-400">{r.plaats}.</span>
+              <Beweging verschil={r.verschil} />
               <span className="flex-1 truncate font-medium">{r.naam}</span>
+              {r.erbij > 0 && <span className="text-sm font-semibold text-emerald-600">+{r.erbij}</span>}
               <span className="font-mono font-bold">{r.punten}</span>
             </li>
           ))}
         </ol>
       </div>
+    </div>
+  );
+}
+
+/** Pijltje: gestegen (groen), gedaald (rood) of gelijk gebleven. */
+function Beweging({ verschil }: { verschil: number | null }) {
+  if (verschil === null) return null;
+  if (verschil > 0) return <span className="pop w-10 text-sm font-bold text-emerald-600">▲{verschil}</span>;
+  if (verschil < 0) return <span className="pop w-10 text-sm font-bold text-red-600">▼{-verschil}</span>;
+  return <span className="w-10 text-sm text-slate-400">–</span>;
+}
+
+/** Volledige tussenstand na een vraag: plaats, wie gestegen of gedaald is, punten erbij en totaal. */
+function TussenstandScherm({ rijen, nr, aantal }: { rijen: TussenstandRij[]; nr: number; aantal: number }) {
+  const max = Math.max(1, ...rijen.map((r) => r.punten));
+  const stijger = rijen.filter((r) => (r.verschil ?? 0) > 0).sort((a, b) => b.verschil! - a.verschil!)[0];
+  return (
+    <div className="mx-auto w-full max-w-4xl">
+      <div className="mb-4 flex flex-wrap items-baseline gap-3">
+        <h2 className="text-3xl font-bold">📊 Tussenstand</h2>
+        <span className="text-lg text-slate-500">
+          na vraag {nr + 1} van {aantal}
+        </span>
+        {stijger && <span className="pop ml-auto rounded-full bg-emerald-100 px-4 py-1 text-lg font-semibold text-emerald-800">🚀 Grootste stijger: {stijger.naam} (▲{stijger.verschil})</span>}
+      </div>
+      <ol className="space-y-2">
+        {rijen.map((r, i) => (
+          <li key={r.id} className="pop relative flex items-center gap-4 overflow-hidden rounded-2xl bg-surface px-5 py-3 text-2xl shadow-sm" style={{ animationDelay: `${Math.min(i, 15) * 0.04}s` }}>
+            <span className="absolute inset-y-0 left-0 bg-[var(--accent-soft)] transition-all duration-700" style={{ width: `${(r.punten / max) * 100}%` }} aria-hidden />
+            <span className="relative w-10 font-bold text-slate-500">{r.plaats <= 3 ? ['🥇', '🥈', '🥉'][r.plaats - 1] : `${r.plaats}.`}</span>
+            <span className="relative">
+              <Beweging verschil={r.verschil} />
+            </span>
+            <span className="relative flex-1 truncate font-semibold">{r.naam}</span>
+            {r.erbij > 0 ? <span className="relative text-lg font-semibold text-emerald-600">+{r.erbij}</span> : <span className="relative text-lg text-slate-400">+0</span>}
+            <span className="relative w-24 text-right font-mono font-bold">{r.punten}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

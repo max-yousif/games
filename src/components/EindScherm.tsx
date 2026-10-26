@@ -1,10 +1,14 @@
+import { useEffect } from 'react';
 import { exporteerSessie } from '../lib/exportResults';
 import { AfsluitKnoppen } from './AfsluitKnoppen';
 import { korteNaamVan, resultatenPerLeerling, teamScores } from '../lib/session';
 import type { Sessie } from '../lib/types';
 import { Button } from './ui';
+import { speel } from '../lib/geluid';
 
 export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void; onBewaar: () => void; onVerwijder: () => void }) {
+  // Fanfare bij de eindstand (één keer).
+  useEffect(() => speel('fanfare'), []);
   const scores = teamScores(sessie);
   const volgorde = sessie.teams.map((t, i) => ({ ...t, i, score: scores[i] })).sort((a, b) => b.score - a.score);
   const winnaars = winnaar !== undefined ? (winnaar === null ? [] : [winnaar]) : volgorde.filter((t) => t.score === volgorde[0].score && t.score > 0).map((t) => t.i);

@@ -195,6 +195,35 @@ export function plaatsVan(stand: readonly StandRij[], spelerId: string): number 
   return stand.filter((r) => r.punten > rij.punten).length + 1;
 }
 
+export interface TussenstandRij {
+  id: string;
+  naam: string;
+  punten: number;
+  /** Punten verdiend met de laatste vraag. */
+  erbij: number;
+  plaats: number;
+  /** Plaatsen gestegen (positief) of gedaald (negatief) sinds de vorige vraag; null bij de eerste vraag. */
+  verschil: number | null;
+}
+
+/** Tussenstand na vraag nr, met de verdiende punten en wie gestegen of gedaald is. */
+export function tussenstand(spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], nr: number): TussenstandRij[] {
+  const voor = berekenStand(spelers, antwoorden.filter((a) => a.vraagNr < nr));
+  const na = berekenStand(spelers, antwoorden.filter((a) => a.vraagNr <= nr));
+  return na.map((r) => {
+    const oud = voor.find((x) => x.id === r.id);
+    const plaats = plaatsVan(na, r.id!)!;
+    return {
+      id: r.id!,
+      naam: r.naam,
+      punten: r.punten,
+      erbij: r.punten - (oud?.punten ?? 0),
+      plaats,
+      verschil: nr > 0 && oud ? plaatsVan(voor, r.id!)! - plaats : null,
+    };
+  });
+}
+
 export interface AntwoordGroep {
   /** Genormaliseerde sleutel. */
   sleutel: string;

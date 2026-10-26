@@ -4,8 +4,10 @@ import { Scorebord } from '../components/Scorebord';
 import { bordIndeling } from '../lib/questions';
 import { beeindig, gespeeldeVragen, teamAanDeBeurt, teamScores, voegBeurtToe } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
+import { useMuziek } from '../lib/geluid';
 
 export function QuizBord({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+  useMuziek('spel');
   const [open, setOpen] = useState<Vraag | null>(null);
   const kolommen = bordIndeling(sessie.vragen);
   const gespeeld = gespeeldeVragen(sessie);

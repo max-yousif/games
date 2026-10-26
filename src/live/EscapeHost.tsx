@@ -11,6 +11,7 @@ import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
 import { leerlingenVan, schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
+import { speel, useMuziek } from '../lib/geluid';
 
 /** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
 export function EscapeHost({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
@@ -110,6 +111,24 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
     onUpdate({ ...sessie, live: { ...live, afgesloten: true } });
     await be.verwijderSessie(live.sessieId);
   };
+
+  // Muziek en geluid: wachtmuziek in de wachtruimte, spelmuziek tijdens het spel, een klank bij elke
+  // leerling die ontsnapt of het raadsel oplost, fanfare op het einde.
+  useMuziek(server?.status === 'lobby' ? 'wacht' : server?.status === 'bezig' ? 'spel' : null);
+  const klaarAantal = voortgang.filter((v) => v.ontsnaptMs !== null).length;
+  const vorigKlaar = useRef(klaarAantal);
+  useEffect(() => {
+    if (klaarAantal > vorigKlaar.current) speel('juist');
+    vorigKlaar.current = klaarAantal;
+  }, [klaarAantal]);
+  const vorigeStatus = useRef(server?.status);
+  useEffect(() => {
+    if (vorigeStatus.current && server?.status !== vorigeStatus.current) {
+      if (server?.status === 'bezig') speel('start');
+      if (server?.status === 'einde') speel('fanfare');
+    }
+    vorigeStatus.current = server?.status;
+  }, [server?.status]);
 
   // Klok: verstreken (of resterende) tijd sinds de start.
   const [nu, setNu] = useState(() => Date.now());

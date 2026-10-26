@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BeurtScherm } from '../components/BeurtScherm';
 import { Scorebord } from '../components/Scorebord';
 import { bouwRooster, isVol, KOLOMMEN, vrijeRij, winnaar } from '../lib/connectFour';
 import { beeindig, teamAanDeBeurt, teamScores, voegBeurtToe, volgendeVraag } from '../lib/session';
 import type { Sessie } from '../lib/types';
+import { speel, useMuziek } from '../lib/geluid';
 
 /** Team dat na een juist antwoord nog een schijf moet laten vallen, of null. */
 export function wachtOpZet(s: Sessie): number | null {
@@ -13,6 +14,14 @@ export function wachtOpZet(s: Sessie): number | null {
 }
 
 export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+  useMuziek('spel');
+  // Een schijf valt: plof.
+  const aantalZetten = sessie.zetten.length;
+  const vorigeZetten = useRef(aantalZetten);
+  useEffect(() => {
+    if (aantalZetten > vorigeZetten.current) speel('schijf');
+    vorigeZetten.current = aantalZetten;
+  }, [aantalZetten]);
   const [vraagOpen, setVraagOpen] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
   const rooster = bouwRooster(sessie.zetten);

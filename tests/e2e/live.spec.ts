@@ -38,10 +38,16 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await bert.getByRole('button', { name: /^A/ }).click();
 
   // Iedereen geantwoord: het antwoord verschijnt vanzelf, met de bijnaam in de tussenstand.
-  await expect(page.getByText('Tussenstand')).toBeVisible();
+  await expect(page.getByText('Tussenstand', { exact: true })).toBeVisible();
   await expect(page.locator('ol').getByText('Pi')).toBeVisible();
   await expect(anna.getByText(/Juist! \+\d+/)).toBeVisible();
   await expect(bert.getByText('Helaas, fout')).toBeVisible();
+
+  // Volledige tussenstand: plaats, punten erbij en totaal.
+  await page.getByRole('button', { name: '📊 Tussenstand' }).click();
+  await expect(page.getByText('na vraag 1 van 16')).toBeVisible();
+  await expect(page.locator('li', { hasText: 'Pi' }).getByText(/^\+\d+$/)).toBeVisible();
+  await page.getByRole('button', { name: '← Terug naar het antwoord' }).click();
 
   // Vraag 2 (open): Bert antwoordt met de wiskunde-editor.
   await page.getByRole('button', { name: /Volgende vraag/ }).click();

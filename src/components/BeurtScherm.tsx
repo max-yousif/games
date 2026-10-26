@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { juistAntwoord } from '../lib/questions';
+import { speel } from '../lib/geluid';
 import { aantalBeurten, kiesLeerling, korteNamenVan } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS } from '../lib/vraagtypes';
@@ -71,6 +72,7 @@ export function BeurtScherm({
 
   function kies(id: string | null) {
     if (rollend) return;
+    speel('klik');
     setLeerlingId(id);
     setGekozen(true);
   }
@@ -88,13 +90,27 @@ export function BeurtScherm({
         setRollend(false);
         setGekozen(true);
         setInBeeld(eind ? naam(eind.id) : null);
+        speel('start');
       } else {
+        speel('rol');
         setLeerlingId(t.leerlingen[n % t.leerlingen.length].id);
       }
     }, 80);
   }
 
-  const klaar = (juist: boolean) => !rollend && gekozen && onKlaar({ leerlingId, juist });
+  function klaar(juist: boolean) {
+    if (rollend || !gekozen) return;
+    speel(juist ? 'juist' : 'fout');
+    onKlaar({ leerlingId, juist });
+  }
+
+  // Geluid bij het tonen van het antwoord en de laatste 5 seconden van de timer.
+  useEffect(() => {
+    if (getoond) speel('onthul');
+  }, [getoond]);
+  useEffect(() => {
+    if (gekozen && !getoond && resterend !== null && resterend > 0 && resterend <= 5) speel('tik');
+  }, [resterend, gekozen, getoond]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

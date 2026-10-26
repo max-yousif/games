@@ -125,3 +125,20 @@ describe('live: wiskunde-editor en schrijfwijzen', () => {
     expect(isGeldigeReactie({ emoji: '😂' })).toBe(false);
   });
 });
+
+import { tussenstand } from '../src/live/logic';
+
+describe('tussenstand', () => {
+  const sp = (id: string) => ({ id, naam: id, bijnaam: null, verbonden: true });
+  const a = (spelerId: string, vraagNr: number, punten: number) => ({ id: `${spelerId}${vraagNr}`, spelerId, vraagNr, antwoord: '', tijdMs: 0, juist: punten > 0, punten, poging: 1, beloning: null });
+  it('toont verdiende punten en wie gestegen is', () => {
+    const ant = [a('A', 0, 100), a('B', 0, 50), a('C', 0, 0), a('A', 1, 0), a('B', 1, 100), a('C', 1, 200)];
+    const t = tussenstand([sp('A'), sp('B'), sp('C')], ant, 1);
+    expect(t.map((r) => [r.naam, r.punten, r.erbij, r.plaats, r.verschil])).toEqual([
+      ['C', 200, 200, 1, 2],
+      ['B', 150, 100, 2, 0],
+      ['A', 100, 0, 3, -2],
+    ]);
+    expect(tussenstand([sp('A'), sp('B')], ant, 0)[0].verschil).toBeNull();
+  });
+});

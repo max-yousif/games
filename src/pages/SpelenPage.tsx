@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { maakEscapeCode } from '../live/escape';
@@ -193,7 +194,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Spelen" />
+      <PageHeader title="Spelen">
+        <GeluidMenu />
+      </PageHeader>
 
       <Section step={1} title="Vragenset" aside={set?.cover && <img src={set.cover} alt="" className="aspect-video w-32 rounded-lg object-cover shadow-sm" />}>
         <select className={`${inputClass} max-w-xl`} value={gekozenSet} onChange={(e) => setGekozenSet(e.target.value)}>

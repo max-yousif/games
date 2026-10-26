@@ -1,5 +1,6 @@
 import { useEffect, useState, type ButtonHTMLAttributes } from 'react';
 import { EindScherm } from '../components/EindScherm';
+import { GeluidMenu } from '../components/GeluidMenu';
 import { Notice } from '../components/ui';
 import { VierOpEenRij, wachtOpZet } from '../games/VierOpEenRij';
 import { QuizBord } from '../games/QuizBord';
@@ -87,6 +88,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
               ↶ Ongedaan maken
             </ToolKnop>
           )}
+          <GeluidMenu />
           <ToolKnop onClick={() => (volScherm ? document.exitFullscreen() : document.documentElement.requestFullscreen())}>
             {volScherm ? '⤡ Venster' : '⤢ Volledig scherm'}
           </ToolKnop>

@@ -16,6 +16,10 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 - Escape room en whodunit kunnen ook per 2 of per 3 op één laptop.
 - Op het scherm staan enkel voornamen (met initiaal bij dezelfde voornaam).
 - Na een spel: **Afsluiten** (resultaten bewaren) of **Afsluiten zonder opslaan**.
+- **Muziek en geluid** (knop 🔊 Geluid): wachtmuziek, achtergrondmuziek tijdens het spel en
+  geluidseffecten (juist, fout, antwoord, schijf, fanfare), allemaal gemaakt in de browser.
+- **Live quiz**: na elke vraag een tussenstand met wie gestegen of gedaald is en de punten erbij.
+- Vragensets kunnen een **coverafbeelding** krijgen en tonen hoe vaak ze gespeeld werden.
 
 ## Aan de slag
 
