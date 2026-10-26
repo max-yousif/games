@@ -102,14 +102,32 @@ describe('codekraker', () => {
     expect(raad).toMatchObject({ gelukt: true, bedrag: 250, doel: 'B' });
     const t = codekrakerToestand(spelers, alle);
     expect(t.spelers.get('A')!.munten).toBe(250);
-    expect(t.spelers.get('B')).toMatchObject({ munten: 750, wachtwoord: raad.nieuwWoord });
-    expect(wachtwoordOpties('B', 1)).toContain(raad.nieuwWoord);
+    // B is zijn wachtwoord kwijt en kiest zelf een nieuw (tot dan niet te hacken).
+    expect(t.spelers.get('B')).toMatchObject({ munten: 750, wachtwoord: null, wachtwoordRonde: 1 });
     expect(t.spelers.get('B')!.melding!.tekst).toMatch(/Gehackt door A/);
-    expect(codekrakerStand(t, 10).map((r) => [r.naam, r.punten])).toEqual([
-      ['B', 750],
-      ['A', 250],
+    expect(codekrakerStand(t, 10).map((r) => [r.naam, r.punten, r.gehackt])).toEqual([
+      ['B', 750, 1],
+      ['A', 250, undefined],
     ]);
     expect(t.gebeurtenissen.at(-1)!.tekst).toMatch(/A hackte B/);
+    // Het oude wachtwoord of een woord uit de eerste reeks mag niet meer; een nieuw woord wel.
+    const nieuw = wachtwoordOpties('B', 1).find((w) => !wachtwoordOpties('B', 0).includes(w))!;
+    alle.push(ant('B', ACTIE_BASIS + 2, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 8));
+    alle = speel(alle, () => 0);
+    expect(alle.at(-1)!.juist).toBe(false);
+    alle.push(ant('B', ACTIE_BASIS + 3, JSON.stringify({ soort: 'wachtwoord', woord: nieuw }), 9));
+    alle = speel(alle, () => 0);
+    expect(codekrakerToestand(spelers, alle).spelers.get('B')!.wachtwoord).toBe(nieuw);
+    // Een tweede hack op B raadt tussen de 3 nieuwe woorden, met het nieuwe wachtwoord erbij.
+    alle.push(ant('A', 1, juisteAntwoord('A', 1), 10), ant('A', ACTIE_BASIS + 4, JSON.stringify({ soort: 'kist', vraag: 1, keuze: 0 }), 11));
+    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0));
+    alle.push(ant('A', ACTIE_BASIS + 5, JSON.stringify({ soort: 'doel', kist: ACTIE_BASIS + 4, doel: 'B' }), 12));
+    alle = speel(alle, () => 0);
+    const opties2 = leesBeloning<DoelBeloning>(alle.at(-1)!.beloning)!.opties!;
+    expect([...opties2].sort()).toEqual([...wachtwoordOpties('B', 1)].sort());
+    alle.push(ant('A', ACTIE_BASIS + 6, JSON.stringify({ soort: 'raad', doelActie: ACTIE_BASIS + 5, woord: wachtwoordOpties('B')[1] }), 13));
+    alle = speel(alle, () => 0);
+    expect(leesBeloning<RaadBeloning>(alle.at(-1)!.beloning)!.gelukt).toBe(wachtwoordOpties('B')[1] === nieuw);
   });
 
   it('elke leerling krijgt 3 eigen wachtwoorden; enkel die zijn geldig', () => {

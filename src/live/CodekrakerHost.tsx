@@ -94,7 +94,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   const verstrekenRef = useRef(verstreken);
   verstrekenRef.current = verstreken;
   const stand = codekrakerStand(toestand, verstreken);
-  const standSleutel = JSON.stringify(stand.map((r) => [r.id, r.punten, r.firewall, r.mult, r.juist]));
+  const standSleutel = JSON.stringify(stand.map((r) => [r.id, r.punten, r.firewall, r.mult, r.juist, r.gehackt]));
   useEffect(() => {
     if (server?.status !== 'bezig') return;
     void be.wijzigSessie(live.sessieId, { stand: codekrakerStand(toestand, verstrekenRef.current) }).catch(() => {});

@@ -38,6 +38,8 @@ export interface StandRij {
   /** Codekraker: firewall actief, vermenigvuldiger, laatste melding (gehackt …). */
   firewall?: boolean;
   mult?: number;
+  /** Crypto Hack: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
+  gehackt?: number;
   melding?: { tekst: string; tijdMs: number };
 }
 

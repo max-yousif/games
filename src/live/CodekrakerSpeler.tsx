@@ -114,16 +114,25 @@ export function CodekrakerSpeler({
     laatsteVraag?.juist === false ? Math.ceil((sessie.wachttijd * 1000 - (nu - (foutGezien.current.get(laatsteVraag.id) ?? nu))) / 1000) : 0;
   const melding = rij?.melding && verstreken - rij.melding.tijdMs < 10_000 ? rij.melding.tekst : null;
 
+  // Gehackt? Dan kiest de leerling een nieuw wachtwoord (de hacks zelf ziet enkel het bord).
+  const gehackt = rij?.gehackt ?? 0;
+  const keuzes = eigen.filter((a) => isActie(a.vraagNr) && a.juist && leesActie(a.antwoord)?.soort === 'wachtwoord').length;
+  const mijnWachtwoord = keuzes > 0 && keuzes <= gehackt ? null : t.wachtwoord;
+
   let inhoud: ReactNode;
   if (!spelerId) {
     // De eigen speler is nog niet geladen: de wachtwoorden hangen ervan af.
     inhoud = <Kaart titel="⏳ Even geduld…">Verbinden…</Kaart>;
-  } else if (!t.wachtwoord) {
+  } else if (!mijnWachtwoord) {
     inhoud = (
-      <Kaart titel="🔑 Kies je geheime wachtwoord">
-        <p className="text-slate-600">Medespelers kunnen proberen het te raden om jouw munten te stelen. Vertel het aan niemand!</p>
+      <Kaart titel={gehackt > 0 ? '🔓 Je wachtwoord werd gekraakt! Kies een nieuw' : '🔑 Kies je geheime wachtwoord'}>
+        <p className="text-slate-600">
+          {gehackt > 0
+            ? 'Tot je een nieuw wachtwoord kiest, kan niemand je hacken. Vertel het aan niemand!'
+            : 'Medespelers kunnen proberen het te raden om jouw munten te stelen. Vertel het aan niemand!'}
+        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {wachtwoordOpties(spelerId ?? '').map((w) => (
+          {wachtwoordOpties(spelerId, gehackt).map((w) => (
             <button
               key={w}
               type="button"
@@ -268,13 +277,13 @@ export function CodekrakerSpeler({
         <span className="rounded-2xl bg-amber-100 px-4 py-2 font-mono text-3xl font-bold text-amber-900">🪙 {fmt(rij?.punten ?? 0)}</span>
         {plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
         {rij?.firewall && <span className="rounded-full bg-sky-100 px-3 py-1 font-semibold text-sky-800">🛡️ firewall</span>}
-        {t.wachtwoord && (
+        {mijnWachtwoord && (
           // Verborgen tegen meekijkers: enkel zichtbaar met de muis erop.
           <span className="group cursor-default rounded-full bg-slate-100 px-3 py-1 font-mono text-slate-700" title="Je geheime wachtwoord (wijs erop om het te zien)">
             🔑{' '}
             <span className="group-hover:hidden">••••••</span>
             <span className="hidden group-hover:inline" data-wachtwoord-tekst>
-              {t.wachtwoord}
+              {mijnWachtwoord}
             </span>
           </span>
         )}

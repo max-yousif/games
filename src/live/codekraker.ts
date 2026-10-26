@@ -88,6 +88,7 @@ export interface RaadBeloning {
   bedrag: number;
   doel: string;
   doelNaam: string;
+  /** Enkel in oudere spellen: het nieuwe wachtwoord werd automatisch gekozen. */
   nieuwWoord?: string;
 }
 
@@ -223,10 +224,9 @@ function pasToe(t: Toestand, a: LiveAntwoord) {
       if (b.gelukt && doel) {
         p.munten += b.bedrag;
         doel.munten = Math.max(0, doel.munten - b.bedrag);
-        if (b.nieuwWoord) {
-          doel.wachtwoord = b.nieuwWoord;
-          doel.wachtwoordRonde++;
-        }
+        // Het doelwit kiest zelf een nieuw wachtwoord (uit 3 nieuwe woorden); tot dan niet te hacken.
+        doel.wachtwoord = b.nieuwWoord ?? null;
+        doel.wachtwoordRonde++;
         doel.melding = { tekst: `🔓 Gehackt door ${schermNaam(p.speler)}: −${fmt(b.bedrag)} munten`, tijdMs: a.tijdMs };
         t.gebeurtenissen.push({ tijdMs: a.tijdMs, soort: 'hack', tekst: `🔓 ${schermNaam(p.speler)} hackte ${naamVan(t, b.doel)}: +${fmt(b.bedrag)}` });
       } else {
@@ -337,7 +337,7 @@ function beslis(a: LiveAntwoord, t: Toestand, vragen: readonly Vraag[], inst: Co
   if (!actie) return beoordeeld(a, false, null);
   switch (actie.soort) {
     case 'wachtwoord':
-      return !p.wachtwoord && wachtwoordOpties(p.speler.id).includes(actie.woord) ? beoordeeld(a, true, { ok: true }) : beoordeeld(a, false, null);
+      return !p.wachtwoord && wachtwoordOpties(p.speler.id, p.wachtwoordRonde).includes(actie.woord) ? beoordeeld(a, true, { ok: true }) : beoordeeld(a, false, null);
     case 'kist': {
       if (!p.openKisten.includes(actie.vraag)) return beoordeeld(a, false, null);
       const kist = rolKist(rand, p, inst.hacken);
@@ -364,10 +364,7 @@ function beslis(a: LiveAntwoord, t: Toestand, vragen: readonly Vraag[], inst: Co
       if (doel.wachtwoord === actie.woord) {
         // 10 tot 25 % van de munten van het doelwit, afgerond op 10.
         const bedrag = Math.round((doel.munten * (10 + rand(16))) / 100 / 10) * 10;
-        // Een nieuw wachtwoord uit 3 nieuwe woorden.
-        const nieuweOpties = wachtwoordOpties(doel.speler.id, doel.wachtwoordRonde + 1);
-        const nieuwWoord = nieuweOpties[rand(nieuweOpties.length)];
-        return beoordeeld(a, true, { gelukt: true, bedrag, doel: open.doel, doelNaam, nieuwWoord } satisfies RaadBeloning);
+        return beoordeeld(a, true, { gelukt: true, bedrag, doel: open.doel, doelNaam } satisfies RaadBeloning);
       }
       // Fout geraden: 5 % van de eigen munten kwijt.
       return beoordeeld(a, true, { gelukt: false, bedrag: -Math.round((p.munten * 0.05) / 10) * 10, doel: open.doel, doelNaam } satisfies RaadBeloning);
@@ -386,6 +383,7 @@ export function codekrakerStand(t: Toestand, nuMs: number): StandRij[] {
       firewall: p.firewallTot > nuMs,
       mult: p.mult > 1 ? p.mult : undefined,
       melding: p.melding ?? undefined,
+      gehackt: p.wachtwoordRonde || undefined,
     }))
     .sort((a, b) => b.punten - a.punten || b.juist - a.juist || a.naam.localeCompare(b.naam, 'nl'));
 }
