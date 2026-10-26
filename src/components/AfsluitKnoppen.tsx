@@ -6,7 +6,7 @@ import { Button } from './ui';
  * Na een spel: afsluiten (resultaten bewaren) of afsluiten zonder opslaan (resultaten wissen).
  * Bij een live spel worden de gegevens op de server in beide gevallen gewist.
  */
-export function AfsluitKnoppen({ serverWissen, onVerwijder }: { serverWissen?: () => Promise<void>; onVerwijder: () => void }) {
+export function AfsluitKnoppen({ serverWissen, onBewaar, onVerwijder }: { serverWissen?: () => Promise<void>; onBewaar: () => void; onVerwijder: () => void }) {
   const [bezig, setBezig] = useState(false);
 
   async function wis() {
@@ -20,6 +20,7 @@ export function AfsluitKnoppen({ serverWissen, onVerwijder }: { serverWissen?: (
   async function afsluiten() {
     setBezig(true);
     await wis();
+    onBewaar();
     ga({ pagina: 'start' });
   }
 

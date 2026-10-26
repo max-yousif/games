@@ -102,12 +102,12 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
       </header>
 
       {sessie.spelType === 'escape' || sessie.spelType === 'whodunit' ? (
-        <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} onVerwijder={verwijder} />
+        <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
       ) : isLive ? (
-        <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} onVerwijder={verwijder} />
+        <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
       ) : sessie.beeindigd ? (
         <div className="flex-1 overflow-y-auto">
-          <EindScherm sessie={sessie} winnaar={vierWinnaar} onOpnieuw={opnieuw} onVerwijder={verwijder} />
+          <EindScherm sessie={sessie} winnaar={vierWinnaar} onOpnieuw={opnieuw} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
         </div>
       ) : sessie.spelType === 'quizbord' ? (
         <QuizBord sessie={sessie} onUpdate={store.bewaarSessie} />

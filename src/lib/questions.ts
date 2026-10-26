@@ -65,14 +65,15 @@ export function juistAntwoord(v: Vraag): string {
       return v.tolerantie ? `${v.antwoord} (± ${String(v.tolerantie).replace('.', ',')})` : v.antwoord;
     case 'invullen':
       return gatenVan(v.tekst)
-        .map((g, i) => `${gatLabel(i)} ${g.join(' of ')}`)
+        .map((g, i) => `${gatLabel(i)} ${g[0] ?? ''}`)
         .join('\n');
     case 'ordenen':
       return v.alsCode ? `\`\`\`\n${v.opties.join('\n')}\n\`\`\`` : v.opties.map((o, i) => `${i + 1}. ${o}`).join('\n');
     case 'koppelen':
       return (v.paren ?? []).map(([l, r]) => `${l}  →  ${r}`).join('\n');
     default:
-      return juisteAntwoorden(v).join('  of  ');
+      // Enkel het eerste antwoord; andere schrijfwijzen ("ook juist") tellen mee bij het nakijken.
+      return juisteAntwoorden(v)[0] ?? '';
   }
 }
 

@@ -59,6 +59,8 @@ export interface Vragenset {
   voorbeeld?: string;
   /** Raadsel voor het spel Whodunit. */
   raadsel?: Raadsel;
+  /** Coverafbeelding (JPEG als data-URL, 16:9). */
+  cover?: string;
   /** Hoe vaak deze set gespeeld werd en met hoeveel spelers in totaal (blijft, ook als resultaten gewist worden). */
   statistiek?: { gespeeld: number; spelers: number };
   aangemaakt: string;

@@ -13,9 +13,9 @@ import { leerlingenVan, schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 
 /** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
-export function EscapeHost({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
-  if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} onVerwijder={onVerwijder} />;
-  return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} onVerwijder={onVerwijder} />;
+export function EscapeHost({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
+  if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
+  return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
 }
 
 /** Tijd tot ontsnappen per leerlingnaam (bij een groepje voor elke leerling), voor de resultaten en de Excel-export. */
@@ -23,7 +23,7 @@ function ontsnaptPerNaam(sessie: Sessie, voortgang: readonly EscapeVoortgang[]):
   return Object.fromEntries(voortgang.filter((v) => v.ontsnaptMs !== null).flatMap((v) => leerlingenVan(sessie, v.speler.naam).map((n) => [n, v.ontsnaptMs!])));
 }
 
-function EscapeHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
+function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
   const live = sessie.live!;
   const code = live.escapeCode ?? '';
   const be = backend(live.backend);
@@ -193,7 +193,7 @@ function EscapeHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; o
         </div>
       )}
 
-      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={voortgang} onAfsluiten={afsluiten} onVerwijder={onVerwijder} />}
+      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={voortgang} onAfsluiten={afsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />}
     </div>
   );
 }
@@ -255,7 +255,7 @@ function VoortgangTabel({ voortgang, vragen, whodunit }: { voortgang: EscapeVoor
   );
 }
 
-function EscapeEinde({ sessie, voortgang, onAfsluiten, onVerwijder }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => Promise<void>; onVerwijder: () => void }) {
+function EscapeEinde({ sessie, voortgang, onAfsluiten, onBewaar, onVerwijder }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => Promise<void>; onBewaar: () => void; onVerwijder: () => void }) {
   const ontsnapt = sessie.live?.ontsnapt ?? {};
   const aantalSloten = sessie.vraagVolgorde.length;
   const whodunit = sessie.spelType === 'whodunit';
@@ -325,7 +325,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, onVerwijder }: { sessie: 
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)
         </Button>
-        <AfsluitKnoppen serverWissen={onAfsluiten} onVerwijder={onVerwijder} />
+        <AfsluitKnoppen serverWissen={onAfsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
     </div>
   );

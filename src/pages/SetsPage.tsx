@@ -62,35 +62,38 @@ export function SetsPage({ store }: { store: Store }) {
           const categorieen = [...new Set(s.vragen.map((v) => v.categorie.trim()).filter(Boolean))];
           const klaar = speelbareVragen(s).length;
           return (
-            <div key={s.id} className="flex flex-col rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[var(--accent-tekst)]">{VAK_LABELS[s.vak]}</span>
-                {s.leerjaar && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{s.leerjaar}</span>}
-                {s.voorbeeld && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">voorbeeld</span>}
-              </div>
-              <h2 className="mt-2 text-lg font-semibold">{s.titel}</h2>
-              {s.beschrijving && <p className="mt-1 text-sm text-slate-600">{s.beschrijving}</p>}
-              <p className="mt-2 text-sm text-slate-500">
-                {s.vragen.length} vragen{klaar < s.vragen.length && ` (${s.vragen.length - klaar} onvolledig)`}
-                {categorieen.length > 0 && ` · ${categorieen.join(', ')}`}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {s.statistiek?.gespeeld
-                  ? `▶ ${s.statistiek.gespeeld}× gespeeld · ${s.statistiek.spelers} ${s.statistiek.spelers === 1 ? 'speler' : 'spelers'}`
-                  : '▶ nog niet gespeeld'}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 pt-1">
-                <a href={href({ pagina: 'spelen', setId: s.id })} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-110">
-                  Spelen
-                </a>
-                <a href={href({ pagina: 'set', id: s.id })} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
-                  Bewerken
-                </a>
-                <Button onClick={() => store.setSets((all) => [...all, dupliceerSet(s)])}>Dupliceren</Button>
-                <Button onClick={() => downloadJson(bestandsnaam(s.titel, 'json'), setBestand(s))}>Als bestand</Button>
-                <Button variant="ghost" className="ml-auto text-red-600" onClick={() => verwijder(s)} title="Verwijderen" aria-label={`${s.titel} verwijderen`}>
-                  🗑
-                </Button>
+            <div key={s.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm">
+              {s.cover && <img src={s.cover} alt="" className="aspect-[16/6] w-full object-cover" />}
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[var(--accent-tekst)]">{VAK_LABELS[s.vak]}</span>
+                  {s.leerjaar && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{s.leerjaar}</span>}
+                  {s.voorbeeld && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">voorbeeld</span>}
+                </div>
+                <h2 className="mt-2 text-lg font-semibold">{s.titel}</h2>
+                {s.beschrijving && <p className="mt-1 text-sm text-slate-600">{s.beschrijving}</p>}
+                <p className="mt-2 text-sm text-slate-500">
+                  {s.vragen.length} vragen{klaar < s.vragen.length && ` (${s.vragen.length - klaar} onvolledig)`}
+                  {categorieen.length > 0 && ` · ${categorieen.join(', ')}`}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {s.statistiek?.gespeeld
+                    ? `▶ ${s.statistiek.gespeeld}× gespeeld · ${s.statistiek.spelers} ${s.statistiek.spelers === 1 ? 'speler' : 'spelers'}`
+                    : '▶ nog niet gespeeld'}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 pt-1">
+                  <a href={href({ pagina: 'spelen', setId: s.id })} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-110">
+                    Spelen
+                  </a>
+                  <a href={href({ pagina: 'set', id: s.id })} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
+                    Bewerken
+                  </a>
+                  <Button onClick={() => store.setSets((all) => [...all, dupliceerSet(s)])}>Dupliceren</Button>
+                  <Button onClick={() => downloadJson(bestandsnaam(s.titel, 'json'), setBestand(s))}>Als bestand</Button>
+                  <Button variant="ghost" className="ml-auto text-red-600" onClick={() => verwijder(s)} title="Verwijderen" aria-label={`${s.titel} verwijderen`}>
+                    🗑
+                  </Button>
+                </div>
               </div>
             </div>
           );

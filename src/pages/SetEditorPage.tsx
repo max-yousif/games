@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { AntwoordVelden } from '../components/AntwoordVelden';
 import { RichText } from '../components/RichText';
-import { Button, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
+import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { VraagWeergave } from '../components/VraagWeergave';
+import { CoverFout, maakCover } from '../lib/cover';
 import { nu } from '../lib/ids';
 import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vraagProblemen } from '../lib/questions';
 import { RaadselEditor } from '../components/RaadselEditor';
@@ -65,10 +67,11 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           <label className={labelClass}>Leerjaar / klas</label>
           <input className={inputClass} value={set.leerjaar} placeholder="bv. 3e jaar (5 u)" onChange={(e) => update((s) => ({ ...s, leerjaar: e.target.value }))} />
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
           <label className={labelClass}>Beschrijving (optioneel)</label>
           <input className={inputClass} value={set.beschrijving} onChange={(e) => update((s) => ({ ...s, beschrijving: e.target.value }))} />
         </div>
+        <CoverKiezer cover={set.cover} onChange={(cover) => update((s) => ({ ...s, cover }))} />
       </div>
 
       <details className="mb-6 rounded-xl border border-slate-200 bg-surface px-5 py-3 text-sm text-slate-700">
@@ -247,6 +250,50 @@ function VraagEditor({
           {problemen.length > 0 && <p className="mt-3 text-sm text-amber-700">⚠ {problemen.join(' ')}</p>}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Coverafbeelding van de vragenset: kiezen, slepen of verwijderen. */
+function CoverKiezer({ cover, onChange }: { cover?: string; onChange: (cover: string | undefined) => void }) {
+  const [fout, setFout] = useState<string | null>(null);
+  async function kies(f: File) {
+    try {
+      setFout(null);
+      onChange(await maakCover(f));
+    } catch (e) {
+      setFout(e instanceof CoverFout ? e.message : 'De afbeelding kon niet verwerkt worden.');
+    }
+  }
+  return (
+    <div>
+      <span className={labelClass}>Coverafbeelding (optioneel)</span>
+      <div
+        className="flex items-center gap-3"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const f = e.dataTransfer.files[0];
+          if (f) void kies(f);
+        }}
+      >
+        {cover ? (
+          <img src={cover} alt="Cover" className="aspect-video w-28 rounded-lg object-cover shadow-sm" />
+        ) : (
+          <div className="flex aspect-video w-28 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-2xl text-slate-400">🖼️</div>
+        )}
+        <div className="flex flex-col items-start gap-1">
+          <FileButton accept="image/*" onFile={(f) => void kies(f)}>
+            {cover ? 'Andere afbeelding…' : 'Afbeelding kiezen…'}
+          </FileButton>
+          {cover && (
+            <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => onChange(undefined)}>
+              verwijderen
+            </button>
+          )}
+        </div>
+      </div>
+      {fout && <p className="mt-1 text-sm text-red-600">{fout}</p>}
     </div>
   );
 }

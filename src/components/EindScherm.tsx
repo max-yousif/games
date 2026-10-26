@@ -4,7 +4,7 @@ import { korteNaamVan, resultatenPerLeerling, teamScores } from '../lib/session'
 import type { Sessie } from '../lib/types';
 import { Button } from './ui';
 
-export function EindScherm({ sessie, winnaar, onOpnieuw, onVerwijder }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void; onVerwijder: () => void }) {
+export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void; onBewaar: () => void; onVerwijder: () => void }) {
   const scores = teamScores(sessie);
   const volgorde = sessie.teams.map((t, i) => ({ ...t, i, score: scores[i] })).sort((a, b) => b.score - a.score);
   const winnaars = winnaar !== undefined ? (winnaar === null ? [] : [winnaar]) : volgorde.filter((t) => t.score === volgorde[0].score && t.score > 0).map((t) => t.i);
@@ -73,7 +73,7 @@ export function EindScherm({ sessie, winnaar, onOpnieuw, onVerwijder }: { sessie
           ⬇ Resultaten exporteren (Excel)
         </Button>
         <Button onClick={onOpnieuw}>↻ Opnieuw spelen met dezelfde teams</Button>
-        <AfsluitKnoppen onVerwijder={onVerwijder} />
+        <AfsluitKnoppen onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
       <p className="mt-4 text-center text-sm text-slate-500">Afsluiten bewaart de resultaten onder Resultaten; zonder opslaan worden ze gewist.</p>
     </div>

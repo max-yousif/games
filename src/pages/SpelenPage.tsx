@@ -195,7 +195,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     <div className="space-y-6">
       <PageHeader title="Spelen" />
 
-      <Section step={1} title="Vragenset">
+      <Section step={1} title="Vragenset" aside={set?.cover && <img src={set.cover} alt="" className="aspect-video w-32 rounded-lg object-cover shadow-sm" />}>
         <select className={`${inputClass} max-w-xl`} value={gekozenSet} onChange={(e) => setGekozenSet(e.target.value)}>
           {store.sets.map((s) => (
             <option key={s.id} value={s.id}>

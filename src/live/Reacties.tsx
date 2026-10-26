@@ -1,24 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { REACTIES, type LiveBackend, type Reactie } from './types';
 
-const WACHTTIJD = 1500;
+const WACHTTIJD = 5000;
 
-/** Emoji-knoppen voor leerlingen terwijl ze wachten (max. één reactie per 1,5 s). */
+/** Emoji-knoppen voor leerlingen terwijl ze wachten (max. één reactie per 5 s). */
 export function ReactieKnoppen({ be, sessieId, naam }: { be: LiveBackend; sessieId: string; naam: string }) {
-  const [wacht, setWacht] = useState(false);
+  const [tot, setTot] = useState(0);
+  const [nu, setNu] = useState(() => Date.now());
   const [laatste, setLaatste] = useState<string | null>(null);
+  const wacht = nu < tot;
+
+  // Aftellen tot opnieuw reageren mag.
+  useEffect(() => {
+    if (!wacht) return;
+    const id = window.setInterval(() => setNu(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [wacht]);
 
   function stuur(emoji: string) {
-    if (wacht) return;
-    setWacht(true);
+    if (Date.now() < tot) return;
+    setTot(Date.now() + WACHTTIJD);
+    setNu(Date.now());
     setLaatste(emoji);
     void be.reageer(sessieId, { emoji, naam }).catch(() => {});
-    window.setTimeout(() => setWacht(false), WACHTTIJD);
   }
 
   return (
     <div className="mt-6 text-center">
-      <div className="text-sm text-slate-500">Reageer terwijl je wacht:</div>
+      <div className="text-sm text-slate-500">{wacht ? `Opnieuw reageren over ${Math.ceil((tot - nu) / 1000)} s` : 'Reageer terwijl je wacht:'}</div>
       <div className="mt-2 flex flex-wrap justify-center gap-2" role="group" aria-label="Reacties">
         {REACTIES.map((r) => (
           <button
@@ -74,10 +83,15 @@ export function useReactiesTonen(): [boolean, (aan: boolean) => void] {
 export function ReactieRegen({ be, sessieId }: { be: LiveBackend; sessieId: string }) {
   const [zwevend, setZwevend] = useState<Zweef[]>([]);
   const volgnummer = useRef(0);
+  // Ook op het bord: per naam hoogstens één reactie per 5 seconden.
+  const laatstePerNaam = useRef(new Map<string, number>());
 
   useEffect(
     () =>
       be.volgReacties(sessieId, (r) => {
+        const nu = Date.now();
+        if (nu - (laatstePerNaam.current.get(r.naam) ?? 0) < WACHTTIJD - 500) return;
+        laatstePerNaam.current.set(r.naam, nu);
         const z: Zweef = { ...r, id: volgnummer.current++, links: 5 + Math.random() * 85, duur: 3 + Math.random() * 1.5 };
         // Maximaal 40 tegelijk, zodat een klas die blijft klikken het bord niet overspoelt.
         setZwevend((lijst) => [...lijst.slice(-39), z]);

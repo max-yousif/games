@@ -29,13 +29,13 @@ export function deelnameLink(code: string, demo: boolean): string {
   return `${window.location.origin}${window.location.pathname}#/live?code=${code}${demo ? '&demo=1' : ''}`;
 }
 
-export function LiveHost({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
+export function LiveHost({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
   const live = sessie.live!;
-  if (live.afgesloten) return <LiveEinde sessie={sessie} onVerwijder={onVerwijder} />;
-  return <LiveHostActief sessie={sessie} onUpdate={onUpdate} onVerwijder={onVerwijder} />;
+  if (live.afgesloten) return <LiveEinde sessie={sessie} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
+  return <LiveHostActief sessie={sessie} onUpdate={onUpdate} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
 }
 
-function LiveHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
+function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
   const live = sessie.live!;
   const be = backend(live.backend);
   const [server, setServer] = useState<LiveSessie | null | undefined>(undefined);
@@ -265,7 +265,7 @@ function LiveHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onU
         </div>
       )}
 
-      {server.status === 'einde' && <LiveEinde sessie={sessie} stand={stand} onAfsluiten={afsluiten} onVerwijder={onVerwijder} />}
+      {server.status === 'einde' && <LiveEinde sessie={sessie} stand={stand} onAfsluiten={afsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />}
     </div>
   );
 }
@@ -464,7 +464,7 @@ function Antwoorden({
 }
 
 /** Eindstand: podium, alle resultaten, export en afsluiten. Werkt ook zonder server (na afsluiten). */
-function LiveEinde({ sessie, stand, onAfsluiten, onVerwijder }: { sessie: Sessie; stand?: { naam: string; punten: number }[]; onAfsluiten?: () => Promise<void>; onVerwijder: () => void }) {
+function LiveEinde({ sessie, stand, onAfsluiten, onBewaar, onVerwijder }: { sessie: Sessie; stand?: { naam: string; punten: number }[]; onAfsluiten?: () => Promise<void>; onBewaar: () => void; onVerwijder: () => void }) {
   const rijen = resultatenPerLeerling(sessie);
   const kort = korteNaamVan(sessie);
   const ranking =
@@ -520,7 +520,7 @@ function LiveEinde({ sessie, stand, onAfsluiten, onVerwijder }: { sessie: Sessie
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)
         </Button>
-        <AfsluitKnoppen serverWissen={onAfsluiten} onVerwijder={onVerwijder} />
+        <AfsluitKnoppen serverWissen={onAfsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
       <p className="mt-3 text-center text-sm text-slate-500">
         Afsluiten bewaart de resultaten onder Resultaten.{onAfsluiten && ' De gegevens op de server (namen en antwoorden) worden in beide gevallen gewist.'}

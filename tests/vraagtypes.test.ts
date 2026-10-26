@@ -144,12 +144,12 @@ describe('Excel-import met kolom Type', () => {
 });
 
 describe('open vraag met meerdere juiste antwoorden', () => {
-  it('aanvaardt elk juist antwoord en toont ze allemaal', () => {
+  it('aanvaardt elk juist antwoord en toont enkel het eerste', () => {
     const q = v({ type: 'open', antwoord: 'dalparabool', alternatieven: ['parabool met top onderaan', ''] });
     expect(automatischJuist(q, 'Dalparabool')).toBe(true);
     expect(automatischJuist(q, 'parabool met top  onderaan')).toBe(true);
     expect(automatischJuist(q, 'bergparabool')).toBe(false);
-    expect(juistAntwoord(q)).toBe('dalparabool  of  parabool met top onderaan');
+    expect(juistAntwoord(q)).toBe('dalparabool');
   });
 
   it('leest "Ook juist" en " | " uit Excel, maar splitst een absolute waarde niet', () => {

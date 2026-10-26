@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
 import { loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
-import { telGespeeld } from './session';
+import { telGespeeld as telSpel } from './session';
 import type { Klas, Sessie, Vragenset } from './types';
 import { useAccount, type Account } from './account';
 import { useCloud, vergeetCloud, type Cloud } from './useCloud';
-
-/** Id van het spel dat nu open staat (#/sessie/...), of null. */
-const huidigSpel = () => /#\/sessie\/([^/?]+)/.exec(window.location.hash)?.[1] ?? null;
 
 /** Voegt voorbeeldsets toe die nog nooit toegevoegd werden. */
 function metVoorbeelden(sets: Vragenset[]): Vragenset[] {
@@ -25,6 +22,8 @@ export interface Store {
   setSessies: (f: (s: Sessie[]) => Sessie[]) => void;
   /** Vervangt of voegt één sessie toe. */
   bewaarSessie: (s: Sessie) => void;
+  /** Een afgelopen spel meetellen in de statistiek van de vragenset (bij Afsluiten). */
+  telGespeeld: (sessieId: string) => void;
   /** Het leerkrachtaccount. */
   account: Account;
   /** Vragensets, klassen en resultaten in de cloud (zolang de leerkracht aangemeld is). */
@@ -43,22 +42,16 @@ export function useStore(): Store {
   useEffect(() => saveKlassen(klassen), [klassen]);
   useEffect(() => saveSessies(sessies), [sessies]);
 
-  // Afgelopen spellen meetellen in de statistiek van hun vragenset, zodra het spel niet meer open
-  // staat (zo telt "Afsluiten zonder opslaan" niet mee: dat wist het spel vóór het geteld wordt).
-  const [openSpel, setOpenSpel] = useState(huidigSpel);
-  useEffect(() => {
-    const bij = () => setOpenSpel(huidigSpel());
-    window.addEventListener('hashchange', bij);
-    return () => window.removeEventListener('hashchange', bij);
+  // Een afgelopen spel meetellen in de statistiek van zijn vragenset: enkel bij "Afsluiten" op het
+  // eindscherm (niet bij beëindigen zonder uitspelen en niet bij "Afsluiten zonder opslaan").
+  const sessiesRef = useRef(sessies);
+  sessiesRef.current = sessies;
+  const telGespeeld = useCallback((id: string) => {
+    const s = sessiesRef.current.find((x) => x.id === id);
+    if (!s || s.geteld) return;
+    setSetsState((all) => telSpel(all, [s]));
+    setSessiesState((all) => all.map((x) => (x.id === id ? { ...x, geteld: true } : x)));
   }, []);
-  const geteld = useRef(new Set<string>());
-  useEffect(() => {
-    const nieuw = sessies.filter((s) => s.beeindigd && !s.geteld && s.id !== openSpel && !geteld.current.has(s.id));
-    if (nieuw.length === 0) return;
-    for (const s of nieuw) geteld.current.add(s.id);
-    setSetsState((all) => telGespeeld(all, nieuw));
-    setSessiesState((all) => all.map((s) => (nieuw.some((n) => n.id === s.id) ? { ...s, geteld: true } : s)));
-  }, [sessies, openSpel]);
 
   const bewaarSessie = useCallback(
     (s: Sessie) => setSessiesState((all) => (all.some((x) => x.id === s.id) ? all.map((x) => (x.id === s.id ? s : x)) : [...all, s])),
@@ -83,7 +76,7 @@ export function useStore(): Store {
     [uid, account, zetLokaal],
   );
 
-  return { sets, klassen, sessies, setSets: setSetsState, setKlassen: setKlassenState, setSessies: setSessiesState, bewaarSessie, account, cloud, afmelden };
+  return { sets, klassen, sessies, setSets: setSetsState, setKlassen: setKlassenState, setSessies: setSessiesState, bewaarSessie, telGespeeld, account, cloud, afmelden };
 }
 
 /** Voorbeeldsets (opnieuw) toevoegen, bv. nadat ze gewist werden. */
