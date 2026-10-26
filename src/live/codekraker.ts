@@ -58,10 +58,22 @@ export type Actie =
 
 export type Uitkomst = 'munten' | 'x2' | 'x3' | 'firewall' | 'hack' | 'pech';
 
+/** Soort hackkans: een willekeurig doelwit, iemand uit de top 6, of kiezen tussen twee. */
+export type HackSoort = 'willekeurig' | 'top6' | 'twee';
+
 export interface KistBeloning {
   uitkomst: Uitkomst;
   /** Munten erbij (of eraf bij pech), al vermenigvuldigd. */
   bedrag: number;
+  /** Bij een hackkans: welke soort en wie gehackt mag worden (ids). */
+  hackSoort?: HackSoort;
+  kandidaten?: string[];
+}
+
+export interface HackKans {
+  /** Actienummer van het kistje. */
+  nr: number;
+  kandidaten: string[];
 }
 
 export interface DoelBeloning {
@@ -125,8 +137,8 @@ export interface SpelerToestand {
   mult: number;
   /** Vragen die juist waren en nog een kistje opleveren. */
   openKisten: number[];
-  /** Kistjes met een hackkans die nog niet gebruikt werd. */
-  hackKansen: number[];
+  /** Hackkansen die nog niet gebruikt werden, met de toegelaten doelwitten. */
+  hackKansen: HackKans[];
   /** Doelwit-acties met wachtwoordopties die nog geraden moeten worden. */
   openDoelen: { nr: number; doel: string }[];
   melding: { tekst: string; tijdMs: number } | null;
@@ -188,7 +200,7 @@ function pasToe(t: Toestand, a: LiveAntwoord) {
       else if (b.uitkomst === 'firewall') {
         p.firewallTot = a.tijdMs + FIREWALL_MS;
         t.gebeurtenissen.push({ tijdMs: a.tijdMs, soort: 'firewall', tekst: `🛡️ ${schermNaam(p.speler)} zette een firewall op` });
-      } else if (b.uitkomst === 'hack') p.hackKansen.push(a.vraagNr);
+      } else if (b.uitkomst === 'hack') p.hackKansen.push({ nr: a.vraagNr, kandidaten: b.kandidaten ?? [] });
       else if (b.uitkomst === 'pech') {
         p.munten = Math.max(0, p.munten + b.bedrag);
         if (b.bedrag < 0) t.gebeurtenissen.push({ tijdMs: a.tijdMs, soort: 'pech', tekst: `💸 ${schermNaam(p.speler)} had pech: ${fmt(b.bedrag)}` });
@@ -198,7 +210,7 @@ function pasToe(t: Toestand, a: LiveAntwoord) {
     case 'doel': {
       const b = leesBeloning<DoelBeloning>(a.beloning);
       if (b?.opties) {
-        p.hackKansen = p.hackKansen.filter((n) => n !== actie.kist);
+        p.hackKansen = p.hackKansen.filter((k) => k.nr !== actie.kist);
         p.openDoelen.push({ nr: a.vraagNr, doel: b.doel });
       }
       break;
@@ -241,7 +253,8 @@ export function rolKist(rand: RandomInt, p: SpelerToestand, hacken: boolean): Ki
     ['x3', 4],
     ['firewall', 7],
     ['pech', 4],
-    ...(hacken ? [['hack', 12] as [Uitkomst, number]] : []),
+    // Ongeveer 1 op 4 juiste antwoorden geeft een hackkans.
+    ...(hacken ? [['hack', 30] as [Uitkomst, number]] : []),
   ];
   const totaal = kansen.reduce((t, [, w]) => t + w, 0);
   let r = rand(totaal);
@@ -254,6 +267,26 @@ export function rolKist(rand: RandomInt, p: SpelerToestand, hacken: boolean): Ki
     r -= w;
   }
   return { uitkomst: 'munten', bedrag: MUNTEN[0] * p.mult };
+}
+
+/** Wie gehackt mag worden: willekeurig (4 op 10), iemand uit de top 6 (3 op 10) of één van twee (3 op 10). */
+export function kiesKandidaten(t: Toestand, p: SpelerToestand, nuMs: number, rand: RandomInt): { hackSoort: HackSoort; kandidaten: string[] } | null {
+  const anderen = [...t.spelers.values()].filter((x) => x.speler.id !== p.speler.id);
+  const mogelijk = anderen.filter((x) => x.wachtwoord && x.firewallTot <= nuMs);
+  if (mogelijk.length === 0) return null;
+  const r = rand(10);
+  if (r >= 4 && r < 7) {
+    const top6 = new Set(
+      [...anderen]
+        .sort((x, y) => y.munten - x.munten)
+        .slice(0, 6)
+        .map((x) => x.speler.id),
+    );
+    const kandidaten = mogelijk.filter((x) => top6.has(x.speler.id)).map((x) => x.speler.id);
+    if (kandidaten.length) return { hackSoort: 'top6', kandidaten };
+  }
+  if (r >= 7 && mogelijk.length >= 2) return { hackSoort: 'twee', kandidaten: schud(mogelijk, rand).slice(0, 2).map((x) => x.speler.id) };
+  return { hackSoort: 'willekeurig', kandidaten: [mogelijk[rand(mogelijk.length)].speler.id] };
 }
 
 function schud<T>(l: readonly T[], rand: RandomInt): T[] {
@@ -305,12 +338,18 @@ function beslis(a: LiveAntwoord, t: Toestand, vragen: readonly Vraag[], inst: Co
   switch (actie.soort) {
     case 'wachtwoord':
       return !p.wachtwoord && wachtwoordOpties(p.speler.id).includes(actie.woord) ? beoordeeld(a, true, { ok: true }) : beoordeeld(a, false, null);
-    case 'kist':
+    case 'kist': {
       if (!p.openKisten.includes(actie.vraag)) return beoordeeld(a, false, null);
-      return beoordeeld(a, true, rolKist(rand, p, inst.hacken));
+      const kist = rolKist(rand, p, inst.hacken);
+      if (kist.uitkomst !== 'hack') return beoordeeld(a, true, kist);
+      const hack = kiesKandidaten(t, p, a.tijdMs, rand);
+      // Niemand om te hacken (nog geen wachtwoorden, allemaal een firewall): een gewoon kistje.
+      return beoordeeld(a, true, hack ? { ...kist, ...hack } : rolKist(rand, p, false));
+    }
     case 'doel': {
       const doel = t.spelers.get(actie.doel);
-      if (!p.hackKansen.includes(actie.kist) || !doel || doel.speler.id === p.speler.id) return beoordeeld(a, true, { doel: actie.doel, doelNaam: '?', fout: 'onbekend' } satisfies DoelBeloning);
+      const kans = p.hackKansen.find((k) => k.nr === actie.kist);
+      if (!kans || !kans.kandidaten.includes(actie.doel) || !doel || doel.speler.id === p.speler.id) return beoordeeld(a, true, { doel: actie.doel, doelNaam: '?', fout: 'onbekend' } satisfies DoelBeloning);
       const doelNaam = schermNaam(doel.speler);
       if (doel.firewallTot > a.tijdMs) return beoordeeld(a, true, { doel: actie.doel, doelNaam, fout: 'firewall' } satisfies DoelBeloning);
       if (!doel.wachtwoord) return beoordeeld(a, true, { doel: actie.doel, doelNaam, fout: 'geen_wachtwoord' } satisfies DoelBeloning);

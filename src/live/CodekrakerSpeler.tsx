@@ -11,6 +11,7 @@ import {
   wachtwoordOpties,
   type Actie,
   type DoelBeloning,
+  type HackSoort,
   type KistBeloning,
   type RaadBeloning,
 } from './codekraker';
@@ -24,7 +25,7 @@ const UITKOMST: Record<KistBeloning['uitkomst'], { icoon: string; tekst: (b: Kis
   x2: { icoon: '✖️2', tekst: () => 'Je volgende munten tellen dubbel!' },
   x3: { icoon: '✖️3', tekst: () => 'Je volgende munten tellen driedubbel!' },
   firewall: { icoon: '🛡️', tekst: () => 'Firewall! 2 minuten lang kan niemand je hacken.' },
-  hack: { icoon: '🔓', tekst: () => 'Hackkans! Kies wie je wilt hacken.' },
+  hack: { icoon: '🔓', tekst: () => 'Hackkans!' },
   pech: { icoon: '💸', tekst: (b) => (b.bedrag < 0 ? `Pech: ${fmt(b.bedrag)} munten` : 'Pech… maar je had nog niets te verliezen.') },
 };
 
@@ -149,9 +150,17 @@ export function CodekrakerSpeler({
     // Uitkomst van het kistje tonen (bij een hackkans: meteen een doelwit kiezen).
     const b = leesBeloning<KistBeloning>(laatsteActie.beloning)!;
     const u = UITKOMST[b.uitkomst];
+    const kans = t.hackKansen.find((k) => k.nr === laatsteActie.vraagNr);
     inhoud =
-      b.uitkomst === 'hack' && t.hackKansen.includes(laatsteActie.vraagNr) ? (
-        <DoelKiezen stand={sessie.stand} ik={spelerId} bezig={bezig} onKies={(doel) => void doe({ soort: 'doel', kist: laatsteActie.vraagNr, doel })} onOverslaan={() => zie(laatsteActie.vraagNr)} />
+      b.uitkomst === 'hack' && kans ? (
+        <DoelKiezen
+          stand={sessie.stand}
+          soort={b.hackSoort ?? 'willekeurig'}
+          kandidaten={kans.kandidaten}
+          bezig={bezig}
+          onKies={(doel) => void doe({ soort: 'doel', kist: kans.nr, doel })}
+          onOverslaan={() => zie(laatsteActie.vraagNr)}
+        />
       ) : (
         <Kaart titel="">
           <div className="pop text-center">
@@ -163,10 +172,11 @@ export function CodekrakerSpeler({
       );
   } else if (laatsteActie && laatsteSoort?.soort === 'doel' && !gezien.has(laatsteActie.vraagNr)) {
     const b = leesBeloning<DoelBeloning>(laatsteActie.beloning)!;
-    const kans = t.hackKansen.find((k) => k === laatsteSoort.kist);
+    const kans = t.hackKansen.find((k) => k.nr === laatsteSoort.kist);
+    const kistBeloning = kans && leesBeloning<KistBeloning>(eigen.find((a) => a.vraagNr === kans.nr)?.beloning ?? null);
     inhoud = b.opties ? (
       <Kaart titel={`🔓 Raad het wachtwoord van ${b.doelNaam}`}>
-        <p className="text-slate-600">Eén van deze woorden is het. Juist geraden: je steelt 10 tot 25 % van de munten. Fout: je verliest 5 % van de jouwe.</p>
+        <p className="text-slate-600">Eén van deze woorden is het. Juist geraden: je steelt munten. Fout geraden: dat kost je munten.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {b.opties.map((w) => (
             <button
@@ -184,10 +194,11 @@ export function CodekrakerSpeler({
     ) : kans !== undefined ? (
       <DoelKiezen
         stand={sessie.stand}
-        ik={spelerId}
+        soort={kistBeloning?.hackSoort ?? 'willekeurig'}
+        kandidaten={kans.kandidaten}
         bezig={bezig}
-        boodschap={b.fout === 'firewall' ? `🛡️ ${b.doelNaam} heeft een firewall. Kies iemand anders.` : `${b.doelNaam} kan je nog niet hacken. Kies iemand anders.`}
-        onKies={(doel) => void doe({ soort: 'doel', kist: kans, doel })}
+        boodschap={b.fout === 'firewall' ? `🛡️ ${b.doelNaam} heeft net een firewall opgezet.` : `${b.doelNaam} kan je nog niet hacken.`}
+        onKies={(doel) => void doe({ soort: 'doel', kist: kans.nr, doel })}
         onOverslaan={() => zie(laatsteActie.vraagNr)}
       />
     ) : (
@@ -296,39 +307,47 @@ function VolgendeKnop({ onClick }: { onClick: () => void }) {
   );
 }
 
+const HACK_TITEL: Record<HackSoort, string> = {
+  willekeurig: '🎲 Willekeurig doelwit!',
+  top6: '🏆 Hack iemand uit de top 6!',
+  twee: '🔓 Kies wie je hackt',
+};
+
+/** Doelwit kiezen, enkel uit de toegelaten kandidaten (bij "willekeurig" is er maar één). */
 function DoelKiezen({
   stand,
-  ik,
+  soort,
+  kandidaten,
   bezig,
   boodschap,
   onKies,
   onOverslaan,
 }: {
   stand: LiveSessie['stand'];
-  ik: string | null;
+  soort: HackSoort;
+  kandidaten: string[];
   bezig: boolean;
   boodschap?: string;
   onKies: (doel: string) => void;
   onOverslaan: () => void;
 }) {
-  const anderen = stand.filter((r) => r.id && r.id !== ik);
+  const rijen = kandidaten.map((id) => ({ id, plaats: stand.findIndex((r) => r.id === id) + 1, rij: stand.find((r) => r.id === id) }));
   return (
-    <Kaart titel="🔓 Wie wil je hacken?">
+    <Kaart titel={HACK_TITEL[soort]}>
       {boodschap && <p className="mb-3 rounded-lg bg-amber-50 px-4 py-2 text-amber-900">{boodschap}</p>}
-      <div className="grid gap-2 sm:grid-cols-2">
-        {anderen.map((r) => (
+      <div className={`grid gap-3 ${rijen.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+        {rijen.map(({ id, plaats, rij }) => (
           <button
-            key={r.id}
+            key={id}
             type="button"
-            disabled={bezig || r.firewall}
-            onClick={() => onKies(r.id!)}
-            className="flex items-center justify-between rounded-xl border-2 border-slate-200 px-4 py-3 text-left text-lg hover:border-amber-500 hover:bg-amber-50 disabled:opacity-40"
+            disabled={bezig || rij?.firewall}
+            onClick={() => onKies(id)}
+            className="pop flex items-center justify-between rounded-xl border-2 border-amber-300 bg-amber-50 px-5 py-4 text-left text-2xl text-slate-900 hover:border-amber-500 hover:bg-amber-100 disabled:opacity-40"
           >
-            <span className="font-semibold">{r.naam}</span>
-            <span className="font-mono">{r.firewall ? '🛡️' : `🪙 ${fmt(r.punten)}`}</span>
+            <span className="font-bold">{soort === 'willekeurig' ? `Hack ${rij?.naam ?? '?'}!` : (rij?.naam ?? '?')}</span>
+            <span className="text-lg">{rij?.firewall ? '🛡️' : plaats > 0 ? `plaats ${plaats}` : ''}</span>
           </button>
         ))}
-        {anderen.length === 0 && <p className="text-slate-500">Er is nog niemand om te hacken.</p>}
       </div>
       <button type="button" onClick={onOverslaan} className="mt-4 text-slate-500 underline">
         Niet hacken, volgende vraag

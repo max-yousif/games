@@ -10,11 +10,16 @@ import {
   wachtwoordOpties,
   WOORDEN,
   volgendeActieNr,
+  kiesKandidaten,
   type DoelBeloning,
+  type KistBeloning,
   type RaadBeloning,
 } from '../src/live/codekraker';
 import type { LiveAntwoord, LiveSpeler } from '../src/live/types';
 import type { Vraag } from '../src/lib/types';
+
+/** Totaal van de kansen in een kistje (met hacken). */
+const TOTAAL = 22 + 20 + 13 + 6 + 2 + 10 + 4 + 7 + 4 + 30;
 
 const vragen = [
   { id: 'v1', type: 'open', tekst: '1+1', antwoord: '2', opties: [], juisteOptie: 0, punten: 100, categorie: '', uitleg: '' },
@@ -83,8 +88,9 @@ describe('codekraker', () => {
     ];
     alle = speel(alle, () => 3); // B: 1000 munten
     alle.push(ant('A', 0, juisteAntwoord('A', 0), 4), ant('A', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 2 }), 5));
-    alle = speel(alle, () => hackIndex); // A: hackkans
-    expect(codekrakerToestand(spelers, alle).spelers.get('A')!.hackKansen).toEqual([ACTIE_BASIS + 1]);
+    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0)); // A: hackkans, willekeurig doelwit
+    expect(codekrakerToestand(spelers, alle).spelers.get('A')!.hackKansen).toEqual([{ nr: ACTIE_BASIS + 1, kandidaten: ['B'] }]);
+    expect(leesBeloning<KistBeloning>(alle.at(-1)!.beloning)).toMatchObject({ uitkomst: 'hack', hackSoort: 'willekeurig' });
     alle.push(ant('A', ACTIE_BASIS + 2, JSON.stringify({ soort: 'doel', kist: ACTIE_BASIS + 1, doel: 'B' }), 6));
     alle = speel(alle, () => 0);
     const opties = leesBeloning<DoelBeloning>(alle.at(-1)!.beloning)!.opties!;
@@ -124,21 +130,38 @@ describe('codekraker', () => {
     expect(codekrakerBeoordelingen(vragen, { hacken: true }, metC, [a])[0].juist).toBe(true);
   });
 
-  it('firewall houdt hackers tegen', () => {
+  it('firewall: niet als doelwit gekozen, en tegengehouden als die net opgezet werd', () => {
     const firewallIndex = 22 + 20 + 13 + 6 + 2 + 10 + 4;
-    let alle = [
-      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1),
-      ant('B', 0, juisteAntwoord('B', 0), 2),
-      ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 3),
-    ];
-    alle = speel(alle, () => firewallIndex);
     const hackIndex = firewallIndex + 7 + 4;
-    alle.push(ant('A', 0, juisteAntwoord('A', 0), 4), ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 5));
-    alle = speel(alle, () => hackIndex);
+    let alle = [ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1)];
+    // A krijgt een hackkans op B; daarna zet B een firewall op.
+    alle.push(ant('A', 0, juisteAntwoord('A', 0), 2), ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 3));
+    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0));
+    alle.push(ant('B', 0, juisteAntwoord('B', 0), 4), ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 5));
+    alle = speel(alle, (n) => (n === TOTAAL ? firewallIndex : 0));
     alle.push(ant('A', ACTIE_BASIS + 1, JSON.stringify({ soort: 'doel', kist: ACTIE_BASIS, doel: 'B' }), 6));
     alle = speel(alle, () => 0);
     expect(leesBeloning<DoelBeloning>(alle.at(-1)!.beloning)!.fout).toBe('firewall');
-    // De hackkans blijft: een ander doelwit kiezen mag.
-    expect(codekrakerToestand(spelers, alle).spelers.get('A')!.hackKansen).toEqual([ACTIE_BASIS]);
+    // De hackkans blijft (later opnieuw proberen of overslaan).
+    expect(codekrakerToestand(spelers, alle).spelers.get('A')!.hackKansen).toHaveLength(1);
+    // Een nieuwe hackkans terwijl B een firewall heeft: niemand te hacken, dus een gewoon kistje.
+    alle.push(ant('A', 1, juisteAntwoord('A', 1), 7), ant('A', ACTIE_BASIS + 2, JSON.stringify({ soort: 'kist', vraag: 1, keuze: 0 }), 8));
+    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0));
+    expect(leesBeloning<KistBeloning>(alle.at(-1)!.beloning)!.uitkomst).not.toBe('hack');
+  });
+
+  it('soorten hackkansen: top 6 en één van twee', () => {
+    const veel: LiveSpeler[] = Array.from({ length: 9 }, (_, i) => ({ id: `P${i}`, naam: `P${i}`, bijnaam: null, verbonden: true }));
+    const t = codekrakerToestand(veel, []);
+    veel.forEach((s, i) => Object.assign(t.spelers.get(s.id)!, { munten: i * 1000, wachtwoord: 'x' }));
+    const ik = t.spelers.get('P8')!;
+    const top6 = kiesKandidaten(t, ik, 0, (n) => (n === 10 ? 5 : 0))!;
+    expect(top6.hackSoort).toBe('top6');
+    expect([...top6.kandidaten].sort()).toEqual(['P2', 'P3', 'P4', 'P5', 'P6', 'P7']);
+    const twee = kiesKandidaten(t, ik, 0, (n) => (n === 10 ? 8 : 0))!;
+    expect(twee.hackSoort).toBe('twee');
+    expect(twee.kandidaten).toHaveLength(2);
+    expect(twee.kandidaten).not.toContain('P8');
+    expect(kiesKandidaten(t, ik, 0, () => 0)!).toMatchObject({ hackSoort: 'willekeurig' });
   });
 });
