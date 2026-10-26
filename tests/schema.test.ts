@@ -38,6 +38,7 @@ async function fout(p: Promise<unknown>): Promise<string> {
 let sessieId = '';
 let code = '';
 
+// PGlite opstarten duurt op een drukke CI-runner soms langer dan de standaard 10 s.
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(`
@@ -65,7 +66,7 @@ beforeAll(async () => {
   );
   sessieId = s.id;
   code = s.code;
-});
+}, 60_000);
 
 describe('supabase-schema', () => {
   it('maakt een code van 6 tekens zonder verwarrende letters', () => {
