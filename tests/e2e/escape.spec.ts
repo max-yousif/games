@@ -4,7 +4,7 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 test('escape room: sloten openen, foute code, ontsnappen', async ({ page }) => {
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
-  await maakKlas(page, '4B', ['Anna Peeters', 'Bert Claes']);
+  await maakKlas(page, '4B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/escape-set.json');
   await expect(page.getByText('Ontsnap uit het wiskundelokaal')).toBeVisible();

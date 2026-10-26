@@ -4,7 +4,7 @@ import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
-import { korteNamen, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
+import { inkorten, isIngekort, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
 import type { Klas, NaamVolgorde } from '../lib/types';
 
 export function KlassenPage({ store }: { store: Store }) {
@@ -74,8 +74,9 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
   const [bestand, setBestand] = useState<{ naam: string; rijen: string[][] } | null>(null);
   const [fout, setFout] = useState<string | null>(null);
 
-  function voegToe(namen: string[], naamVolgorde: NaamVolgorde) {
-    onChange((k) => ({ ...k, naamVolgorde, leerlingen: sorteerOpNaam([...k.leerlingen, ...naarLeerlingen(namen)]) }));
+  // Namen komen ingekort binnen ("Anna P."): voornaam eerst.
+  function voegToe(namen: string[]) {
+    onChange((k) => ({ ...k, naamVolgorde: 'voornaam', leerlingen: sorteerOpNaam([...k.leerlingen, ...naarLeerlingen(namen)]) }));
     setPlak('');
     setBestand(null);
   }
@@ -92,6 +93,10 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
   }
 
   const rijen = bestand?.rijen ?? (plak.trim() ? plakNaarRijen(plak) : null);
+  const volgorde = naamVolgordeVan(
+    klas.leerlingen.map((l) => l.naam),
+    klas.naamVolgorde,
+  );
 
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
@@ -100,23 +105,39 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
           <label className={labelClass}>Naam van de klas</label>
           <input className={inputClass} value={klas.naam} onChange={(e) => onChange((k) => ({ ...k, naam: e.target.value }))} />
         </div>
-        <div>
-          <label className={labelClass} htmlFor="naamvolgorde">
-            Namen staan als
-          </label>
-          <select
-            id="naamvolgorde"
-            className={inputClass}
-            value={naamVolgordeVan(
-              klas.leerlingen.map((l) => l.naam),
-              klas.naamVolgorde,
-            )}
-            onChange={(e) => onChange((k) => ({ ...k, naamVolgorde: e.target.value as NaamVolgorde }))}
-          >
-            <option value="voornaam">Voornaam Achternaam</option>
-            <option value="achternaam">Achternaam Voornaam</option>
-          </select>
-        </div>
+        {!klas.leerlingen.every((l) => isIngekort(l.naam)) && (
+          <>
+            <div>
+              <label className={labelClass} htmlFor="naamvolgorde">
+                Namen staan als
+              </label>
+              <select
+                id="naamvolgorde"
+                className={inputClass}
+                value={volgorde}
+                onChange={(e) => onChange((k) => ({ ...k, naamVolgorde: e.target.value as NaamVolgorde }))}
+              >
+                <option value="achternaam">Achternaam Voornaam</option>
+                <option value="voornaam">Voornaam Achternaam</option>
+              </select>
+            </div>
+            <Button
+              title="Bewaar enkel de voornaam en de initiaal van de achternaam (privacy)"
+              onClick={() =>
+                confirm('Alle namen inkorten tot voornaam en initiaal (bv. Peeters Anna → Anna P.)? De volledige namen worden niet meer bewaard.') &&
+                onChange((k) => {
+                  const kort = inkorten(
+                    k.leerlingen.map((l) => l.naam),
+                    volgorde,
+                  );
+                  return { ...k, naamVolgorde: 'voornaam', leerlingen: sorteerOpNaam(k.leerlingen.map((l, i) => ({ ...l, naam: kort[i] }))) };
+                })
+              }
+            >
+              🔒 Inkorten tot voornaam + initiaal
+            </Button>
+          </>
+        )}
         <Button variant="danger" className="ml-auto" onClick={onDelete}>
           Klas verwijderen
         </Button>
@@ -144,7 +165,7 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
                 className={`${inputClass} h-40`}
                 value={plak}
                 onChange={(e) => setPlak(e.target.value)}
-                placeholder={'Anna Peeters\nBert Claes\n…\n\nTitels en klasnummers mogen mee: je kiest straks wie je toevoegt.'}
+                placeholder={'Peeters Anna\nClaes Bert\n…\n\nTitels en klasnummers mogen mee: je kiest straks wie je toevoegt.'}
               />
             </>
           )}
@@ -163,7 +184,6 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
               key={bestand?.naam ?? 'plak'}
               rijen={rijen}
               bestaand={klas.leerlingen.map((l) => l.naam)}
-              volgorde={klas.naamVolgorde}
               onToevoegen={voegToe}
               onAnnuleren={() => {
                 setPlak('');
@@ -215,38 +235,38 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
 function KlaslijstVoorbeeld({
   rijen,
   bestaand,
-  volgorde: klasVolgorde,
   onToevoegen,
   onAnnuleren,
 }: {
   rijen: string[][];
   bestaand: string[];
-  volgorde: NaamVolgorde | undefined;
-  onToevoegen: (namen: string[], volgorde: NaamVolgorde) => void;
+  onToevoegen: (namen: string[]) => void;
   onAnnuleren: () => void;
 }) {
   const geraden = useMemo(() => raadKlaslijst(rijen), [rijen]);
   const [keuze, setKeuze] = useState<KlaslijstKeuze | null>(null);
   const [gekozen, setGekozen] = useState<Record<string, boolean>>({});
   const k = keuze ?? geraden;
-  const kandidaten = useMemo(() => naamKandidaten(rijen, k, bestaand), [rijen, k, bestaand]);
+  const ruw = useMemo(() => naamKandidaten(rijen, k, bestaand), [rijen, k, bestaand]);
   const breedte = Math.max(...rijen.map((r) => r.length));
-  const isAan = (c: NaamKandidaat, i: number) => gekozen[`${i}:${c.naam}`] ?? c.aan;
-  const namen = kandidaten.filter(isAan).map((c) => c.naam);
-  // Volgorde: zelf gekozen, anders herkend uit de kolomtitels, anders die van de klas.
+  // Volgorde: zelf gekozen, anders herkend uit de kolomtitels of de lijst, anders achternaam eerst.
   const [eigenVolgorde, setEigenVolgorde] = useState<NaamVolgorde | null>(null);
   const volgorde =
     eigenVolgorde ??
     k.volgorde ??
-    klasVolgorde ??
     raadNaamVolgorde(
-      kandidaten.filter((c) => c.aan).map((c) => c.naam),
+      ruw.filter((c) => c.aan).map((c) => c.naam),
       true,
     ) ??
-    'voornaam';
-  // Korte namen van de aangevinkte leerlingen (zoals op het scorebord), per index in de lijst.
-  const kortAan = korteNamen(namen, volgorde);
-  const kort = new Map(kandidaten.flatMap((c, i) => (isAan(c, i) ? [i] : [])).map((i, j) => [i, kortAan[j]]));
+    'achternaam';
+  // Wie ingekort al in de klas staat ("Anna P."), wordt niet aangevinkt.
+  const al = new Set(bestaand.map((n) => n.toLocaleLowerCase('nl')));
+  const kandidaten = ruw.map((c) => (c.aan && al.has(inkorten([c.naam], volgorde)[0].toLocaleLowerCase('nl')) ? { ...c, aan: false, reden: 'staat al in de klas' } : c));
+  const isAan = (c: NaamKandidaat, i: number) => gekozen[`${i}:${c.naam}`] ?? c.aan;
+  const namen = kandidaten.filter(isAan).map((c) => c.naam);
+  // Zo worden de aangevinkte leerlingen bewaard: voornaam en initiaal (privacy).
+  const ingekortAan = inkorten(namen, volgorde, bestaand);
+  const kort = new Map(kandidaten.flatMap((c, i) => (isAan(c, i) ? [i] : [])).map((i, j) => [i, ingekortAan[j]]));
 
   function wisselKolom(i: number) {
     setKeuze({ ...k, naamKolommen: k.naamKolommen.includes(i) ? k.naamKolommen.filter((x) => x !== i) : [...k.naamKolommen, i] });
@@ -306,7 +326,9 @@ function KlaslijstVoorbeeld({
             {v === 'voornaam' ? 'Voornaam Achternaam' : 'Achternaam Voornaam'}
           </label>
         ))}
-        <p className="mt-1 text-xs text-slate-500">Achter elke naam zie je de korte naam die tijdens het spel op het scorebord komt.</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Achter elke naam zie je hoe de leerling bewaard wordt: enkel voornaam en initiaal van de achternaam (privacy). Op het scherm verschijnt de voornaam.
+        </p>
       </div>
 
       <div className="flex items-center justify-between text-sm">
@@ -339,7 +361,7 @@ function KlaslijstVoorbeeld({
         {kandidaten.length === 0 && <li className="px-2 py-1 text-sm text-slate-500">Geen namen gevonden. Kies een andere kolom.</li>}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" disabled={namen.length === 0} onClick={() => onToevoegen(namen, volgorde)}>
+        <Button variant="primary" disabled={namen.length === 0} onClick={() => onToevoegen(ingekortAan)}>
           ✓ {namen.length} {namen.length === 1 ? 'leerling' : 'leerlingen'} toevoegen
         </Button>
         <Button variant="ghost" onClick={onAnnuleren}>

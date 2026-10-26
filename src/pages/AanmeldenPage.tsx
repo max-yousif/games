@@ -17,7 +17,8 @@ export function AanmeldenPage({ store }: { store: Store }) {
     setFout(null);
     try {
       await account.aanmelden(naam, wachtwoord);
-      ga({ pagina: 'start' });
+      // Vanaf de aanmeldpagina naar de start; anders blijft de gevraagde pagina open.
+      if (window.location.hash.includes('aanmelden')) ga({ pagina: 'start' });
     } catch (err) {
       setFout(err instanceof LiveFout && err.code === 'geen_leerkracht' ? 'Dit account is nog geen leerkrachtaccount: voeg het toe aan de tabel leerkrachten (zie supabase/README.md).' : err instanceof LiveFout ? err.message : 'Aanmelden lukte niet. Controleer de internetverbinding.');
     } finally {

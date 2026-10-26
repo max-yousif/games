@@ -57,3 +57,27 @@ describe('korte namen', () => {
     expect(korteNamen(['Anna Peeters', 'Anna Claes'])).toEqual(['Anna P.', 'Anna C.']);
   });
 });
+
+import { inkorten, isIngekort } from '../src/lib/students';
+
+describe('namen inkorten (privacy)', () => {
+  it('achternaam voornaam wordt voornaam en initiaal', () => {
+    expect(inkorten(['Peeters Anna', 'Van den Broeck Bert', 'Claes Chloé'], 'achternaam')).toEqual(['Anna P.', 'Bert V.', 'Chloé C.']);
+    expect(inkorten(['Anna Peeters'], 'voornaam')).toEqual(['Anna P.']);
+  });
+  it('maakt dubbels uniek met extra letters, ook tegenover wie al in de klas staat', () => {
+    expect(inkorten(['Peeters Anna', 'Pauwels Anna', 'Claes Bert'], 'achternaam')).toEqual(['Anna Pe.', 'Anna Pa.', 'Bert C.']);
+    expect(inkorten(['Pauwels Anna'], 'achternaam', ['Anna P.'])).toEqual(['Anna Pa.']);
+  });
+  it('laat ingekorte namen en losse voornamen staan', () => {
+    expect(inkorten(['Anna P.', 'Bert'], 'achternaam')).toEqual(['Anna P.', 'Bert']);
+    expect(isIngekort('Anna Pe.')).toBe(true);
+    expect(isIngekort('Peeters Anna')).toBe(false);
+  });
+});
+
+describe('korte namen van ingekorte namen', () => {
+  it('toont de bewaarde korte naam bij dezelfde voornaam', () => {
+    expect(korteNamen(['Anna Pe.', 'Anna Pa.', 'Bert C.'], 'voornaam')).toEqual(['Anna Pe.', 'Anna Pa.', 'Bert']);
+  });
+});

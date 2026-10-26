@@ -32,6 +32,15 @@ tweede tabblad), handig om alles uit te proberen.
      ```
      (Vervang het e-mailadres als je je echte adres gebruikte.)
    - Op de website: **👤 Aanmelden** rechtsboven, gebruikersnaam `maxyousif` en je wachtwoord.
+   - **Gastaccount** (bv. voor collega's of om te demonstreren): maak op dezelfde manier een
+     gebruiker `gast@klasspelen.local` met een eigen wachtwoord en voer uit:
+     ```sql
+     insert into public.leerkrachten (uid, naam)
+     select id, 'gast' from auth.users where email = 'gast@klasspelen.local';
+     ```
+     Aanmelden met gebruikersnaam `Gast`. Het gastaccount heeft zijn eigen vragensets en klassen.
+
+   Zonder aanmelden kan niemand de site gebruiken, behalve leerlingen die live meespelen.
 5. **Sleutels opzoeken**: **Project Settings → API** (of de knop **Connect**):
    - de **Project URL** (bv. `https://abcdefgh.supabase.co`)
    - de **publishable key** (begint met `sb_publishable_`) of, bij oudere projecten, de

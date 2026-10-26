@@ -4,7 +4,7 @@ import { geenFouten, kiesSpel, maakKlas } from './helpers';
 test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', async ({ page }) => {
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
-  await maakKlas(page, '3A', ['Anna Peeters', 'Bert Claes', 'Chloé Janssens', 'Dries Mertens']);
+  await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé', 'Mertens Dries']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Quizbord');
   await page.getByRole('button', { name: /Start het spel/ }).click();
 

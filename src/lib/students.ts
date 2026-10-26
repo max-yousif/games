@@ -124,7 +124,9 @@ export function raadNaamVolgorde(namen: readonly string[], metLijstvolgorde = fa
   if (woorden.length === 0) return undefined;
   let score = 0;
   for (const w of woorden) {
-    if (TUSSENVOEGSEL.test(w[0])) score += 2;
+    // Al ingekort tot "Anna P.": voornaam eerst.
+    if (isInitiaal(w.at(-1)!)) score -= 2;
+    else if (TUSSENVOEGSEL.test(w[0])) score += 2;
     else if (w.length >= 3 && TUSSENVOEGSEL.test(w[1])) score -= 2;
   }
   if (metLijstvolgorde && woorden.length >= 4) {
@@ -138,8 +140,53 @@ export function raadNaamVolgorde(namen: readonly string[], metLijstvolgorde = fa
   return score > 0 ? 'achternaam' : score < 0 ? 'voornaam' : undefined;
 }
 
-/** Naamvolgorde van een klas: ingesteld, anders geraden, anders voornaam eerst. */
-export const naamVolgordeVan = (namen: readonly string[], ingesteld?: NaamVolgorde): NaamVolgorde => ingesteld ?? raadNaamVolgorde(namen) ?? 'voornaam';
+/** Naamvolgorde van een klas: ingesteld, anders geraden, anders achternaam eerst (zoals in de meeste klaslijsten). */
+export const naamVolgordeVan = (namen: readonly string[], ingesteld?: NaamVolgorde): NaamVolgorde => ingesteld ?? raadNaamVolgorde(namen) ?? 'achternaam';
+
+/** "P." of "Pe.": een ingekorte achternaam. */
+const isInitiaal = (w: string) => /^\p{Lu}\p{Ll}{0,3}\.$/u.test(w);
+
+/** Is deze naam al ingekort tot voornaam en initiaal (of maar één woord)? */
+export const isIngekort = (naam: string) => {
+  const w = naam.trim().split(/\s+/);
+  return w.length < 2 || (w.length === 2 && isInitiaal(w[1]));
+};
+
+/**
+ * Namen inkorten tot voornaam en initiaal van de achternaam (privacy): "Peeters Anna" wordt
+ * "Anna P.". Zouden twee leerlingen dezelfde korte naam krijgen (ook met wie al in de klas staat),
+ * dan komen er letters bij: "Anna Pe." en "Anna Pa.". Al ingekorte namen blijven zoals ze zijn.
+ */
+export function inkorten(namen: readonly string[], volgorde: NaamVolgorde, bezet: readonly string[] = []): string[] {
+  const delen = namen.map((n) => {
+    if (isIngekort(n)) return null;
+    const w = n.trim().split(/\s+/);
+    const voornaam = volgorde === 'achternaam' ? w.at(-1)! : w[0];
+    const achternaam = (volgorde === 'achternaam' ? w.slice(0, -1) : w.slice(1)).join('');
+    return { voornaam, achternaam };
+  });
+  const lengte = delen.map(() => 1);
+  const maak = (i: number) => {
+    const d = delen[i]!;
+    const stuk = d.achternaam.slice(0, lengte[i]);
+    return `${d.voornaam} ${stuk.charAt(0).toLocaleUpperCase('nl')}${stuk.slice(1).toLocaleLowerCase('nl')}.`;
+  };
+  const sleutel = (t: string) => t.toLocaleLowerCase('nl');
+  for (let ronde = 0; ronde < 20; ronde++) {
+    const uit = delen.map((d, i) => (d ? maak(i) : namen[i].trim()));
+    const tel = new Map<string, number>();
+    for (const t of [...uit, ...bezet]) tel.set(sleutel(t), (tel.get(sleutel(t)) ?? 0) + 1);
+    let verlengd = false;
+    delen.forEach((d, i) => {
+      if (d && tel.get(sleutel(uit[i]))! > 1 && lengte[i] < d.achternaam.length) {
+        lengte[i]++;
+        verlengd = true;
+      }
+    });
+    if (!verlengd) return uit;
+  }
+  return delen.map((d, i) => (d ? maak(i) : namen[i].trim()));
+}
 
 /** De voornaam: het eerste woord, of bij "Achternaam Voornaam" het laatste woord. */
 export function roepnaam(naam: string, volgorde: NaamVolgorde = 'voornaam'): string {
@@ -155,6 +202,8 @@ export function korteNamen(namen: readonly string[], volgorde: NaamVolgorde = 'v
   const kort = namen.map((n) => roepnaam(n, volgorde));
   return kort.map((k, i) => {
     if (kort.filter((x) => x === k).length < 2) return k;
+    // Al ingekort ("Anna Pe."): die korte naam is uniek.
+    if (isIngekort(namen[i])) return namen[i].trim();
     const w = namen[i].trim().split(/\s+/);
     const achternaam = volgorde === 'achternaam' ? w.slice(0, -1).join(' ') : w.slice(1).join(' ');
     // Eerste hoofdletter van de achternaam (bij "Van den Broeck" de B).

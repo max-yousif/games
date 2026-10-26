@@ -4,7 +4,7 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async ({ page }) => {
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
-  await maakKlas(page, '3A', ['Anna Peeters', 'Bert Claes', 'Chloé Janssens']);
+  await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Live quiz');
   const code = await startLive(page);
 

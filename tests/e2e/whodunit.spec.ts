@@ -4,7 +4,7 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page }) => {
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
-  await maakKlas(page, '6A', ['Anna Peeters', 'Bert Claes']);
+  await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await kiesSpel(page, 'Whodunit: de nacht van de 50 dagen (5e–6e jaar)', 'Whodunit');
   await page.locator('div', { has: page.locator('label', { hasText: 'Wachten na fout antwoord' }) }).locator('select').last().selectOption('0');
   // Per 2 op één laptop: Anna en Bert vormen één groepje.

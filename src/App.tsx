@@ -29,18 +29,39 @@ export default function App() {
   const route = useRoute();
   const store = useStore();
 
+  // Leerlingen zien enkel het live-scherm, niet het menu van de leerkracht (en hoeven niet aan te melden).
+  if (route.pagina === 'live')
+    return (
+      <Suspense fallback={laden}>
+        <LiveSpelerPage code={route.code} demo={route.demo} />
+      </Suspense>
+    );
+  // De rest van de site is enkel voor leerkrachten met een account (zonder Supabase: demo zonder account).
+  if (store.account.beschikbaar && !store.account.leerkracht)
+    return (
+      <div className="min-h-screen">
+        <header className="border-b border-slate-200 bg-surface">
+          <nav className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
+            <span className="text-lg font-bold">🎲 Klasspelen</span>
+            <a href={href({ pagina: 'live', demo: false })} className="ml-auto rounded-lg border-2 border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]">
+              💻 Leerling? Live meespelen
+            </a>
+            <ThemaKnop />
+          </nav>
+        </header>
+        <main className="mx-auto max-w-6xl px-6 py-12">
+          <Suspense fallback={laden}>
+            <AanmeldenPage store={store} />
+          </Suspense>
+        </main>
+      </div>
+    );
+
   // Een lopend spel gebruikt het volledige scherm, zonder menu.
   if (route.pagina === 'sessie')
     return (
       <Suspense fallback={laden}>
         <SessiePage key={route.id} id={route.id} store={store} />
-      </Suspense>
-    );
-  // Leerlingen zien enkel het live-scherm, niet het menu van de leerkracht.
-  if (route.pagina === 'live')
-    return (
-      <Suspense fallback={laden}>
-        <LiveSpelerPage code={route.code} demo={route.demo} />
       </Suspense>
     );
 

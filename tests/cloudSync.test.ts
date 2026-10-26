@@ -59,3 +59,21 @@ describe('cloud: synchroniseren', () => {
     expect(r.gewijzigd).toBe(false);
   });
 });
+
+describe('cloud: lokaal gewist', () => {
+  it('haalt een lokaal gewist item niet terug van de server', () => {
+    const l: Lokaal = { ...leeg, sets: [set('s1', 'Machten', '2026-10-26T09:00:00Z')] };
+    const gesync = naUpload({}, teUploaden(l, {}));
+    // De set is lokaal gewist; de server heeft nog de oude versie.
+    const r = verwerkDownload(leeg, [item('set', 's1', l.sets[0])], gesync);
+    expect(r.lokaal.sets).toEqual([]);
+    expect(teUploaden(r.lokaal, r.gesync).wissen).toEqual([{ soort: 'set', id: 's1' }]);
+  });
+
+  it('haalt het wel terug als het intussen elders gewijzigd werd', () => {
+    const l: Lokaal = { ...leeg, sets: [set('s1', 'Machten', '2026-10-26T09:00:00Z')] };
+    const gesync = naUpload({}, teUploaden(l, {}));
+    const r = verwerkDownload(leeg, [item('set', 's1', set('s1', 'Machten (aangepast)', '2026-10-26T09:30:00Z'))], gesync);
+    expect(r.lokaal.sets.map((s) => s.titel)).toEqual(['Machten (aangepast)']);
+  });
+});

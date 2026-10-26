@@ -108,6 +108,8 @@ export function verwerkDownload(l: Lokaal, server: readonly ServerItem[], gesync
       nieuwGesync[k] = serverJson;
       continue;
     }
+    // Lokaal gewist en op de server niet meer gewijzigd: gewist laten (de upload wist het ook daar).
+    if (index < 0 && gesync[k] === serverJson) continue;
     let neemServer = index < 0 || ongewijzigd;
     if (!neemServer && gesync[k] === undefined) {
       // Eerste keer op dit toestel: bij vragensets de recentste, anders de server.
