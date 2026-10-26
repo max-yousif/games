@@ -127,6 +127,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
           vragen: input.vragen ?? null,
           raadsel: input.raadsel ?? null,
           codekraker: input.codekraker ?? null,
+          cluedo: input.cluedo ?? null,
           wachttijd: input.wachttijd ?? 0,
           vraagStart: null,
           timer: input.timer,

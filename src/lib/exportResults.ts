@@ -18,6 +18,7 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   escape: 'Escape room',
   whodunit: 'Whodunit',
   codekraker: 'Crypto Hack',
+  cluedo: 'Cluedo',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });
@@ -41,7 +42,7 @@ function sessieBladen(s: Sessie, prefix = '') {
       bold('Juist'),
       bold('Fout'),
       bold('Punten'),
-      ...(ontsnapt ? [bold(s.spelType === 'whodunit' ? 'Opgelost na' : 'Ontsnapt na')] : []),
+      ...(ontsnapt ? [bold(s.spelType === 'whodunit' || s.spelType === 'cluedo' ? 'Opgelost na' : 'Ontsnapt na')] : []),
       ...(munten ? [bold('Munten')] : []),
     ],
     ...resultatenPerLeerling(s).map((r) => [

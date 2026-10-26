@@ -59,6 +59,8 @@ export interface Vragenset {
   voorbeeld?: string;
   /** Raadsel voor het spel Whodunit. */
   raadsel?: Raadsel;
+  /** Cluedo: eigen verdachten, locaties en wapens (anders het standaardthema). */
+  cluedo?: CluedoThema;
   /** Coverafbeelding (JPEG als data-URL, 16:9). */
   cover?: string;
   /** Hoe vaak deze set gespeeld werd en met hoeveel spelers in totaal (blijft, ook als resultaten gewist worden). */
@@ -83,7 +85,21 @@ export interface Klas {
   naamVolgorde?: NaamVolgorde;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker';
+/** Cluedo: de kaarten waaruit de oplossing getrokken wordt. */
+export interface CluedoThema {
+  titel: string;
+  verdachten: string[];
+  locaties: string[];
+  wapens: string[];
+}
+
+export interface CluedoOplossing {
+  verdachte: string;
+  locatie: string;
+  wapen: string;
+}
+
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo';
 
 export interface Team {
   naam: string;
@@ -149,6 +165,8 @@ export interface Sessie {
   live?: LiveInfo;
   /** Whodunit: kopie van het raadsel (met de oplossing) bij de start. */
   raadsel?: Raadsel;
+  /** Cluedo: het thema en de oplossing (enkel op de laptop van de leerkracht). */
+  cluedo?: { thema: CluedoThema; oplossing: CluedoOplossing };
   /** Bom doorgeven: levens, wie de bom heeft en de ronde. */
   bom?: import('./bom').BomToestand;
   /** Meegeteld in de statistiek van de vragenset. */

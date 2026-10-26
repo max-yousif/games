@@ -3,6 +3,8 @@ import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
+import { STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
+import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
@@ -13,7 +15,7 @@ import { shuffle } from '../lib/random';
 import { maakGroepjes, maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
 import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
-import type { Leerling, SpelType, Team } from '../lib/types';
+import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
@@ -24,6 +26,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Crypto Hack', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
+  { type: 'cluedo', icoon: '🔎', naam: 'Cluedo', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
@@ -54,9 +57,17 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
-  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker';
+  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo';
+  // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
+  const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA);
+  const [cluedoSleutel, setCluedoSleutel] = useState(0);
+  const laadCluedo = (t: CluedoThema) => {
+    setCluedoThema(t);
+    setCluedoSleutel((k) => k + 1);
+  };
+  const cluedoFouten = spel === 'cluedo' ? themaProblemen(cluedoThema) : [];
   const [hacken, setHacken] = useState(true);
   const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
@@ -132,6 +143,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const escape = eigenTempo;
       const whodunit = spel === 'whodunit';
       const codekraker = spel === 'codekraker';
+      const cluedo = spel === 'cluedo';
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
@@ -155,16 +167,17 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
-        aantalVragen: codekraker ? AANTAL_NUMMERS : gekozen.length,
+        aantalVragen: codekraker || cluedo ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
         wachttijd: escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
+        cluedo: cluedo ? cluedoThema : undefined,
       });
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : escape ? 'escape' : 'live',
         set,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -175,6 +188,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const sessie = {
         ...basis,
         ...(whodunit && set.raadsel ? { raadsel: set.raadsel } : {}),
+        // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
+        ...(cluedo ? { cluedo: { thema: cluedoThema, oplossing: trekOplossing(cluedoThema) } } : {}),
         vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
@@ -220,6 +235,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           onChange={(e) => {
             setGekozenSet(e.target.value);
             setUit(new Set());
+            laadCluedo(store.sets.find((s) => s.id === e.target.value)?.cluedo ?? STANDAARD_THEMA);
           }}
         >
           {store.sets.map((s) => (
@@ -252,9 +268,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 setSpel(s.type);
                 verdeel(
                   klas?.leerlingen,
-                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' ? 1 : aantal,
+                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' ? 1 : aantal,
                   afwezig,
-                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' ? groepGrootte : 1,
+                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' ? groepGrootte : 1,
                 );
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
@@ -392,7 +408,34 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
         {isLive && (
           <div className="mb-4 space-y-2 text-sm">
-            {spel === 'codekraker' ? (
+            {spel === 'cluedo' ? (
+              <>
+                <p className="text-slate-600">
+                  De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds
+                  opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
+                  fout = een minuut geblokkeerd. Wie het snelst oplost, wint; de anderen spelen verder.
+                </p>
+                <details className="rounded-xl border border-slate-200 p-3" open={Boolean(set?.cluedo) || cluedoFouten.length > 0}>
+                  <summary className="cursor-pointer font-semibold">
+                    🔎 Verdachten, locaties en wapens voor dit spel: “{cluedoThema.titel}” ({cluedoThema.verdachten.length} + {cluedoThema.locaties.length} + {cluedoThema.wapens.length})
+                  </summary>
+                  <div className="mt-3">
+                    <CluedoThemaEditor key={cluedoSleutel} thema={cluedoThema} onChange={setCluedoThema} />
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        disabled={!set || cluedoFouten.length > 0}
+                        onClick={() => set && store.setSets((all) => all.map((s) => (s.id === set.id ? { ...s, cluedo: cluedoThema } : s)))}
+                      >
+                        💾 Bewaar als thema van deze vragenset
+                      </Button>
+                      {set?.cluedo && <Button onClick={() => laadCluedo(set.cluedo!)}>↺ Thema van de vragenset</Button>}
+                      <Button onClick={() => laadCluedo(STANDAARD_THEMA)}>↺ Standaardthema</Button>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">Wijzigingen hier gelden enkel voor dit spel, tenzij je ze bewaart in de vragenset.</p>
+                  </div>
+                </details>
+              </>
+            ) : spel === 'codekraker' ? (
               <>
                 <p className="text-slate-600">
                   Elke leerling kiest een geheim wachtwoord en beantwoordt vragen in eigen tempo (de vragen komen steeds opnieuw). Na een juist antwoord kiest de leerling een
@@ -557,7 +600,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
       {fout && <Notice tone="warn">{fout}</Notice>}
       <div className="flex justify-end">
-        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht) || raadselFouten.length > 0} onClick={start}>
+        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht) || raadselFouten.length > 0 || cluedoFouten.length > 0} onClick={start}>
           {bezig ? 'Bezig…' : '▶ Start het spel'}
         </Button>
       </div>

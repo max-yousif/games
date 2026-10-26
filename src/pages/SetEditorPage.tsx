@@ -6,6 +6,7 @@ import { VraagWeergave } from '../components/VraagWeergave';
 import { CoverFout, maakCover } from '../lib/cover';
 import { nu } from '../lib/ids';
 import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vraagProblemen } from '../lib/questions';
+import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { RaadselEditor } from '../components/RaadselEditor';
 import { nieuwRaadsel } from '../live/whodunit';
 import { href } from '../lib/route';
@@ -137,6 +138,25 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
               onChange={(f) => update((s) => ({ ...s, raadsel: f(s.raadsel ?? nieuwRaadsel()) }))}
               onVerwijder={() => update((s) => ({ ...s, raadsel: undefined }))}
             />
+          </div>
+        </section>
+      )}
+
+      {/* Het Cluedo-thema verschijnt enkel als de set een eigen thema heeft (bewaren via Spelen → Cluedo). */}
+      {set.cluedo && (
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-lg font-semibold">🔎 Cluedo-thema</h2>
+            <button
+              type="button"
+              className="ml-auto text-sm text-slate-500 underline"
+              onClick={() => confirm('Het eigen Cluedo-thema verwijderen? Dan wordt het standaardthema gebruikt.') && update((s) => ({ ...s, cluedo: undefined }))}
+            >
+              Verwijderen (standaardthema gebruiken)
+            </button>
+          </div>
+          <div className="mt-4">
+            <CluedoThemaEditor thema={set.cluedo} onChange={(cluedo) => update((s) => ({ ...s, cluedo }))} />
           </div>
         </section>
       )}

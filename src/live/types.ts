@@ -1,4 +1,4 @@
-import type { VraagType } from '../lib/types';
+import type { CluedoThema, VraagType } from '../lib/types';
 import type { CodekrakerInstellingen } from './codekraker';
 import type { PubliekRaadsel } from './whodunit';
 
@@ -63,6 +63,8 @@ export interface LiveSessie {
   raadsel?: PubliekRaadsel | null;
   /** Codekraker (escape-modus): de instellingen. */
   codekraker?: CodekrakerInstellingen | null;
+  /** Cluedo (escape-modus): het thema, zonder oplossing. */
+  cluedo?: CluedoThema | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -194,6 +196,7 @@ export interface LiveBackend {
     wachttijd?: number;
     raadsel?: PubliekRaadsel;
     codekraker?: CodekrakerInstellingen;
+    cluedo?: CluedoThema;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;
