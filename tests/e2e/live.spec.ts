@@ -55,13 +55,18 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await bert.getByRole('button', { name: /Wiskunde-editor uit/ }).click();
   const veld = bert.locator('math-field');
   await expect(veld).toBeVisible();
+  const waarde = () => veld.evaluate((el) => (el as HTMLElement & { value: string }).value);
+  // Wacht tot het veld de focus heeft en elke stap verwerkt is: anders gaan toetsen verloren.
   await veld.click();
+  await expect(veld).toBeFocused();
   await bert.keyboard.type('4a');
+  await expect.poll(waarde).toBe('4a');
   // De knop houdt de focus in het veld; de cursor staat na het kwadraat. (Niet in het veld klikken:
   // dat zet de cursor waar de klik valt, bv. in de exponent.)
   await bert.getByRole('button', { name: 'x²' }).click();
+  await expect.poll(waarde).toBe('4a^2');
   await bert.keyboard.type('-20a+25');
-  await expect.poll(() => veld.evaluate((el) => (el as HTMLElement & { value: string }).value)).toBe('4a^2-20a+25');
+  await expect.poll(waarde).toBe('4a^2-20a+25');
   await bert.keyboard.press('Enter');
   await expect(bert.getByText('Antwoord verstuurd!')).toBeVisible();
   await anna.getByLabel('Je antwoord').fill('16a^2');
