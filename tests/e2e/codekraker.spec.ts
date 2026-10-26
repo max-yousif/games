@@ -25,7 +25,6 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   const code = await startLive(page);
 
   const anna = await leerling(page, code, 'Anna');
-  const bert = await leerling(page, code, 'Bert');
   // Reacties in de wachtruimte verschijnen ook hier op het bord, en kunnen uit.
   await anna.getByRole('button', { name: 'geit' }).click();
   await expect(page.locator('.reactie-zweef', { hasText: '🐐' })).toBeVisible();
@@ -36,7 +35,12 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   // Elke leerling kiest uit 3 eigen woorden.
   await expect(anna.locator('[data-wachtwoord]')).toHaveCount(3);
   await anna.locator('[data-wachtwoord]').first().click();
+  // Bert sluit pas aan als het spel al bezig is, en kan meteen meedoen.
+  const bert = await page.context().newPage();
+  await bert.goto(`#/live?code=${code}&demo=1`);
+  await bert.getByRole('button', { name: 'Bert', exact: true }).click();
   await bert.locator('[data-wachtwoord]').last().click();
+  await expect(bert.getByText(/Hoeveel is \d\+\d\?/)).toBeVisible();
   // Het wachtwoord staat verborgen tot je erop wijst.
   const wachtwoord = anna.getByTitle(/Je geheime wachtwoord/);
   await expect(wachtwoord).toContainText('••••••');

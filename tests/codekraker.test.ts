@@ -117,6 +117,13 @@ describe('codekraker', () => {
     expect(b[0].juist).toBe(false);
   });
 
+  it('een leerling die net aansloot, wordt pas nagekeken als die in de lijst staat', () => {
+    const a = ant('C', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('C')[0] }), 1);
+    expect(codekrakerBeoordelingen(vragen, { hacken: true }, spelers, [a])).toEqual([]);
+    const metC = [...spelers, { id: 'C', naam: 'C', bijnaam: null, verbonden: true }];
+    expect(codekrakerBeoordelingen(vragen, { hacken: true }, metC, [a])[0].juist).toBe(true);
+  });
+
   it('firewall houdt hackers tegen', () => {
     const firewallIndex = 22 + 20 + 13 + 6 + 2 + 10 + 4;
     let alle = [

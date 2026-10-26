@@ -279,7 +279,9 @@ export function codekrakerBeoordelingen(
   rand: RandomInt = defaultRandomInt,
 ): Beoordeling[] {
   const beoordeeldeLijst = antwoorden.filter((a) => a.juist !== null);
-  const open = antwoorden.filter((a) => a.juist === null).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
+  // Een leerling die net aansloot en nog niet in de lijst staat: later nakijken, niet afkeuren.
+  const bekend = new Set(spelers.map((s) => s.id));
+  const open = antwoorden.filter((a) => a.juist === null && bekend.has(a.spelerId)).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
   const uit: Beoordeling[] = [];
   for (const a of open) {
     const t = codekrakerToestand(spelers, beoordeeldeLijst);

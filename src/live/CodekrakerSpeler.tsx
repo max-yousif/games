@@ -114,7 +114,10 @@ export function CodekrakerSpeler({
   const melding = rij?.melding && verstreken - rij.melding.tijdMs < 10_000 ? rij.melding.tekst : null;
 
   let inhoud: ReactNode;
-  if (!t.wachtwoord) {
+  if (!spelerId) {
+    // De eigen speler is nog niet geladen: de wachtwoorden hangen ervan af.
+    inhoud = <Kaart titel="⏳ Even geduld…">Verbinden…</Kaart>;
+  } else if (!t.wachtwoord) {
     inhoud = (
       <Kaart titel="🔑 Kies je geheime wachtwoord">
         <p className="text-slate-600">Medespelers kunnen proberen het te raden om jouw munten te stelen. Vertel het aan niemand!</p>
