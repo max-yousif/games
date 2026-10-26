@@ -4,7 +4,7 @@ import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
-import { korteNamen, naamKandidaten, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
+import { korteNamen, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
 import type { Klas, NaamVolgorde } from '../lib/types';
 
 export function KlassenPage({ store }: { store: Store }) {
@@ -107,7 +107,10 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
           <select
             id="naamvolgorde"
             className={inputClass}
-            value={klas.naamVolgorde ?? 'voornaam'}
+            value={naamVolgordeVan(
+              klas.leerlingen.map((l) => l.naam),
+              klas.naamVolgorde,
+            )}
             onChange={(e) => onChange((k) => ({ ...k, naamVolgorde: e.target.value as NaamVolgorde }))}
           >
             <option value="voornaam">Voornaam Achternaam</option>
@@ -160,7 +163,7 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
               key={bestand?.naam ?? 'plak'}
               rijen={rijen}
               bestaand={klas.leerlingen.map((l) => l.naam)}
-              volgorde={klas.naamVolgorde ?? 'voornaam'}
+              volgorde={klas.naamVolgorde}
               onToevoegen={voegToe}
               onAnnuleren={() => {
                 setPlak('');
@@ -218,7 +221,7 @@ function KlaslijstVoorbeeld({
 }: {
   rijen: string[][];
   bestaand: string[];
-  volgorde: NaamVolgorde;
+  volgorde: NaamVolgorde | undefined;
   onToevoegen: (namen: string[], volgorde: NaamVolgorde) => void;
   onAnnuleren: () => void;
 }) {
@@ -232,7 +235,15 @@ function KlaslijstVoorbeeld({
   const namen = kandidaten.filter(isAan).map((c) => c.naam);
   // Volgorde: zelf gekozen, anders herkend uit de kolomtitels, anders die van de klas.
   const [eigenVolgorde, setEigenVolgorde] = useState<NaamVolgorde | null>(null);
-  const volgorde = eigenVolgorde ?? k.volgorde ?? klasVolgorde;
+  const volgorde =
+    eigenVolgorde ??
+    k.volgorde ??
+    klasVolgorde ??
+    raadNaamVolgorde(
+      kandidaten.filter((c) => c.aan).map((c) => c.naam),
+      true,
+    ) ??
+    'voornaam';
   // Korte namen van de aangevinkte leerlingen (zoals op het scorebord), per index in de lijst.
   const kortAan = korteNamen(namen, volgorde);
   const kort = new Map(kandidaten.flatMap((c, i) => (isAan(c, i) ? [i] : [])).map((i, j) => [i, kortAan[j]]));

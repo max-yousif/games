@@ -1,5 +1,6 @@
 import { newId, nu } from './ids';
 import { randomInt as defaultRandomInt, shuffle, type RandomInt } from './random';
+import { korteNamen, naamVolgordeVan } from './students';
 import type { Beurt, Leerling, NaamVolgorde, Sessie, SpelType, Team, Vraag, Vragenset } from './types';
 
 export const TEAM_KLEUREN = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2'];
@@ -15,6 +16,15 @@ export function maakTeams(leerlingen: readonly Leerling[], aantal: number, rand:
   }));
 }
 
+/**
+ * Groepjes van 2 of 3 (escape room, whodunit): per 2 geeft bij een oneven aantal één groepje van 3,
+ * per 3 geeft bij een rest groepjes van 2.
+ */
+export function maakGroepjes(leerlingen: readonly Leerling[], grootte: 2 | 3, rand: RandomInt = defaultRandomInt): Team[] {
+  const aantal = Math.max(1, grootte === 2 ? Math.floor(leerlingen.length / 2) : Math.ceil(leerlingen.length / 3));
+  return maakTeams(leerlingen, aantal, rand).map((t, i) => ({ ...t, naam: `Groepje ${i + 1}` }));
+}
+
 export function nieuweSessie(opts: {
   spelType: SpelType;
   set: Vragenset;
@@ -23,6 +33,8 @@ export function nieuweSessie(opts: {
   teams: Team[];
   timer: number | null;
   naamVolgorde?: NaamVolgorde;
+  /** Dubbele punten voor een leerling die alleen antwoordt (quizbord). */
+  dubbelIndividueel?: boolean;
 }): Sessie {
   return {
     id: newId(),
@@ -39,7 +51,23 @@ export function nieuweSessie(opts: {
     gestart: nu(),
     beeindigd: null,
     ...(opts.naamVolgorde === 'achternaam' ? { naamVolgorde: 'achternaam' as const } : {}),
+    ...(opts.dubbelIndividueel ? { dubbelIndividueel: true } : {}),
   };
+}
+
+/** Korte namen (voornaam, met initiaal bij dezelfde voornaam) van alle leerlingen in een sessie, per id. */
+export function korteNamenVan(s: Sessie): Map<string, string> {
+  const alle = s.teams.flatMap((t) => t.leerlingen);
+  const namen = alle.map((l) => l.naam);
+  const kort = korteNamen(namen, naamVolgordeVan(namen, s.naamVolgorde));
+  return new Map(alle.map((l, i) => [l.id, kort[i]]));
+}
+
+/** Korte naam bij een volledige leerlingnaam uit deze sessie (onbekende namen blijven zoals ze zijn). */
+export function korteNaamVan(s: Sessie): (naam: string) => string {
+  const kort = korteNamenVan(s);
+  const perNaam = new Map(s.teams.flatMap((t) => t.leerlingen).map((l) => [l.naam, kort.get(l.id)!]));
+  return (naam) => perNaam.get(naam) ?? naam;
 }
 
 export function teamScores(s: Sessie): number[] {

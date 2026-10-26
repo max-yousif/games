@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RichText } from '../components/RichText';
+import { AfsluitKnoppen } from '../components/AfsluitKnoppen';
 import { Button, Notice } from '../components/ui';
 import { VraagWeergave } from '../components/VraagWeergave';
 import { exporteerSessie } from '../lib/exportResults';
-import { href } from '../lib/route';
-import { beeindig, resultatenPerLeerling } from '../lib/session';
+import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS, tekstMetGaten } from '../lib/vraagtypes';
 import { backend } from './config';
@@ -29,13 +29,13 @@ export function deelnameLink(code: string, demo: boolean): string {
   return `${window.location.origin}${window.location.pathname}#/live?code=${code}${demo ? '&demo=1' : ''}`;
 }
 
-export function LiveHost({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+export function LiveHost({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
   const live = sessie.live!;
-  if (live.afgesloten) return <LiveEinde sessie={sessie} />;
-  return <LiveHostActief sessie={sessie} onUpdate={onUpdate} />;
+  if (live.afgesloten) return <LiveEinde sessie={sessie} onVerwijder={onVerwijder} />;
+  return <LiveHostActief sessie={sessie} onUpdate={onUpdate} onVerwijder={onVerwijder} />;
 }
 
-function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+function LiveHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
   const live = sessie.live!;
   const be = backend(live.backend);
   const [server, setServer] = useState<LiveSessie | null | undefined>(undefined);
@@ -120,13 +120,12 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
     onUpdate(beeindig(synchroniseer(sessie, spelers, antwoorden, sessie.vraagVolgorde)));
   }
 
-  const afsluiten = () =>
-    actie(async () => {
-      if (!confirm('Het spel afsluiten? De resultaten blijven bewaard op deze laptop, maar de gegevens op de server (namen en antwoorden) worden gewist.')) return;
-      const s = beeindig(synchroniseer(sessie, spelers, antwoorden, sessie.vraagVolgorde));
-      await be.verwijderSessie(live.sessieId);
-      onUpdate({ ...s, live: { ...live, afgesloten: true } });
-    });
+  // Gegevens op de server wissen; de resultaten blijven in de lokale sessie.
+  const afsluiten = async () => {
+    const s = beeindig(synchroniseer(sessie, spelers, antwoorden, sessie.vraagVolgorde));
+    onUpdate({ ...s, live: { ...live, afgesloten: true } });
+    await be.verwijderSessie(live.sessieId);
+  };
 
   // Automatisch het antwoord tonen als de tijd om is of iedereen geantwoord heeft.
   const [resterend, setResterend] = useState<number | null>(null);
@@ -266,7 +265,7 @@ function LiveHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         </div>
       )}
 
-      {server.status === 'einde' && <LiveEinde sessie={sessie} stand={stand} onAfsluiten={afsluiten} bezig={bezig} />}
+      {server.status === 'einde' && <LiveEinde sessie={sessie} stand={stand} onAfsluiten={afsluiten} onVerwijder={onVerwijder} />}
     </div>
   );
 }
@@ -327,7 +326,9 @@ export function SpelersRaster({
   onOntkoppel: (spelerId: string) => void;
   onWisBijnaam: (spelerId: string) => void;
 }) {
-  const afwezig = sessie.teams[0].leerlingen.map((l) => l.naam).filter((n) => !spelers.some((s) => s.naam === n && s.verbonden));
+  // Nog niet aangemeld: de namen op de server (voornamen of groepjes), anders de klaslijst.
+  const verwacht = sessie.live?.namen ? Object.keys(sessie.live.namen) : sessie.teams[0].leerlingen.map((l) => l.naam);
+  const afwezig = verwacht.filter((n) => !spelers.some((s) => s.naam === n && s.verbonden));
   return (
     <div className="flex w-full flex-wrap justify-center gap-2">
       {spelers
@@ -463,13 +464,14 @@ function Antwoorden({
 }
 
 /** Eindstand: podium, alle resultaten, export en afsluiten. Werkt ook zonder server (na afsluiten). */
-function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stand?: { naam: string; punten: number }[]; onAfsluiten?: () => void; bezig?: boolean }) {
+function LiveEinde({ sessie, stand, onAfsluiten, onVerwijder }: { sessie: Sessie; stand?: { naam: string; punten: number }[]; onAfsluiten?: () => Promise<void>; onVerwijder: () => void }) {
   const rijen = resultatenPerLeerling(sessie);
+  const kort = korteNaamVan(sessie);
   const ranking =
     stand ??
     [...rijen]
       .filter((r) => r.naam !== '(hele team)')
-      .map((r) => ({ ...r, naam: sessie.live?.bijnamen?.[r.naam] ?? r.naam }))
+      .map((r) => ({ ...r, naam: sessie.live?.bijnamen?.[r.naam] ?? kort(r.naam) }))
       .sort((a, b) => b.punten - a.punten);
   const podium = ranking.slice(0, 3);
   return (
@@ -503,7 +505,7 @@ function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stan
             .map((r) => (
               <tr key={r.naam} className={`border-t border-slate-100 ${r.beurten === 0 ? 'text-slate-400' : ''}`}>
                 <td className="px-4 py-2 font-medium" title={sessie.live?.bijnamen?.[r.naam] ? r.naam : undefined}>
-                  {sessie.live?.bijnamen?.[r.naam] ?? r.naam}
+                  {sessie.live?.bijnamen?.[r.naam] ?? kort(r.naam)}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {r.beurten} / {sessie.vraagVolgorde.length}
@@ -518,17 +520,10 @@ function LiveEinde({ sessie, stand, onAfsluiten, bezig }: { sessie: Sessie; stan
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)
         </Button>
-        {onAfsluiten && (
-          <Button variant="danger" disabled={bezig} onClick={onAfsluiten}>
-            Afsluiten en gegevens op de server wissen
-          </Button>
-        )}
-        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
-          Naar de startpagina
-        </a>
+        <AfsluitKnoppen serverWissen={onAfsluiten} onVerwijder={onVerwijder} />
       </div>
       <p className="mt-3 text-center text-sm text-slate-500">
-        De resultaten zijn bewaard onder Resultaten.{onAfsluiten && ' Gegevens op de server worden ook automatisch gewist na 2 dagen.'}
+        Afsluiten bewaart de resultaten onder Resultaten.{onAfsluiten && ' De gegevens op de server (namen en antwoorden) worden in beide gevallen gewist.'}
       </p>
     </div>
   );

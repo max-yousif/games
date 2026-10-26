@@ -10,16 +10,23 @@ test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', asy
 
   // Merkwaardige producten 100: meerkeuze, juiste antwoord B.
   await page.getByRole('button', { name: '100', exact: true }).first().click();
-  await expect(page.getByText('Wie antwoordt?')).toBeVisible();
-  // Teams zijn willekeurig: kies de eerste leerling van het team dat aan de beurt is.
+  // De vraag verschijnt pas wanneer gekozen is wie antwoordt.
+  await expect(page.getByRole('heading', { name: 'Wie beantwoordt deze vraag?' })).toBeVisible();
+  await expect(page.getByText('Werk uit')).toHaveCount(0);
+  // Teams zijn willekeurig: kies de eerste leerling van het team dat aan de beurt is (alleen: dubbele punten).
   await page.locator('aside button').filter({ hasNotText: /Hele team|Willekeurig/ }).first().click();
+  await expect(page.getByText(/alleen, zonder overleggen: ×2/)).toBeVisible();
   await page.keyboard.press('b');
   await expect(page.getByText('Enter = juist')).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page.locator('span.font-mono', { hasText: /^100\s*punten$/ }).first()).toBeVisible();
+  await expect(page.locator('span.font-mono', { hasText: /^200\s*punten$/ }).first()).toBeVisible();
 
   // Merkwaardige producten 200: open vraag, fout.
   await page.getByRole('button', { name: '200', exact: true }).first().click();
+  // Willekeurig: de naam verschijnt even groot, daarna de vraag.
+  await page.keyboard.press('w');
+  await expect(page.getByText('🎲 Deze vraag is voor')).toBeVisible();
+  await expect(page.getByText('🎲 Deze vraag is voor')).toBeHidden();
   await page.keyboard.press(' ');
   await page.keyboard.press('f');
 

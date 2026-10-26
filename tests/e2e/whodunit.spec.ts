@@ -7,9 +7,12 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   await maakKlas(page, '6A', ['Anna Peeters', 'Bert Claes']);
   await kiesSpel(page, 'Whodunit: de nacht van de 50 dagen (5e–6e jaar)', 'Whodunit');
   await page.locator('div', { has: page.locator('label', { hasText: 'Wachten na fout antwoord' }) }).locator('select').last().selectOption('0');
+  // Per 2 op één laptop: Anna en Bert vormen één groepje.
+  await page.locator('label:text-is("Werken") + select').selectOption('2');
+  await expect(page.getByLabel('Teamnaam')).toHaveValue('Groepje 1');
   const code = await startLive(page);
 
-  const anna = await leerling(page, code, 'Anna Peeters');
+  const anna = await leerling(page, code, 'Anna & Bert');
   await page.getByRole('button', { name: /Start de whodunit/ }).click();
   await expect(anna.getByText('50 dagen om nooit te vergeten!')).toBeVisible();
 
@@ -43,5 +46,11 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   await expect(page.getByText('Iedereen loste het raadsel op!')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'De oplossing' })).toBeVisible();
   await expect(anna.getByText(/Opgelost in/)).toBeVisible();
+
+  // Afsluiten zonder opslaan: de resultaten worden niet bewaard.
+  await page.getByRole('button', { name: 'Afsluiten zonder opslaan' }).click();
+  await expect(page.getByRole('heading', { name: 'Klasspelen' })).toBeVisible();
+  await page.goto('#/resultaten');
+  await expect(page.getByText('Nog geen gespeelde spellen.')).toBeVisible();
   controleer();
 });

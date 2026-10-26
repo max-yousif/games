@@ -111,6 +111,36 @@ export function parseNamen(text: string): string[] {
     .map((k) => k.naam);
 }
 
+const TUSSENVOEGSEL = /^(van|de|der|den|vanden|vande|vander|vandeen|le|la|du|d'|el|ten|ter|op|in|'t|t')$/i;
+
+/**
+ * Raadt of namen als "Voornaam Achternaam" of "Achternaam Voornaam" geschreven zijn: een
+ * tussenvoegsel vooraan (Van den Broeck Anna) wijst op achternaam eerst, een tussenvoegsel als
+ * tweede woord (Anna Van den Broeck) op voornaam eerst. Met de volgorde van de lijst erbij: een
+ * klaslijst is meestal alfabetisch op achternaam gesorteerd.
+ */
+export function raadNaamVolgorde(namen: readonly string[], metLijstvolgorde = false): NaamVolgorde | undefined {
+  const woorden = namen.map((n) => n.trim().split(/\s+/)).filter((w) => w.length >= 2);
+  if (woorden.length === 0) return undefined;
+  let score = 0;
+  for (const w of woorden) {
+    if (TUSSENVOEGSEL.test(w[0])) score += 2;
+    else if (w.length >= 3 && TUSSENVOEGSEL.test(w[1])) score -= 2;
+  }
+  if (metLijstvolgorde && woorden.length >= 4) {
+    const gesorteerd = (f: (w: string[]) => string) =>
+      woorden.slice(1).filter((w, i) => f(woorden[i]).localeCompare(f(w), 'nl', { sensitivity: 'base' }) <= 0).length / (woorden.length - 1);
+    const eerste = gesorteerd((w) => w[0]);
+    const laatste = gesorteerd((w) => w.at(-1)!);
+    if (eerste >= 0.9 && laatste < 0.75) score += woorden.length;
+    else if (laatste >= 0.9 && eerste < 0.75) score -= woorden.length;
+  }
+  return score > 0 ? 'achternaam' : score < 0 ? 'voornaam' : undefined;
+}
+
+/** Naamvolgorde van een klas: ingesteld, anders geraden, anders voornaam eerst. */
+export const naamVolgordeVan = (namen: readonly string[], ingesteld?: NaamVolgorde): NaamVolgorde => ingesteld ?? raadNaamVolgorde(namen) ?? 'voornaam';
+
 /** De voornaam: het eerste woord, of bij "Achternaam Voornaam" het laatste woord. */
 export function roepnaam(naam: string, volgorde: NaamVolgorde = 'voornaam'): string {
   const w = naam.trim().split(/\s+/);

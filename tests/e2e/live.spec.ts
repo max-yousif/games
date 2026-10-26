@@ -8,16 +8,16 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Live quiz');
   const code = await startLive(page);
 
-  const anna = await leerling(page, code, 'Anna Peeters');
+  const anna = await leerling(page, code, 'Anna');
   await anna.getByLabel('Bijnaam').fill('Pi');
   await anna.getByRole('button', { name: 'Opslaan' }).click();
   await expect(anna.getByText('Op het bord:')).toContainText('Pi');
   await expect(page.getByText('Pi', { exact: true })).toBeVisible();
 
-  const bert = await leerling(page, code, 'Bert Claes');
+  const bert = await leerling(page, code, 'Bert');
   bert.on('dialog', (d) => void d.accept());
   // De naam van een klasgenoot mag geen bijnaam zijn.
-  await bert.getByLabel('Bijnaam').fill('Anna Peeters');
+  await bert.getByLabel('Bijnaam').fill('Anna');
   await bert.getByRole('button', { name: 'Opslaan' }).click();
   await expect(bert.getByText(/Die bijnaam kan niet/)).toBeVisible();
 
@@ -33,7 +33,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   // Bert verlaat het spel en keert terug met dezelfde naam.
   await bert.getByRole('button', { name: 'Verlaten' }).click();
   await expect(bert.getByText(/Je hebt het spel verlaten/)).toBeVisible();
-  await bert.getByRole('button', { name: 'Bert Claes', exact: true }).click();
+  await bert.getByRole('button', { name: 'Bert', exact: true }).click();
   await expect(bert.getByText('Vraag 1 / 16')).toBeVisible();
   await bert.getByRole('button', { name: /^A/ }).click();
 
@@ -64,7 +64,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(anna.getByText('Helaas, fout')).toBeVisible();
 
   await page.getByRole('button', { name: /Nu stoppen/ }).click();
-  await expect(page.getByRole('button', { name: /Afsluiten en gegevens/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Afsluiten zonder opslaan' })).toBeVisible();
   await expect(anna.getByText(/Je eindigde op plaats/)).toBeVisible();
   await anna.getByRole('button', { name: 'Nieuw spel meespelen' }).click();
   await expect(anna.getByLabel('Code')).toBeVisible();

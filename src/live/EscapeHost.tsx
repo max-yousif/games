@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AfsluitKnoppen } from '../components/AfsluitKnoppen';
 import { Button, Notice } from '../components/ui';
 import { exporteerSessie, tijdTekst } from '../lib/exportResults';
-import { href } from '../lib/route';
-import { beeindig, resultatenPerLeerling } from '../lib/session';
+import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { backend } from './config';
 import { escapeBeoordelingen, escapeStand, escapeVoortgang, type EscapeVoortgang } from './escape';
 import { whodunitBeoordelingen } from './whodunit';
 import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
-import { schermNaam, synchroniseer } from './logic';
+import { leerlingenVan, schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 
 /** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
-export function EscapeHost({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
-  if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} />;
-  return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} />;
+export function EscapeHost({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
+  if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} onVerwijder={onVerwijder} />;
+  return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} onVerwijder={onVerwijder} />;
 }
 
-/** Tijd tot ontsnappen per leerlingnaam, voor de resultaten en de Excel-export. */
-function ontsnaptPerNaam(voortgang: readonly EscapeVoortgang[]): Record<string, number> {
-  return Object.fromEntries(voortgang.filter((v) => v.ontsnaptMs !== null).map((v) => [v.speler.naam, v.ontsnaptMs!]));
+/** Tijd tot ontsnappen per leerlingnaam (bij een groepje voor elke leerling), voor de resultaten en de Excel-export. */
+function ontsnaptPerNaam(sessie: Sessie, voortgang: readonly EscapeVoortgang[]): Record<string, number> {
+  return Object.fromEntries(voortgang.filter((v) => v.ontsnaptMs !== null).flatMap((v) => leerlingenVan(sessie, v.speler.naam).map((n) => [n, v.ontsnaptMs!])));
 }
 
-function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+function EscapeHostActief({ sessie, onUpdate, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVerwijder: () => void }) {
   const live = sessie.live!;
   const code = live.escapeCode ?? '';
   const be = backend(live.backend);
@@ -76,7 +76,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   useEffect(() => {
     const huidig = sessieRef.current;
     const s = synchroniseer(huidig, spelers, antwoorden, huidig.vraagVolgorde);
-    const ontsnapt = ontsnaptPerNaam(voortgang);
+    const ontsnapt = ontsnaptPerNaam(huidig, voortgang);
     if (
       JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
@@ -102,15 +102,14 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
   async function einde() {
     await be.wijzigSessie(live.sessieId, { status: 'einde', stand: escapeStand(voortgang) });
     const s = synchroniseer(sessie, spelers, antwoorden, sessie.vraagVolgorde);
-    onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: ontsnaptPerNaam(voortgang) } }));
+    onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: ontsnaptPerNaam(sessie, voortgang) } }));
   }
 
-  const afsluiten = () =>
-    actie(async () => {
-      if (!confirm(`${spelNaam} afsluiten? De resultaten blijven bewaard op deze laptop, maar de gegevens op de server worden gewist.`)) return;
-      await be.verwijderSessie(live.sessieId);
-      onUpdate({ ...sessie, live: { ...live, afgesloten: true } });
-    });
+  // Gegevens op de server wissen; de resultaten blijven in de lokale sessie.
+  const afsluiten = async () => {
+    onUpdate({ ...sessie, live: { ...live, afgesloten: true } });
+    await be.verwijderSessie(live.sessieId);
+  };
 
   // Klok: verstreken (of resterende) tijd sinds de start.
   const [nu, setNu] = useState(() => Date.now());
@@ -194,7 +193,7 @@ function EscapeHostActief({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: 
         </div>
       )}
 
-      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={voortgang} onAfsluiten={afsluiten} bezig={bezig} />}
+      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={voortgang} onAfsluiten={afsluiten} onVerwijder={onVerwijder} />}
     </div>
   );
 }
@@ -256,7 +255,7 @@ function VoortgangTabel({ voortgang, vragen, whodunit }: { voortgang: EscapeVoor
   );
 }
 
-function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => void; bezig?: boolean }) {
+function EscapeEinde({ sessie, voortgang, onAfsluiten, onVerwijder }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => Promise<void>; onVerwijder: () => void }) {
   const ontsnapt = sessie.live?.ontsnapt ?? {};
   const aantalSloten = sessie.vraagVolgorde.length;
   const whodunit = sessie.spelType === 'whodunit';
@@ -265,7 +264,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
   const ranking = voortgang
     ? voortgang.map((v) => ({ naam: schermNaam(v.speler), sloten: v.opgelost.size, tijd: v.ontsnaptMs }))
     : rijen
-        .map((r) => ({ naam: sessie.live?.bijnamen?.[r.naam] ?? r.naam, sloten: r.juist, tijd: ontsnapt[r.naam] ?? null }))
+        .map((r) => ({ naam: sessie.live?.bijnamen?.[r.naam] ?? korteNaamVan(sessie)(r.naam), sloten: r.juist, tijd: ontsnapt[r.naam] ?? null }))
         .sort((a, b) => (a.tijd ?? Infinity) - (b.tijd ?? Infinity) || b.sloten - a.sloten);
   const podium = ranking.filter((r) => r.tijd !== null).slice(0, 3);
 
@@ -326,14 +325,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, bezig }: { sessie: Sessie
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)
         </Button>
-        {onAfsluiten && (
-          <Button variant="danger" disabled={bezig} onClick={onAfsluiten}>
-            Afsluiten en gegevens op de server wissen
-          </Button>
-        )}
-        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
-          Naar de startpagina
-        </a>
+        <AfsluitKnoppen serverWissen={onAfsluiten} onVerwijder={onVerwijder} />
       </div>
     </div>
   );

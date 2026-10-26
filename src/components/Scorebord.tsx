@@ -1,9 +1,8 @@
-import { korteNamen } from '../lib/students';
+import { korteNamenVan } from '../lib/session';
 import type { Sessie } from '../lib/types';
 
 export function Scorebord({ sessie, scores, actief, eenheid = 'punten' }: { sessie: Sessie; scores: number[]; actief: number | null; eenheid?: string }) {
-  const alle = sessie.teams.flatMap((t) => t.leerlingen);
-  const kort = new Map(alle.map((l, i) => [l.id, korteNamen(alle.map((x) => x.naam), sessie.naamVolgorde)[i]]));
+  const kort = korteNamenVan(sessie);
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${sessie.teams.length}, minmax(0, 1fr))` }}>
       {sessie.teams.map((t, i) => (

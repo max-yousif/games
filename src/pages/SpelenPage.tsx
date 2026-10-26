@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { maakEscapeCode } from '../live/escape';
@@ -8,7 +8,8 @@ import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
 import { ga, href } from '../lib/route';
 import { shuffle } from '../lib/random';
-import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
+import { maakGroepjes, maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
+import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
 import type { Leerling, SpelType, Team } from '../lib/types';
 
@@ -34,6 +35,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [snelheidsbonus, setSnelheidsbonus] = useState(true);
   const [willekeurig, setWillekeurig] = useState(false);
   const [vrijeNaam, setVrijeNaam] = useState(false);
+  const [dubbel, setDubbel] = useState(true);
+  // Escape room en whodunit: alleen (1) of per 2 of 3 op één laptop.
+  const [groepGrootte, setGroepGrootte] = useState<1 | 2 | 3>(1);
   const [demo, setDemo] = useState(!supabaseIngesteld);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
@@ -45,14 +49,28 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const eigenTempo = spel === 'escape' || spel === 'whodunit';
   const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
+  // Op het scherm enkel voornamen (met initiaal bij dezelfde voornaam).
+  const naamVolgorde = klas ? naamVolgordeVan(klas.leerlingen.map((l) => l.naam), klas.naamVolgorde) : undefined;
+  const kort = useMemo(() => {
+    const l = klas?.leerlingen ?? [];
+    const k = korteNamen(
+      l.map((x) => x.naam),
+      naamVolgorde,
+    );
+    return new Map(l.map((x, i) => [x.id, k[i]]));
+  }, [klas, naamVolgorde]);
+  const kortNaam = (l: Leerling) => kort.get(l.id) ?? l.naam;
   const [escapeMinuten, setEscapeMinuten] = useState<number | null>(20);
   const [wachttijd, setWachttijd] = useState(15);
   const [aantalSloten, setAantalSloten] = useState(0); // 0 = alle vragen
 
   const [teams, setTeams] = useState<Team[]>(() => maakTeams(klas?.leerlingen ?? [], aantalTeams));
   const [afwezig, setAfwezig] = useState<Leerling[]>([]);
-  const verdeel = (leerlingen = klas?.leerlingen ?? [], n = aantalTeams, zonder = afwezig) =>
-    setTeams(maakTeams(leerlingen.filter((l) => !zonder.some((a) => a.id === l.id)), n));
+  const verdeel = (leerlingen = klas?.leerlingen ?? [], n = aantalTeams, zonder = afwezig, grootte: 1 | 2 | 3 = eigenTempo ? groepGrootte : 1) => {
+    const aanwezig = leerlingen.filter((l) => !zonder.some((a) => a.id === l.id));
+    setTeams(grootte > 1 ? maakGroepjes(aanwezig, grootte as 2 | 3) : maakTeams(aanwezig, n));
+  };
+  const metGroepjes = eigenTempo && groepGrootte > 1 && klas !== null;
 
   function markeerAfwezig(ti: number, l: Leerling) {
     setTeams((ts) => ts.map((t, i) => (i === ti ? { ...t, leerlingen: t.leerlingen.filter((x) => x.id !== l.id) } : t)));
@@ -86,7 +104,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       void startLive();
       return;
     }
-    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer, naamVolgorde: klas?.naamVolgorde });
+    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
   }
@@ -105,9 +123,23 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
       const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
+      // Op de server enkel voornamen, of groepjes zoals "Anna & Bert"; de koppeling blijft hier.
+      const namen: Record<string, string[]> = metNamen
+        ? Object.fromEntries(
+            metGroepjes
+              ? teams.filter((t) => t.leerlingen.length).map((t) => [
+                  t.leerlingen
+                    .map(kortNaam)
+                    .sort((x, y) => x.localeCompare(y, 'nl'))
+                    .join(' & '),
+                  t.leerlingen.map((l) => l.id),
+                ])
+              : leerlingen.map((l) => [kortNaam(l), [l.id]]),
+          )
+        : {};
       const server = await backend(soort).maakSessie({
         titel: set.titel,
-        namen: metNamen ? leerlingen.map((l) => l.naam) : [],
+        namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         aantalVragen: gekozen.length,
         timer: spelTimer,
@@ -123,7 +155,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         klasNaam: klas?.naam ?? 'zonder klas',
         teams: [{ naam: klas?.naam ?? 'Spelers', kleur: TEAM_KLEUREN[0], leerlingen: metNamen ? leerlingen : [] }],
         timer: spelTimer,
-        naamVolgorde: klas?.naamVolgorde,
+        naamVolgorde,
       });
       const sessie = {
         ...basis,
@@ -136,6 +168,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           snelheidsbonus: !escape && snelheidsbonus && timer !== null,
           afgesloten: false,
           escapeCode,
+          ...(metNamen ? { namen } : {}),
         },
       } as const;
       store.bewaarSessie(sessie);
@@ -190,7 +223,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               type="button"
               onClick={() => {
                 setSpel(s.type);
-                verdeel(klas?.leerlingen, s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' ? 1 : aantal);
+                verdeel(
+                  klas?.leerlingen,
+                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' ? 1 : aantal,
+                  afwezig,
+                  s.type === 'escape' || s.type === 'whodunit' ? groepGrootte : 1,
+                );
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
               className={`rounded-xl border-2 p-4 text-left transition ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
@@ -255,6 +293,24 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                         {n} (willekeurig gekozen)
                       </option>
                     ))}
+                  </select>
+                </div>
+              )}
+              {klas && (
+                <div className="w-44">
+                  <label className={labelClass}>Werken</label>
+                  <select
+                    className={inputClass}
+                    value={groepGrootte}
+                    onChange={(e) => {
+                      const g = Number(e.target.value) as 1 | 2 | 3;
+                      setGroepGrootte(g);
+                      verdeel(klas.leerlingen, 1, afwezig, g);
+                    }}
+                  >
+                    <option value={1}>alleen</option>
+                    <option value={2}>per 2 (één laptop)</option>
+                    <option value={3}>per 3 (één laptop)</option>
                   </select>
                 </div>
               )}
@@ -365,6 +421,13 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           </div>
         )}
 
+        {spel === 'quizbord' && klas && (
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={dubbel} onChange={(e) => setDubbel(e.target.checked)} />
+            Dubbele punten als één leerling alleen antwoordt (zonder overleggen)
+          </label>
+        )}
+        {metGroepjes && <p className="mb-3 text-sm text-slate-600">Elk groepje speelt samen op één laptop. Klik op een naam om die naar het volgende groepje te verplaatsen.</p>}
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={isLive && !klas}>
           {teams.map((t, ti) => (
             <div key={ti} className="rounded-xl border-2 p-3" style={{ borderColor: t.kleur }}>
@@ -384,7 +447,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                       title="Klik om naar het volgende team te verplaatsen"
                       className="rounded-l-full py-1 pr-1 pl-2.5 hover:bg-slate-200"
                     >
-                      {l.naam}
+                      {kortNaam(l)}
                     </button>
                     <button
                       type="button"
@@ -413,7 +476,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 title="Toch aanwezig"
                 className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-slate-500 line-through hover:bg-slate-50"
               >
-                {l.naam}
+                {kortNaam(l)}
               </button>
             ))}
           </div>

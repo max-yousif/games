@@ -12,7 +12,7 @@ test('escape room: sloten openen, foute code, ontsnappen', async ({ page }) => {
   await page.locator('div', { has: page.locator('label', { hasText: 'Wachten na fout antwoord' }) }).locator('select').last().selectOption('0');
   const code = await startLive(page);
 
-  const anna = await leerling(page, code, 'Anna Peeters');
+  const anna = await leerling(page, code, 'Anna');
   await page.getByRole('button', { name: /Start de escape room/ }).click();
   const slot = (n: number) => anna.locator('main button', { hasText: `Slot ${n}` });
 

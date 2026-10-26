@@ -114,6 +114,8 @@ export interface LiveInfo {
   escapeCode?: string;
   /** Escape room: tijd tot ontsnappen (ms) per leerlingnaam. */
   ontsnapt?: Record<string, number>;
+  /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */
+  namen?: Record<string, string[]>;
   /** Bijnamen per leerlingnaam (voor op het scherm). */
   bijnamen?: Record<string, string>;
 }
@@ -139,6 +141,8 @@ export interface Sessie {
   live?: LiveInfo;
   /** Whodunit: kopie van het raadsel (met de oplossing) bij de start. */
   raadsel?: Raadsel;
+  /** Quizbord: dubbele punten voor een leerling die alleen antwoordt. */
+  dubbelIndividueel?: boolean;
   /** Naamvolgorde van de klas, voor de korte namen op het scorebord. */
   naamVolgorde?: NaamVolgorde;
 }

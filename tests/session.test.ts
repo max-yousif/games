@@ -70,3 +70,24 @@ describe('vier op een rij: zetten en ongedaan maken', () => {
     expect(wachtOpZet(s)).toBeNull();
   });
 });
+
+import { maakGroepjes as groepjes } from '../src/lib/session';
+import { raadNaamVolgorde } from '../src/lib/students';
+
+describe('groepjes en naamvolgorde', () => {
+  const ll = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i), naam: `L${i}` }));
+  it('per 2 en per 3', () => {
+    expect(groepjes(ll(7), 2).map((g) => g.leerlingen.length).sort()).toEqual([2, 2, 3]);
+    expect(groepjes(ll(7), 3).map((g) => g.leerlingen.length).sort()).toEqual([2, 2, 3]);
+    expect(groepjes(ll(1), 2)).toHaveLength(1);
+    expect(groepjes(ll(4), 2)[0].naam).toBe('Groepje 1');
+  });
+  it('raadt de naamvolgorde', () => {
+    expect(raadNaamVolgorde(['Van den Broeck Anna', 'Peeters Bert'])).toBe('achternaam');
+    expect(raadNaamVolgorde(['Anna Van den Broeck', 'Bert Peeters'])).toBe('voornaam');
+    expect(raadNaamVolgorde(['Claes Bert', 'Janssens Anna', 'Peeters Dries', 'Wouters Chloé'], true)).toBe('achternaam');
+    // Gesorteerd op het laatste woord: dat is de achternaam.
+    expect(raadNaamVolgorde(['Bert Claes', 'Anna Janssens', 'Chloé Peeters', 'Dries Wouters'], true)).toBe('voornaam');
+    expect(raadNaamVolgorde(['Anna Claes', 'Bert'])).toBeUndefined();
+  });
+});

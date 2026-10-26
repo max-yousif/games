@@ -229,24 +229,39 @@ export function bijnamenVan(spelers: readonly LiveSpeler[]): Record<string, stri
 export function synchroniseer(sessie: Sessie, spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], volgorde: readonly string[]): Sessie {
   const team = sessie.teams[0];
   const leerlingen: Leerling[] = [...team.leerlingen];
-  const idVan = new Map<string, string>();
+  // Per speler de leerlingen erachter: via de namen op de server (voornaam of groepje), anders op naam.
+  const idsVan = new Map<string, string[]>();
+  const bijnamen: Record<string, string> = { ...sessie.live?.bijnamen };
   for (const s of spelers) {
-    let l = leerlingen.find((x) => x.naam === s.naam);
-    if (!l) {
-      l = { id: s.id, naam: s.naam };
-      leerlingen.push(l);
+    const ids = sessie.live?.namen?.[s.naam]?.filter((id) => leerlingen.some((l) => l.id === id));
+    if (ids?.length) idsVan.set(s.id, ids);
+    else {
+      let l = leerlingen.find((x) => x.naam === s.naam);
+      if (!l) {
+        l = { id: s.id, naam: s.naam };
+        leerlingen.push(l);
+      }
+      idsVan.set(s.id, [l.id]);
     }
-    idVan.set(s.id, l.id);
+    if (s.bijnaam) for (const id of idsVan.get(s.id)!) bijnamen[leerlingen.find((l) => l.id === id)!.naam] = s.bijnaam;
   }
+  // Bij een groepje krijgt elke leerling van het groepje de beurt.
   const beurten: Beurt[] = antwoorden
-    .filter((a) => a.juist !== null && idVan.has(a.spelerId) && volgorde[a.vraagNr])
+    .filter((a) => a.juist !== null && idsVan.has(a.spelerId) && volgorde[a.vraagNr])
     .sort((a, b) => a.vraagNr - b.vraagNr || a.tijdMs - b.tijdMs)
-    .map((a) => ({ vraagId: volgorde[a.vraagNr], team: 0, leerlingId: idVan.get(a.spelerId)!, juist: a.juist!, punten: a.punten, tijd: sessie.gestart }));
-  const bijnamen = { ...sessie.live?.bijnamen, ...bijnamenVan(spelers) };
+    .flatMap((a) => idsVan.get(a.spelerId)!.map((leerlingId) => ({ vraagId: volgorde[a.vraagNr], team: 0, leerlingId, juist: a.juist!, punten: a.punten, tijd: sessie.gestart })));
   return {
     ...sessie,
     teams: [{ ...team, leerlingen }, ...sessie.teams.slice(1)],
     beurten,
     live: sessie.live && { ...sessie.live, ...(Object.keys(bijnamen).length ? { bijnamen } : {}) },
   };
+}
+
+/** Leerlingnamen achter een speler op de server (één naam, of de leden van een groepje). */
+export function leerlingenVan(sessie: Sessie, serverNaam: string): string[] {
+  const ids = sessie.live?.namen?.[serverNaam];
+  const alle = sessie.teams.flatMap((t) => t.leerlingen);
+  const namen = ids?.map((id) => alle.find((l) => l.id === id)?.naam).filter((n): n is string => !!n);
+  return namen?.length ? namen : [serverNaam];
 }

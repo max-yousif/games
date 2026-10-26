@@ -11,6 +11,11 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
   levert een hint op; met de hints vullen leerlingen een tabel in. Wie de tabel als eerste juist
   heeft, wint. Het raadsel (verhaal, tabel met de oplossing, hints) stel je in onderaan de editor
   van een vragenset.
+- Bij het quizbord kies je eerst wie antwoordt (een leerling, willekeurig of het hele team);
+  pas dan verschijnt de vraag. Wie alleen antwoordt, krijgt dubbele punten (instelbaar).
+- Escape room en whodunit kunnen ook per 2 of per 3 op één laptop.
+- Op het scherm staan enkel voornamen (met initiaal bij dezelfde voornaam).
+- Na een spel: **Afsluiten** (resultaten bewaren) of **Afsluiten zonder opslaan**.
 
 ## Aan de slag
 

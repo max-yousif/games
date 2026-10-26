@@ -1,14 +1,17 @@
 import { exporteerSessie } from '../lib/exportResults';
-import { href } from '../lib/route';
-import { resultatenPerLeerling, teamScores } from '../lib/session';
+import { AfsluitKnoppen } from './AfsluitKnoppen';
+import { korteNaamVan, resultatenPerLeerling, teamScores } from '../lib/session';
 import type { Sessie } from '../lib/types';
 import { Button } from './ui';
 
-export function EindScherm({ sessie, winnaar, onOpnieuw }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void }) {
+export function EindScherm({ sessie, winnaar, onOpnieuw, onVerwijder }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void; onVerwijder: () => void }) {
   const scores = teamScores(sessie);
   const volgorde = sessie.teams.map((t, i) => ({ ...t, i, score: scores[i] })).sort((a, b) => b.score - a.score);
   const winnaars = winnaar !== undefined ? (winnaar === null ? [] : [winnaar]) : volgorde.filter((t) => t.score === volgorde[0].score && t.score > 0).map((t) => t.i);
-  const rijen = resultatenPerLeerling(sessie).filter((r) => r.beurten > 0);
+  const kort = korteNaamVan(sessie);
+  const rijen = resultatenPerLeerling(sessie)
+    .filter((r) => r.beurten > 0)
+    .map((r) => ({ ...r, naam: kort(r.naam) }));
   const besteJuist = Math.max(0, ...rijen.filter((r) => r.naam !== '(hele team)').map((r) => r.juist));
   const sterren = rijen.filter((r) => r.naam !== '(hele team)' && r.juist === besteJuist && besteJuist > 0).map((r) => r.naam);
 
@@ -70,11 +73,9 @@ export function EindScherm({ sessie, winnaar, onOpnieuw }: { sessie: Sessie; win
           ⬇ Resultaten exporteren (Excel)
         </Button>
         <Button onClick={onOpnieuw}>↻ Opnieuw spelen met dezelfde teams</Button>
-        <a href={href({ pagina: 'start' })} className="rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
-          Naar de startpagina
-        </a>
+        <AfsluitKnoppen onVerwijder={onVerwijder} />
       </div>
-      <p className="mt-4 text-center text-sm text-slate-500">De resultaten zijn ook bewaard onder Resultaten.</p>
+      <p className="mt-4 text-center text-sm text-slate-500">Afsluiten bewaart de resultaten onder Resultaten; zonder opslaan worden ze gewist.</p>
     </div>
   );
 }

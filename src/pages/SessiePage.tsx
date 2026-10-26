@@ -60,6 +60,13 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
     ga({ pagina: 'sessie', id: nieuw.id });
   }
 
+  // Afsluiten zonder opslaan: eerst weg van deze pagina, dan de sessie wissen.
+  function verwijder() {
+    const id = sessie!.id;
+    ga({ pagina: 'start' });
+    store.setSessies((all) => all.filter((x) => x.id !== id));
+  }
+
   const vierWinnaar = sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : undefined;
   const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit';
   const kanOngedaan = sessie.beurten.length > 0 && !isLive;
@@ -95,12 +102,12 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
       </header>
 
       {sessie.spelType === 'escape' || sessie.spelType === 'whodunit' ? (
-        <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} />
+        <EscapeHost sessie={sessie} onUpdate={store.bewaarSessie} onVerwijder={verwijder} />
       ) : isLive ? (
-        <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} />
+        <LiveHost sessie={sessie} onUpdate={store.bewaarSessie} onVerwijder={verwijder} />
       ) : sessie.beeindigd ? (
         <div className="flex-1 overflow-y-auto">
-          <EindScherm sessie={sessie} winnaar={vierWinnaar} onOpnieuw={opnieuw} />
+          <EindScherm sessie={sessie} winnaar={vierWinnaar} onOpnieuw={opnieuw} onVerwijder={verwijder} />
         </div>
       ) : sessie.spelType === 'quizbord' ? (
         <QuizBord sessie={sessie} onUpdate={store.bewaarSessie} />

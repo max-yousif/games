@@ -52,9 +52,10 @@ export function QuizBord({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: S
           team={team}
           vraag={open}
           punten={open.punten}
+          dubbel={!!sessie.dubbelIndividueel}
           onAnnuleer={() => setOpen(null)}
           onKlaar={({ leerlingId, juist }) => {
-            let s = voegBeurtToe(sessie, { vraagId: open.id, team, leerlingId, juist, punten: juist ? open.punten : 0 });
+            let s = voegBeurtToe(sessie, { vraagId: open.id, team, leerlingId, juist, punten: juist ? open.punten * (sessie.dubbelIndividueel && leerlingId !== null ? 2 : 1) : 0 });
             if (gespeeldeVragen(s).size >= s.vragen.length) s = beeindig(s);
             onUpdate(s);
             setOpen(null);
