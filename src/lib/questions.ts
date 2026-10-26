@@ -47,6 +47,7 @@ export function dupliceerSet(set: Vragenset): Vragenset {
     id: newId(),
     titel: `${set.titel} (kopie)`,
     voorbeeld: undefined,
+    statistiek: undefined,
     vragen: set.vragen.map(kopieVraag),
     aangemaakt: nu(),
     gewijzigd: nu(),

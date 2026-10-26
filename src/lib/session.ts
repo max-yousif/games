@@ -70,6 +70,26 @@ export function korteNaamVan(s: Sessie): (naam: string) => string {
   return (naam) => perNaam.get(naam) ?? naam;
 }
 
+/**
+ * Aantal spelers in een spel: bij live spellen wie minstens één keer antwoordde, bij klassikale
+ * spellen alle leerlingen in de teams (afwezigen zijn eruit gehaald).
+ */
+export function aantalSpelers(s: Sessie): number {
+  const leerlingen = s.teams.flatMap((t) => t.leerlingen);
+  if (s.live) return leerlingen.filter((l) => s.beurten.some((b) => b.leerlingId === l.id)).length;
+  return leerlingen.length;
+}
+
+/** Statistiek van de vragensets bijwerken met afgelopen spellen. */
+export function telGespeeld(sets: readonly Vragenset[], sessies: readonly Sessie[]): Vragenset[] {
+  return sets.map((set) => {
+    const eigen = sessies.filter((s) => s.setId === set.id);
+    if (eigen.length === 0) return set;
+    const oud = set.statistiek ?? { gespeeld: 0, spelers: 0 };
+    return { ...set, statistiek: { gespeeld: oud.gespeeld + eigen.length, spelers: oud.spelers + eigen.reduce((t, s) => t + aantalSpelers(s), 0) } };
+  });
+}
+
 export function teamScores(s: Sessie): number[] {
   const scores = s.teams.map(() => 0);
   for (const b of s.beurten) scores[b.team] += b.punten;

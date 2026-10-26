@@ -52,5 +52,8 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   await expect(page.getByRole('heading', { name: 'Klasspelen' })).toBeVisible();
   await page.goto('#/resultaten');
   await expect(page.getByText('Nog geen gespeelde spellen.')).toBeVisible();
+  // Zonder opslaan telt ook niet mee in de statistiek van de vragenset.
+  await page.goto('#/sets');
+  await expect(page.locator('div.flex-col', { hasText: 'Whodunit: de nacht van de 50 dagen' }).getByText('▶ nog niet gespeeld')).toBeVisible();
   controleer();
 });

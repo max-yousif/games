@@ -74,6 +74,11 @@ export function SetsPage({ store }: { store: Store }) {
                 {s.vragen.length} vragen{klaar < s.vragen.length && ` (${s.vragen.length - klaar} onvolledig)`}
                 {categorieen.length > 0 && ` · ${categorieen.join(', ')}`}
               </p>
+              <p className="mt-1 text-sm text-slate-500">
+                {s.statistiek?.gespeeld
+                  ? `▶ ${s.statistiek.gespeeld}× gespeeld · ${s.statistiek.spelers} ${s.statistiek.spelers === 1 ? 'speler' : 'spelers'}`
+                  : '▶ nog niet gespeeld'}
+              </p>
               <div className="mt-4 flex flex-wrap gap-2 pt-1">
                 <a href={href({ pagina: 'spelen', setId: s.id })} className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-110">
                   Spelen

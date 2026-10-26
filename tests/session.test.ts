@@ -91,3 +91,27 @@ describe('groepjes en naamvolgorde', () => {
     expect(raadNaamVolgorde(['Anna Claes', 'Bert'])).toBeUndefined();
   });
 });
+
+import { aantalSpelers, telGespeeld } from '../src/lib/session';
+import type { Sessie, Vragenset } from '../src/lib/types';
+
+describe('statistiek per vragenset', () => {
+  const set = { id: 's1', titel: 'S', beschrijving: '', vak: 'wiskunde', leerjaar: '', vragen: [], aangemaakt: '', gewijzigd: '' } as Vragenset;
+  const sessie = (live: boolean, beurten: string[]): Sessie =>
+    ({
+      id: Math.random().toString(),
+      spelType: live ? 'live' : 'quizbord',
+      setId: 's1',
+      teams: [{ naam: 'T', kleur: '', leerlingen: [{ id: 'a', naam: 'Anna' }, { id: 'b', naam: 'Bert' }, { id: 'c', naam: 'Chloé' }] }],
+      beurten: beurten.map((id) => ({ vraagId: 'v', team: 0, leerlingId: id, juist: true, punten: 1, tijd: '' })),
+      ...(live ? { live: {} } : {}),
+    }) as unknown as Sessie;
+  it('telt spelers: live wie antwoordde, klassikaal alle leerlingen in de teams', () => {
+    expect(aantalSpelers(sessie(true, ['a', 'a', 'b']))).toBe(2);
+    expect(aantalSpelers(sessie(false, ['a']))).toBe(3);
+  });
+  it('telt spellen en spelers op', () => {
+    const [s] = telGespeeld([{ ...set, statistiek: { gespeeld: 2, spelers: 40 } }], [sessie(false, []), sessie(true, ['c'])]);
+    expect(s.statistiek).toEqual({ gespeeld: 4, spelers: 44 });
+  });
+});

@@ -207,7 +207,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         {set && (
           <p className="mt-2 text-sm text-slate-500">
             {vragen.length} speelbare vragen
-            {vragen.length < set.vragen.length && ` (${set.vragen.length - vragen.length} onvolledige vragen worden overgeslagen)`}.{' '}
+            {vragen.length < set.vragen.length && ` (${set.vragen.length - vragen.length} onvolledige vragen worden overgeslagen)`}
+            {set.statistiek?.gespeeld ? ` · al ${set.statistiek.gespeeld}× gespeeld met ${set.statistiek.spelers} spelers` : ''}.{' '}
             <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
               Bewerken
             </a>

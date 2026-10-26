@@ -41,5 +41,9 @@ test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', asy
   await page.getByRole('tab', { name: 'Per leerling' }).click();
   await expect(page.getByRole('heading', { name: '3A' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '100%' }).first()).toBeVisible();
+
+  // De vragenset telt het spel en de 4 spelers.
+  await page.goto('#/sets');
+  await expect(page.locator('div', { hasText: 'Algebra: merkwaardige producten' }).getByText('▶ 1× gespeeld · 4 spelers')).toBeVisible();
   controleer();
 });

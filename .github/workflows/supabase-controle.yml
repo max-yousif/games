@@ -17,6 +17,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          # Optioneel: het wachtwoord van het gastaccount als repository secret, om het account te testen.
+          GAST_WACHTWOORD: ${{ secrets.GAST_WACHTWOORD }}
         run: |
           set -u
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
@@ -77,6 +79,41 @@ jobs:
 
           roep POST /rest/v1/rpc/live_is_leerkracht "$TOKEN" '{}'
           [ "$BODY" = "false" ] && ok "Functie live_is_leerkracht werkt" || fout "live_is_leerkracht gaf $CODE: $BODY"
+
+          # Gastaccount: aanmelden, leerkracht?, iets bewaren en weer wissen, een live spel maken en wissen.
+          if [ -n "${GAST_WACHTWOORD:-}" ]; then
+            roep POST "/auth/v1/token?grant_type=password" "$SUPABASE_ANON_KEY" "$(jq -n --arg p "$GAST_WACHTWOORD" '{email: "gast@klasspelen.local", password: $p}')"
+            GAST=$(jq -r '.access_token // empty' <<<"$BODY")
+            GAST_ID=$(jq -r '.user.id // empty' <<<"$BODY")
+            if [ -z "$GAST" ]; then
+              fout "Aanmelden als gast lukt niet ($CODE): $(jq -r '.msg // .error_description // .message // .' <<<"$BODY")"
+            else
+              ok "Aanmelden met gebruikersnaam Gast lukt"
+              roep GET "/rest/v1/leerkrachten?select=naam" "$GAST"
+              [ "$(jq -r '.[0].naam // empty' <<<"$BODY")" = gast ] && ok "Gast staat in de tabel leerkrachten" || fout "Gast staat niet in de tabel leerkrachten: $BODY"
+              roep POST /rest/v1/rpc/live_is_leerkracht "$GAST" '{}'
+              [ "$BODY" = true ] && ok "Gast is leerkracht" || fout "live_is_leerkracht voor gast gaf $BODY"
+              # Restjes van een vorige controle eerst opruimen.
+              roep DELETE "/rest/v1/leerkracht_items?soort=eq.set&id=eq.controle" "$GAST"
+              roep DELETE "/rest/v1/live_sessies?code=eq.GASTCTRL" "$GAST"
+              roep POST /rest/v1/leerkracht_items "$GAST" "{\"eigenaar\":\"$GAST_ID\",\"soort\":\"set\",\"id\":\"controle\",\"data\":{}}"
+              if [ "$CODE" = 201 ]; then
+                ok "Gast kan iets bewaren in de cloud"
+                roep DELETE "/rest/v1/leerkracht_items?soort=eq.set&id=eq.controle" "$GAST"
+              else
+                fout "Gast kan niets bewaren ($CODE): $BODY"
+              fi
+              roep POST /rest/v1/live_sessies "$GAST" '{"code":"GASTCTRL","titel":"controle"}'
+              if [ "$CODE" = 201 ]; then
+                ok "Gast kan een live spel starten"
+                roep DELETE "/rest/v1/live_sessies?code=eq.GASTCTRL" "$GAST"
+              else
+                fout "Gast kan geen live spel starten ($CODE): $BODY"
+              fi
+            fi
+          else
+            echo "ℹ️ Geen secret GAST_WACHTWOORD: het gastaccount wordt niet getest."
+          fi
 
           if [ "$FOUTEN" -gt 0 ]; then
             echo "$FOUTEN probleem/problemen gevonden."

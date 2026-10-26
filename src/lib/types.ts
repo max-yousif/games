@@ -59,6 +59,8 @@ export interface Vragenset {
   voorbeeld?: string;
   /** Raadsel voor het spel Whodunit. */
   raadsel?: Raadsel;
+  /** Hoe vaak deze set gespeeld werd en met hoeveel spelers in totaal (blijft, ook als resultaten gewist worden). */
+  statistiek?: { gespeeld: number; spelers: number };
   aangemaakt: string;
   gewijzigd: string;
 }
@@ -141,6 +143,8 @@ export interface Sessie {
   live?: LiveInfo;
   /** Whodunit: kopie van het raadsel (met de oplossing) bij de start. */
   raadsel?: Raadsel;
+  /** Meegeteld in de statistiek van de vragenset. */
+  geteld?: boolean;
   /** Quizbord: dubbele punten voor een leerling die alleen antwoordt. */
   dubbelIndividueel?: boolean;
   /** Naamvolgorde van de klas, voor de korte namen op het scorebord. */

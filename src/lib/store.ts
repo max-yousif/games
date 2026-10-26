@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
 import { loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
+import { telGespeeld } from './session';
 import type { Klas, Sessie, Vragenset } from './types';
 import { useAccount, type Account } from './account';
 import { useCloud, vergeetCloud, type Cloud } from './useCloud';
+
+/** Id van het spel dat nu open staat (#/sessie/...), of null. */
+const huidigSpel = () => /#\/sessie\/([^/?]+)/.exec(window.location.hash)?.[1] ?? null;
 
 /** Voegt voorbeeldsets toe die nog nooit toegevoegd werden. */
 function metVoorbeelden(sets: Vragenset[]): Vragenset[] {
@@ -38,6 +42,23 @@ export function useStore(): Store {
   useEffect(() => saveSets(sets), [sets]);
   useEffect(() => saveKlassen(klassen), [klassen]);
   useEffect(() => saveSessies(sessies), [sessies]);
+
+  // Afgelopen spellen meetellen in de statistiek van hun vragenset, zodra het spel niet meer open
+  // staat (zo telt "Afsluiten zonder opslaan" niet mee: dat wist het spel vóór het geteld wordt).
+  const [openSpel, setOpenSpel] = useState(huidigSpel);
+  useEffect(() => {
+    const bij = () => setOpenSpel(huidigSpel());
+    window.addEventListener('hashchange', bij);
+    return () => window.removeEventListener('hashchange', bij);
+  }, []);
+  const geteld = useRef(new Set<string>());
+  useEffect(() => {
+    const nieuw = sessies.filter((s) => s.beeindigd && !s.geteld && s.id !== openSpel && !geteld.current.has(s.id));
+    if (nieuw.length === 0) return;
+    for (const s of nieuw) geteld.current.add(s.id);
+    setSetsState((all) => telGespeeld(all, nieuw));
+    setSessiesState((all) => all.map((s) => (nieuw.some((n) => n.id === s.id) ? { ...s, geteld: true } : s)));
+  }, [sessies, openSpel]);
 
   const bewaarSessie = useCallback(
     (s: Sessie) => setSessiesState((all) => (all.some((x) => x.id === s.id) ? all.map((x) => (x.id === s.id ? s : x)) : [...all, s])),
