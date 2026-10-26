@@ -7,7 +7,7 @@ import { ga, href } from '../lib/route';
 import { ontbrekendeVoorbeelden, type Store } from '../lib/store';
 import type { Vak, Vragenset } from '../lib/types';
 
-export const VAK_LABELS: Record<Vak, string> = { wiskunde: 'Wiskunde', python: 'Python', andere: 'Andere' };
+export const VAK_LABELS: Record<Vak, string> = { wiskunde: 'Wiskunde', python: 'Python', ict: 'ICT', andere: 'Andere' };
 
 export function SetsPage({ store }: { store: Store }) {
   const [melding, setMelding] = useState<{ tone: 'ok' | 'warn'; tekst: string } | null>(null);

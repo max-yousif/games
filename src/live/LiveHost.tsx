@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RichText } from '../components/RichText';
+import { QrCode } from '../components/QrCode';
 import { AfsluitKnoppen } from '../components/AfsluitKnoppen';
 import { Button, Notice } from '../components/ui';
 import { VraagWeergave } from '../components/VraagWeergave';
@@ -330,16 +331,22 @@ export function Wachtruimte({
   const aantal = spelers.filter((s) => s.verbonden).length;
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-4">
-      <div className="text-center">
-        <div className="text-xl text-slate-600">Ga naar</div>
-        <div className="mt-1 rounded-xl bg-surface px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
-        <div className="mt-4 text-xl text-slate-600">en geef deze code in:</div>
-        <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent-tekst)]">{live.code}</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Of rechtstreeks:{' '}
-          <a className="underline" href={link} target="_blank" rel="noreferrer">
-            {link}
-          </a>
+      <div className="flex flex-wrap items-center justify-center gap-10">
+        <div className="text-center">
+          <div className="text-xl text-slate-600">Ga naar</div>
+          <div className="mt-1 rounded-xl bg-surface px-6 py-3 font-mono text-2xl shadow-sm select-all">{link.split('?')[0]}</div>
+          <div className="mt-4 text-xl text-slate-600">en geef deze code in:</div>
+          <div className="mt-2 font-mono text-8xl font-bold tracking-[0.2em] text-[var(--accent-tekst)]">{live.code}</div>
+          <div className="mt-2 text-sm text-slate-500">
+            Of rechtstreeks:{' '}
+            <a className="underline" href={link} target="_blank" rel="noreferrer">
+              {link}
+            </a>
+          </div>
+        </div>
+        <div className="text-center">
+          <QrCode tekst={link} className="h-64 w-64 shadow-sm" />
+          <div className="mt-2 text-lg text-slate-600">Scan om meteen mee te doen</div>
         </div>
       </div>
       <SpelersRaster sessie={sessie} spelers={spelers} beantwoord={null} onOntkoppel={onOntkoppel} onWisBijnaam={onWisBijnaam} />

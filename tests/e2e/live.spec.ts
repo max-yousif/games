@@ -7,6 +7,8 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Live quiz');
   const code = await startLive(page);
+  await expect(page.getByAltText('QR-code om mee te doen')).toBeVisible();
+  if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK });
 
   const anna = await leerling(page, code, 'Anna');
   await anna.getByLabel('Bijnaam').fill('Pi');

@@ -1,4 +1,4 @@
-export type Vak = 'wiskunde' | 'python' | 'andere';
+export type Vak = 'wiskunde' | 'python' | 'ict' | 'andere';
 
 export type VraagType = 'open' | 'meerkeuze' | 'waaronwaar' | 'getal' | 'invullen' | 'ordenen' | 'koppelen';
 
