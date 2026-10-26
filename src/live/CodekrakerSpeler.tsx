@@ -7,7 +7,7 @@ import {
   leesBeloning,
   vraagIndex,
   volgendeActieNr,
-  WOORDEN,
+  wachtwoordOpties,
   type Actie,
   type DoelBeloning,
   type KistBeloning,
@@ -27,7 +27,7 @@ const UITKOMST: Record<KistBeloning['uitkomst'], { icoon: string; tekst: (b: Kis
   pech: { icoon: '💸', tekst: (b) => (b.bedrag < 0 ? `Pech: ${fmt(b.bedrag)} munten` : 'Pech… maar je had nog niets te verliezen.') },
 };
 
-/** Codekraker voor de leerling: wachtwoord kiezen, vragen beantwoorden, kistjes openen en hacken. */
+/** Crypto Hack voor de leerling: wachtwoord kiezen, vragen beantwoorden, kistjes openen en hacken. */
 export function CodekrakerSpeler({
   be,
   sessie,
@@ -56,7 +56,8 @@ export function CodekrakerSpeler({
   for (const a of antwoorden) if (a.juist === false && !foutGezien.current.has(a.id)) foutGezien.current.set(a.id, Date.now());
 
   const ik: LiveSpeler = { id: spelerId ?? '', naam: '', bijnaam: null, verbonden: true };
-  const eigen = antwoorden;
+  // Enkel de eigen antwoorden (de leerkracht die zelf meespeelt, ziet in de database alle antwoorden).
+  const eigen = antwoorden.filter((a) => a.spelerId === spelerId);
   const t = codekrakerToestand([ik], eigen).spelers.get(ik.id)!;
   const rij = sessie.stand.find((r) => r.id === spelerId);
   const plaats = sessie.stand.findIndex((r) => r.id === spelerId) + 1;
@@ -116,14 +117,15 @@ export function CodekrakerSpeler({
     inhoud = (
       <Kaart titel="🔑 Kies je geheime wachtwoord">
         <p className="text-slate-600">Medespelers kunnen proberen het te raden om jouw munten te stelen. Vertel het aan niemand!</p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {WOORDEN.map((w) => (
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {wachtwoordOpties(spelerId ?? '').map((w) => (
             <button
               key={w}
               type="button"
               disabled={bezig || wacht}
               onClick={() => void doe({ soort: 'wachtwoord', woord: w })}
-              className="rounded-xl border-2 border-slate-200 px-4 py-4 font-mono text-xl font-bold hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+              data-wachtwoord
+              className="rounded-xl border-2 border-slate-200 px-4 py-6 font-mono text-2xl font-bold hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
             >
               {w}
             </button>
@@ -132,7 +134,13 @@ export function CodekrakerSpeler({
       </Kaart>
     );
   } else if (wacht) {
-    inhoud = <Kaart titel="⏳ Even geduld…">Wordt nagekeken.</Kaart>;
+    const sinds = Math.max(0, verstreken - Math.min(...eigen.filter((a) => a.juist === null).map((a) => a.tijdMs)));
+    inhoud = (
+      <Kaart titel="⏳ Even geduld…">
+        Wordt nagekeken.
+        {sinds > 8000 && <p className="mt-2 text-slate-500">Dit duurt lang: het spel moet open blijven op de laptop van de leerkracht.</p>}
+      </Kaart>
+    );
   } else if (laatsteActie && laatsteSoort?.soort === 'kist' && !gezien.has(laatsteActie.vraagNr)) {
     // Uitkomst van het kistje tonen (bij een hackkans: meteen een doelwit kiezen).
     const b = leesBeloning<KistBeloning>(laatsteActie.beloning)!;
@@ -226,7 +234,9 @@ export function CodekrakerSpeler({
         </div>
       </Kaart>
     );
-  } else if (vragen.length > 0) {
+  } else if (vragen.length === 0) {
+    inhoud = <Kaart titel="⚠️ Geen vragen">Er zijn geen vragen gevonden voor dit spel. Vraag de leerkracht om het spel opnieuw te starten.</Kaart>;
+  } else {
     const v = vragen[vraagIndex(spelerId ?? '', volgendeNr, vragen.length)];
     inhoud = (
       <Kaart titel="">
@@ -242,6 +252,11 @@ export function CodekrakerSpeler({
         <span className="rounded-2xl bg-amber-100 px-4 py-2 font-mono text-3xl font-bold text-amber-900">🪙 {fmt(rij?.punten ?? 0)}</span>
         {plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
         {rij?.firewall && <span className="rounded-full bg-sky-100 px-3 py-1 font-semibold text-sky-800">🛡️ firewall</span>}
+        {t.wachtwoord && (
+          <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-slate-700" title="Je geheime wachtwoord">
+            🔑 {t.wachtwoord}
+          </span>
+        )}
         {t.mult > 1 && <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">×{t.mult}</span>}
         <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
           ⏱ {tijdTekst(resterend !== null ? resterend : verstreken)}

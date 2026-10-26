@@ -7,6 +7,8 @@ import {
   leesBeloning,
   rolKist,
   vraagIndex,
+  wachtwoordOpties,
+  WOORDEN,
   volgendeActieNr,
   type DoelBeloning,
   type RaadBeloning,
@@ -48,7 +50,7 @@ describe('codekraker', () => {
   });
 
   it('juist antwoord geeft een kistje; het kistje geeft munten', () => {
-    let alle = [ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: 'sinus' }), 1), ant('A', 0, juisteAntwoord('A', 0), 2)];
+    let alle = [ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('A')[0] }), 1), ant('A', 0, juisteAntwoord('A', 0), 2)];
     alle = speel(alle, () => 0);
     expect(alle[1].juist).toBe(true);
     expect(codekrakerToestand(spelers, alle).spelers.get('A')!.openKisten).toEqual([0]);
@@ -74,8 +76,8 @@ describe('codekraker', () => {
   it('hacken: doelwit kiezen, wachtwoord raden, munten stelen', () => {
     const hackIndex = 22 + 20 + 13 + 6 + 2 + 10 + 4 + 7 + 4;
     let alle = [
-      ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: 'sinus' }), 1),
-      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: 'priem' }), 1),
+      ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('A')[0] }), 1),
+      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1),
       ant('B', 0, juisteAntwoord('B', 0), 2),
       ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 3),
     ];
@@ -87,14 +89,15 @@ describe('codekraker', () => {
     alle = speel(alle, () => 0);
     const opties = leesBeloning<DoelBeloning>(alle.at(-1)!.beloning)!.opties!;
     expect(opties).toHaveLength(3);
-    expect(opties).toContain('priem');
-    alle.push(ant('A', ACTIE_BASIS + 3, JSON.stringify({ soort: 'raad', doelActie: ACTIE_BASIS + 2, woord: 'priem' }), 7));
-    alle = speel(alle, () => 15); // 25 %
+    expect([...opties].sort()).toEqual([...wachtwoordOpties('B')].sort());
+    alle.push(ant('A', ACTIE_BASIS + 3, JSON.stringify({ soort: 'raad', doelActie: ACTIE_BASIS + 2, woord: wachtwoordOpties('B')[1] }), 7));
+    alle = speel(alle, (n) => (n === 16 ? 15 : 0)); // 25 %
     const raad = leesBeloning<RaadBeloning>(alle.at(-1)!.beloning)!;
     expect(raad).toMatchObject({ gelukt: true, bedrag: 250, doel: 'B' });
     const t = codekrakerToestand(spelers, alle);
     expect(t.spelers.get('A')!.munten).toBe(250);
     expect(t.spelers.get('B')).toMatchObject({ munten: 750, wachtwoord: raad.nieuwWoord });
+    expect(wachtwoordOpties('B', 1)).toContain(raad.nieuwWoord);
     expect(t.spelers.get('B')!.melding!.tekst).toMatch(/Gehackt door A/);
     expect(codekrakerStand(t, 10).map((r) => [r.naam, r.punten])).toEqual([
       ['B', 750],
@@ -103,10 +106,21 @@ describe('codekraker', () => {
     expect(t.gebeurtenissen.at(-1)!.tekst).toMatch(/A hackte B/);
   });
 
+  it('elke leerling krijgt 3 eigen wachtwoorden; enkel die zijn geldig', () => {
+    const a = wachtwoordOpties('speler-a');
+    expect(new Set(a).size).toBe(3);
+    expect(wachtwoordOpties('speler-a')).toEqual(a);
+    const verschillend = new Set(['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => wachtwoordOpties(id).join()));
+    expect(verschillend.size).toBeGreaterThan(1);
+    const anders = WOORDEN.find((w) => !wachtwoordOpties('A').includes(w))!;
+    const b = codekrakerBeoordelingen(vragen, { hacken: true }, spelers, [ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: anders }), 1)]);
+    expect(b[0].juist).toBe(false);
+  });
+
   it('firewall houdt hackers tegen', () => {
     const firewallIndex = 22 + 20 + 13 + 6 + 2 + 10 + 4;
     let alle = [
-      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: 'priem' }), 1),
+      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1),
       ant('B', 0, juisteAntwoord('B', 0), 2),
       ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 3),
     ];

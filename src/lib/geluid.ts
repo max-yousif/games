@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * De keuzes worden per browser onthouden.
  */
 
-export type MuziekStijl = 'uit' | 'rustig' | 'vrolijk' | 'spannend';
+export type MuziekStijl = 'uit' | 'dance' | 'beat' | 'arcade' | 'rustig' | 'vrolijk' | 'spannend';
 export type Effect = 'klik' | 'onthul' | 'juist' | 'fout' | 'tik' | 'schijf' | 'fanfare' | 'start' | 'binnen' | 'rol' | 'boem' | 'lont';
 
 export interface GeluidInstellingen {
@@ -18,14 +18,26 @@ export interface GeluidInstellingen {
   volume: number;
 }
 
-export const MUZIEK_NAMEN: Record<MuziekStijl, string> = { uit: 'Geen muziek', rustig: 'Rustig', vrolijk: 'Vrolijk', spannend: 'Spannend' };
+export const MUZIEK_NAMEN: Record<MuziekStijl, string> = {
+  uit: 'Geen muziek',
+  dance: 'Dance',
+  beat: 'Hiphop-beat',
+  arcade: 'Arcade',
+  rustig: 'Rustig',
+  vrolijk: 'Vrolijk',
+  spannend: 'Spannend',
+};
 
-const SLEUTEL = 'games.v1.geluid';
-const STANDAARD: GeluidInstellingen = { wacht: 'rustig', spel: 'uit', effecten: true, volume: 0.6 };
+const SLEUTEL = 'games.v2.geluid';
+const STANDAARD: GeluidInstellingen = { wacht: 'dance', spel: 'uit', effecten: true, volume: 0.6 };
 
 function lees(): GeluidInstellingen {
   try {
-    return { ...STANDAARD, ...(JSON.parse(localStorage.getItem(SLEUTEL) ?? '{}') as Partial<GeluidInstellingen>) };
+    const nieuw = localStorage.getItem(SLEUTEL);
+    if (nieuw) return { ...STANDAARD, ...(JSON.parse(nieuw) as Partial<GeluidInstellingen>) };
+    // Oude instellingen overnemen, behalve de wachtmuziek (de nieuwe standaard heeft een beat).
+    const { wacht: _, ...oud } = JSON.parse(localStorage.getItem('games.v1.geluid') ?? '{}') as Partial<GeluidInstellingen>;
+    return { ...STANDAARD, ...oud };
   } catch {
     return STANDAARD;
   }
@@ -202,6 +214,22 @@ export function speel(effect: Effect) {
 
 // ---------- Muziek ----------
 
+/** Drums: basdrum, snare, hi-hat en handklap. */
+function kick(c: AudioContext, doel: AudioNode, t: number, gain = 0.9) {
+  noot(c, doel, { freq: 160, naar: 42, start: t, duur: 0.28, type: 'sine', gain });
+}
+function snare(c: AudioContext, doel: AudioNode, t: number, gain = 0.35) {
+  ruis(c, doel, t, 0.16, gain, { van: 1800 });
+  noot(c, doel, { freq: 200, naar: 150, start: t, duur: 0.08, type: 'triangle', gain: gain * 0.6 });
+}
+function hihat(c: AudioContext, doel: AudioNode, t: number, gain = 0.09, open = false) {
+  ruis(c, doel, t, open ? 0.16 : 0.035, gain, { van: 8000, type: 'highpass' });
+}
+function klap(c: AudioContext, doel: AudioNode, t: number, gain = 0.3) {
+  for (const d of [0, 0.012, 0.024]) ruis(c, doel, t + d, 0.05, gain * 0.6, { van: 1300 });
+  ruis(c, doel, t + 0.036, 0.14, gain, { van: 1200 });
+}
+
 interface Stijl {
   bpm: number;
   /** Noten voor tel i (achtste noten), in maten van 8. */
@@ -209,6 +237,24 @@ interface Stijl {
 }
 
 const AKKOORDEN: Record<Exclude<MuziekStijl, 'uit'>, number[][]> = {
+  dance: [
+    [57, 60, 64],
+    [53, 57, 60],
+    [48, 52, 55],
+    [55, 59, 62],
+  ],
+  beat: [
+    [57, 60, 64, 67],
+    [50, 53, 57, 60],
+    [55, 59, 62, 65],
+    [48, 52, 55, 59],
+  ],
+  arcade: [
+    [60, 64, 67],
+    [57, 60, 64],
+    [53, 57, 60],
+    [55, 59, 62],
+  ],
   rustig: [
     [60, 64, 67, 71],
     [57, 60, 64, 67],
@@ -230,6 +276,56 @@ const AKKOORDEN: Record<Exclude<MuziekStijl, 'uit'>, number[][]> = {
 };
 
 const STIJLEN: Record<Exclude<MuziekStijl, 'uit'>, Stijl> = {
+  // Four-on-the-floor: basdrum op elke tel, klap op 2 en 4, open hi-hat en bas op de tussentel.
+  dance: {
+    bpm: 124,
+    tel: (c, doel, i, t, a) => {
+      const akk = AKKOORDEN.dance[Math.floor(i / 8) % 4];
+      const opTel = i % 2 === 0;
+      if (opTel) kick(c, doel, t);
+      else {
+        hihat(c, doel, t, 0.1, true);
+        noot(c, doel, { freq: hz(akk[0] - 24), start: t, duur: a * 0.9, type: 'sawtooth', gain: 0.16 });
+        // Akkoordstoot.
+        for (const m of akk) noot(c, doel, { freq: hz(m + 12), start: t, duur: a * 0.6, type: 'square', gain: 0.035 });
+      }
+      if (i % 4 === 2) klap(c, doel, t);
+      hihat(c, doel, t + a / 2, 0.05);
+      // Een kort melodietje in de tweede helft van elke 2 maten.
+      const melodie = [-1, -1, -1, -1, -1, -1, -1, -1, 2, -1, 1, -1, 2, 0, -1, 1];
+      const m = melodie[i % 16];
+      if (m >= 0) noot(c, doel, { freq: hz(akk[m] + 24), start: t, duur: a * 0.8, type: 'triangle', gain: 0.12 });
+    },
+  },
+  // Hiphop: basdrum op 1 en "en" van 3, snare op 2 en 4, hi-hats met swing, elektrische piano.
+  beat: {
+    bpm: 90,
+    tel: (c, doel, i, t, a) => {
+      const akk = AKKOORDEN.beat[Math.floor(i / 8) % 4];
+      const swing = i % 2 === 1 ? a * 0.18 : 0;
+      if ([0, 5, 7].includes(i % 8) || (i % 16 === 10)) kick(c, doel, t + swing, 0.85);
+      if (i % 4 === 2) snare(c, doel, t, 0.32);
+      hihat(c, doel, t + swing, i % 2 === 0 ? 0.08 : 0.05);
+      if (i % 8 === 0) for (const m of akk) noot(c, doel, { freq: hz(m), start: t, duur: a * 7, type: 'sine', gain: 0.09 });
+      if (i % 8 === 0 || i % 8 === 3) noot(c, doel, { freq: hz(akk[0] - 24), start: t + swing, duur: a * 1.6, type: 'triangle', gain: 0.35 });
+    },
+  },
+  // Chiptune: snelle arpeggio's, blokgolf-melodie en een stevige beat.
+  arcade: {
+    bpm: 140,
+    tel: (c, doel, i, t, a) => {
+      const akk = AKKOORDEN.arcade[Math.floor(i / 8) % 4];
+      noot(c, doel, { freq: hz(akk[i % 3] + 12), start: t, duur: a * 0.45, type: 'square', gain: 0.04 });
+      noot(c, doel, { freq: hz(akk[(i + 1) % 3] + 12), start: t + a / 2, duur: a * 0.45, type: 'square', gain: 0.03 });
+      const melodie = [2, -1, 1, 2, -1, 0, 1, -1];
+      const m = melodie[i % 8];
+      if (m >= 0 && Math.floor(i / 8) % 2 === 1) noot(c, doel, { freq: hz(akk[m] + 24), start: t, duur: a * 0.9, type: 'square', gain: 0.05 });
+      if (i % 2 === 0) noot(c, doel, { freq: hz(akk[0] - 12), start: t, duur: a * 0.8, type: 'triangle', gain: 0.3 });
+      if (i % 4 === 0) kick(c, doel, t, 0.7);
+      if (i % 4 === 2) snare(c, doel, t, 0.25);
+      hihat(c, doel, t, 0.04);
+    },
+  },
   rustig: {
     bpm: 76,
     tel: (c, doel, i, t, a) => {
@@ -248,6 +344,8 @@ const STIJLEN: Record<Exclude<MuziekStijl, 'uit'>, Stijl> = {
       if (m >= 0) noot(c, doel, { freq: hz(akk[m] + 12), start: t, duur: a * 0.8, type: 'square', gain: 0.07 });
       if (i % 4 === 0) noot(c, doel, { freq: hz(akk[0] - 12), start: t, duur: a * 1.5, type: 'triangle', gain: 0.3 });
       if (i % 2 === 1) ruis(c, doel, t, 0.04, 0.08, { van: 8000, type: 'highpass' });
+      if (i % 4 === 0) kick(c, doel, t, 0.6);
+      if (i % 4 === 2) snare(c, doel, t, 0.22);
     },
   },
   spannend: {
@@ -258,6 +356,8 @@ const STIJLEN: Record<Exclude<MuziekStijl, 'uit'>, Stijl> = {
       noot(c, doel, { freq: hz(akk[0] - 12), start: t + a / 2, duur: a * 0.4, type: 'triangle', gain: 0.1 });
       ruis(c, doel, t, 0.03, 0.06, { van: 9000, type: 'highpass' });
       if (i % 8 === 6) noot(c, doel, { freq: hz(akk[2] + 12), start: t, duur: a * 1.5, type: 'sine', gain: 0.12 });
+      if (i % 8 === 0 || i % 8 === 3) kick(c, doel, t, 0.7);
+      if (i % 8 === 4) snare(c, doel, t, 0.25);
     },
   },
 };

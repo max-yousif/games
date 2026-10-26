@@ -9,7 +9,7 @@ import { codekrakerBeoordelingen, codekrakerStand, codekrakerToestand, isActie, 
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
 import { leerlingenVan, synchroniseer } from './logic';
-import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
+import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
 
 const fmt = (n: number) => n.toLocaleString('nl-BE');
 
@@ -44,6 +44,8 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   useEffect(() => be.volgSpelers(live.sessieId, setSpelers), [be, live.sessieId]);
   useEffect(() => be.volgAntwoorden(live.sessieId, setAntwoorden), [be, live.sessieId]);
 
+  // Al beslist maar nog niet terug van de server: niet opnieuw beslissen (anders een ander kistje).
+  const beslist = useRef(new Map<string, Beoordeling>());
   const vragen = useMemo(() => sessie.vraagVolgorde.map((id) => sessie.vragen.find((v) => v.id === id)).filter((v): v is Vraag => !!v), [sessie]);
   const toestand = useMemo(() => codekrakerToestand(spelers, antwoorden), [spelers, antwoorden]);
 
@@ -60,13 +62,18 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   const nakijken = useRef(false);
   const [ronde, setRonde] = useState(0);
   useEffect(() => {
-    const items = codekrakerBeoordelingen(vragen, { hacken: live.hacken ?? true }, spelers, antwoorden);
+    const bekend = antwoorden.map((a) => {
+      const b = a.juist === null ? beslist.current.get(a.id) : undefined;
+      return b ? { ...a, juist: b.juist, punten: b.punten, beloning: b.beloning ?? null } : a;
+    });
+    const items = codekrakerBeoordelingen(vragen, { hacken: live.hacken ?? true }, spelers, bekend);
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {
       try {
         await be.beoordeel(live.sessieId, items);
-        const bijgewerkt = antwoorden.map((a) => {
+        for (const i of items) beslist.current.set(i.id, i);
+        const bijgewerkt = bekend.map((a) => {
           const i = items.find((x) => x.id === a.id);
           return i ? { ...a, juist: i.juist, punten: i.punten, beloning: i.beloning ?? null } : a;
         });
@@ -184,7 +191,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
           sessie={sessie}
           spelers={spelers}
           bezig={bezig}
-          startTekst="Start Codekraker"
+          startTekst="Start Crypto Hack"
           onStart={() => actie(() => be.startEscape(live.sessieId))}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
           onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
@@ -197,9 +204,9 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             <span className={`rounded-2xl px-5 py-2 font-mono text-5xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
               ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
             </span>
-            <span className="text-3xl font-semibold">🔐 Codekraker</span>
+            <span className="text-3xl font-semibold">🔐 Crypto Hack</span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Codekraker nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => confirm('Crypto Hack nu beëindigen?') && void actie(einde)}>
               ⏹ Beëindigen
             </Button>
           </div>

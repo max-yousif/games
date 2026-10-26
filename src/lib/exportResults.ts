@@ -17,7 +17,7 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   live: 'Live quiz',
   escape: 'Escape room',
   whodunit: 'Whodunit',
-  codekraker: 'Codekraker',
+  codekraker: 'Crypto Hack',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });

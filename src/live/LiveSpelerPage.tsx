@@ -244,7 +244,11 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
 
   useEffect(() => be.volgSessie(deelname.sessieId, setSessie), [be, deelname.sessieId]);
   useEffect(() => be.volgAntwoorden(deelname.sessieId, setAntwoorden), [be, deelname.sessieId]);
-  useEffect(() => be.volgSpelers(deelname.sessieId, (s) => setIk(s.find((x) => x.verbonden) ?? null)), [be, deelname.sessieId]);
+  useEffect(
+    // Eerst de eigen naam: speelt de leerkracht zelf mee in deze browser, dan ziet die alle spelers.
+    () => be.volgSpelers(deelname.sessieId, (s) => setIk(s.find((x) => x.verbonden && x.naam === deelname.naam) ?? s.find((x) => x.verbonden) ?? null)),
+    [be, deelname.sessieId, deelname.naam],
+  );
 
   // Eén browser = één leerling: werd in een ander tabblad een andere naam gekozen, dan stopt dit tabblad.
   useEffect(() => {

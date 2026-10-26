@@ -19,17 +19,20 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await maakKlas(page, '5A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
-  await kiesSpel(page, 'Codekraker test (test)', 'Codekraker');
+  await kiesSpel(page, 'Codekraker test (test)', 'Crypto Hack');
   await page.locator('label:text-is("Wachten na fout antwoord") + select').selectOption('0');
   const code = await startLive(page);
 
   const anna = await leerling(page, code, 'Anna');
   const bert = await leerling(page, code, 'Bert');
-  await page.getByRole('button', { name: /Start Codekraker/ }).click();
+  await page.getByRole('button', { name: /Start Crypto Hack/ }).click();
 
   // Eerst een geheim wachtwoord kiezen.
-  await anna.getByRole('button', { name: 'sinus', exact: true }).click();
-  await bert.getByRole('button', { name: 'priem', exact: true }).click();
+  // Elke leerling kiest uit 3 eigen woorden.
+  await expect(anna.locator('[data-wachtwoord]')).toHaveCount(3);
+  await anna.locator('[data-wachtwoord]').first().click();
+  await bert.locator('[data-wachtwoord]').last().click();
+  await expect(anna.getByTitle('Je geheime wachtwoord')).toBeVisible();
 
   // Fout antwoord: geen kistje, volgende vraag.
   await anna.getByLabel('Je antwoord').fill('8');
