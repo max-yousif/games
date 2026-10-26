@@ -1,39 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { bomAntwoord, bomTijd, bomWinnaar, nieuweBom, ontploffing, volgendTeam } from '../src/lib/bom';
+import { bomAntwoord, bomTijd, bomVragenOver, bomWinnaar, nieuweBom, ontploffing } from '../src/lib/bom';
 import type { Sessie, Vraag } from '../src/lib/types';
 
-const vraag = { id: 'v1' } as Vraag;
-const sessie = (teams: number, levens = 2): Sessie =>
-  ({ id: 's', spelType: 'bom', teams: Array.from({ length: teams }, (_, i) => ({ naam: `T${i}`, kleur: '', leerlingen: [] })), beurten: [], beeindigd: null, bom: nieuweBom(teams, levens, 'normaal') }) as unknown as Sessie;
+const vragen = ['v1', 'v2', 'v3'].map((id) => ({ id }) as Vraag);
+const sessie = (teams: number): Sessie =>
+  ({
+    id: 's',
+    spelType: 'bom',
+    vragen,
+    vraagVolgorde: vragen.map((v) => v.id),
+    teams: Array.from({ length: teams }, (_, i) => ({ naam: `T${i}`, kleur: '', leerlingen: [] })),
+    beurten: [],
+    beeindigd: null,
+    bom: nieuweBom(teams, 'normaal'),
+  }) as unknown as Sessie;
 
 describe('bom doorgeven', () => {
   it('juist geeft de bom door, fout niet', () => {
-    let s = bomAntwoord(sessie(3), vraag, false);
+    let s = bomAntwoord(sessie(3), vragen[0], false);
     expect(s.bom!.houder).toBe(0);
-    s = bomAntwoord(s, vraag, true);
+    s = bomAntwoord(s, vragen[1], true);
     expect(s.bom!.houder).toBe(1);
-    expect(s.beurten.map((b) => [b.team, b.juist, b.punten])).toEqual([
-      [0, false, 0],
-      [0, true, 1],
+    expect(s.beurten.map((b) => [b.team, b.juist])).toEqual([
+      [0, false],
+      [0, true],
     ]);
   });
 
-  it('ontploffing kost een leven; wie eruit ligt, wordt overgeslagen', () => {
-    let s = ontploffing(sessie(3, 1)); // team 0 eruit
-    expect(s.bom!.levens).toEqual([0, 1, 1]);
-    expect(s.bom!.houder).toBe(1);
-    expect(volgendTeam(s.bom!, 2)).toBe(1);
-    s = bomAntwoord(s, vraag, true);
-    expect(s.bom!.houder).toBe(2);
-    s = ontploffing(s); // team 2 eruit: team 1 wint
+  it('telt ontploffingen; het spel stopt pas als alle vragen gesteld zijn', () => {
+    let s = ontploffing(ontploffing(sessie(2)));
+    expect(s.bom!.ontploffingen).toEqual([2, 0]);
+    expect(s.beeindigd).toBeNull();
+    s = bomAntwoord(s, vragen[0], true);
+    s = bomAntwoord(s, vragen[1], true);
+    expect(bomVragenOver(s)).toBe(1);
+    expect(s.beeindigd).toBeNull();
+    s = bomAntwoord(s, vragen[2], false);
     expect(s.beeindigd).not.toBeNull();
     expect(bomWinnaar(s)).toBe(1);
   });
 
-  it('getroffen team met levens begint opnieuw', () => {
-    const s = ontploffing(sessie(2, 3));
-    expect(s.bom).toMatchObject({ levens: [2, 3], houder: 0, ronde: 1 });
-    expect(s.beeindigd).toBeNull();
+  it('gelijk aantal ontploffingen: meeste juiste antwoorden wint, anders gelijkspel', () => {
+    let s = bomAntwoord(sessie(2), vragen[0], true);
+    expect(bomWinnaar(s)).toBe(0);
+    s = bomAntwoord(s, vragen[1], true);
+    expect(bomWinnaar(s)).toBeNull();
   });
 
   it('verborgen tijd binnen de grenzen', () => {

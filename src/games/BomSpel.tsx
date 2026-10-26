@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RichText } from '../components/RichText';
 import { VraagWeergave } from '../components/VraagWeergave';
-import { bomAntwoord, bomTijd, ontploffing } from '../lib/bom';
+import { bomAntwoord, bomTijd, bomVragenOver, ontploffing } from '../lib/bom';
 import { speel, useMuziek } from '../lib/geluid';
 import { juistAntwoord } from '../lib/questions';
 import { volgendeVraag } from '../lib/session';
@@ -29,6 +29,7 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
   const faseRef = useRef(fase);
   faseRef.current = fase;
   const vraag = volgendeVraag(sessie);
+  const over = bomVragenOver(sessie);
   // Verborgen tijd: totaal en resterend (ms), enkel op deze laptop.
   const totaal = useRef(bomTijd(bom.tijd));
   const rest = useRef(totaal.current);
@@ -50,10 +51,7 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         setFase('boem');
         setGeraakt(sessieRef.current.teams[sessieRef.current.bom!.houder].naam);
         speel('boem');
-        const na = ontploffing(sessieRef.current);
-        // Laatste ontploffing: eerst even de knal tonen, dan de eindstand.
-        if (na.beeindigd) window.setTimeout(() => onUpdate(na), 2500);
-        else onUpdate(na);
+        onUpdate(ontploffing(sessieRef.current));
         return;
       }
       setDeel(rest.current / totaal.current);
@@ -146,7 +144,8 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         {fase === 'klaar' && (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <p className="max-w-xl text-xl text-slate-600">
-              Beantwoord de vraag juist om de bom door te geven. Fout? Dan krijg je een nieuwe vraag, terwijl de bom verder tikt. Niemand weet wanneer ze ontploft…
+              Beantwoord de vraag juist om de bom door te geven. Fout? Dan krijg je een nieuwe vraag, terwijl de bom verder tikt. Niemand weet wanneer ze ontploft… Het team met
+              de minste ontploffingen wint, als alle vragen gesteld zijn.
             </p>
             <button type="button" onClick={nieuweRonde} className="mt-6 rounded-2xl bg-red-600 px-10 py-4 text-3xl font-bold text-white hover:bg-red-500">
               🔥 Steek de lont aan <span className="text-base opacity-70">(spatie)</span>
@@ -167,13 +166,11 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
           <div className="pop flex flex-1 flex-col items-center justify-center text-center">
             <div className="text-9xl">💥</div>
             <div className="mt-2 text-5xl font-black text-red-600">BOEM!</div>
-            {geraakt && <div className="mt-3 text-3xl font-semibold">{geraakt} verliest een leven!</div>}
-            <div className="mt-2 text-xl text-slate-600">{sessie.beeindigd ? 'Het spel is gedaan!' : `${team.naam} begint de volgende ronde.`}</div>
-            {!sessie.beeindigd && (
-              <button type="button" onClick={nieuweRonde} className="mt-6 rounded-2xl bg-red-600 px-10 py-4 text-2xl font-bold text-white hover:bg-red-500">
-                🔥 Volgende ronde <span className="text-base opacity-70">(spatie)</span>
-              </button>
-            )}
+            {geraakt && <div className="mt-3 text-3xl font-semibold">De bom ontplofte bij {geraakt}!</div>}
+            <div className="mt-2 text-xl text-slate-600">{team.naam} begint de volgende ronde.</div>
+            <button type="button" onClick={nieuweRonde} className="mt-6 rounded-2xl bg-red-600 px-10 py-4 text-2xl font-bold text-white hover:bg-red-500">
+              🔥 Volgende ronde <span className="text-base opacity-70">(spatie)</span>
+            </button>
           </div>
         )}
 
@@ -215,29 +212,32 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
       </div>
 
       <aside className="w-72 shrink-0 space-y-3">
+        <div className="rounded-2xl bg-surface px-4 py-3 text-center shadow-sm">
+          <div className="text-sm text-slate-500">Nog te stellen</div>
+          <div className="font-mono text-3xl font-bold">
+            {over} <span className="text-base font-normal text-slate-500">van {sessie.vraagVolgorde.length} vragen</span>
+          </div>
+        </div>
         {sessie.teams.map((t, i) => {
-          const levens = bom.levens[i];
+          const n = bom.ontploffingen[i];
           return (
             <div
               key={i}
-              className={`rounded-2xl border-4 bg-surface px-4 py-3 transition ${levens === 0 ? 'opacity-40' : ''} ${i === bom.houder && levens > 0 ? 'scale-[1.03] shadow-lg' : ''}`}
-              style={{ borderColor: i === bom.houder && levens > 0 ? t.kleur : 'transparent' }}
+              className={`rounded-2xl border-4 bg-surface px-4 py-3 transition ${i === bom.houder ? 'scale-[1.03] shadow-lg' : ''}`}
+              style={{ borderColor: i === bom.houder ? t.kleur : 'transparent' }}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xl font-bold" style={{ color: t.kleur }}>
-                  {i === bom.houder && levens > 0 && '💣 '}
-                  {t.naam}
-                </span>
-                {levens === 0 && <span className="text-2xl">💀</span>}
+              <div className="truncate text-xl font-bold" style={{ color: t.kleur }}>
+                {i === bom.houder && '💣 '}
+                {t.naam}
               </div>
-              <div className="mt-1 text-2xl" aria-label={`${levens} levens`}>
-                {'❤️'.repeat(levens)}
-                {'🖤'.repeat(Math.max(0, bom.start - levens))}
+              <div className="mt-1 flex items-center justify-between text-lg">
+                <span aria-label={`${n} keer ontploft`}>{n > 0 ? '💥'.repeat(Math.min(n, 8)) + (n > 8 ? ` ×${n}` : '') : <span className="text-slate-400">nog geen ontploffing</span>}</span>
+                <span className="font-mono font-bold">{n}</span>
               </div>
             </div>
           );
         })}
-        <p className="text-sm text-slate-500">Ronde {bom.ronde + 1}. Juist = bom naar het volgende team. Ontploft de bom bij jou, dan verlies je een leven.</p>
+        <p className="text-sm text-slate-500">Juist = bom naar het volgende team. Het spel stopt als alle vragen gesteld zijn; het team met de minste ontploffingen wint.</p>
       </aside>
     </div>
   );

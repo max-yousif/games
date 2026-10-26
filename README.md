@@ -4,7 +4,8 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 
 - **Quizbord** (categorieën × punten, 2–6 teams) en **Vier op een rij** (2 teams), op het bord;
 - **Bom doorgeven** (2–6 teams, op het bord): juist antwoord = bom naar het volgende team; de
-  bom ontploft na een verborgen tijd en kost het team dat ze vasthoudt een leven;
+  bom ontploft na een verborgen tijd bij het team dat ze vasthoudt; alle vragen komen aan bod en
+  het team met de minste ontploffingen wint;
 - **Live quiz**: elke leerling speelt op de eigen laptop terwijl jij live meevolgt op het bord;
 - **Escape room**: elke leerling opent sloten door vragen op te lossen; elk slot geeft een
   cijfer van de geheime code, en met de volledige code ontsnap je. Jij ziet live wie welk slot

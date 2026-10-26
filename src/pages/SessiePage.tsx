@@ -59,7 +59,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
       timer: s.timer,
       naamVolgorde: s.naamVolgorde,
     });
-    if (s.bom) nieuw.bom = nieuweBom(s.teams.length, s.bom.start, s.bom.tijd);
+    if (s.bom) nieuw.bom = nieuweBom(s.teams.length, s.bom.tijd);
     store.bewaarSessie(nieuw);
     ga({ pagina: 'sessie', id: nieuw.id });
   }
@@ -74,7 +74,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   const vierWinnaar =
     sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
   const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit';
-  // Bij de bom niet: de levens en de houder zouden niet mee teruggaan.
+  // Bij de bom niet: de ontploffingen en de houder zouden niet mee teruggaan.
   const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
 
   return (

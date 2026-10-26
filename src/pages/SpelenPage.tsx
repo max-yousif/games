@@ -19,7 +19,7 @@ import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
   { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Categorieën × punten. Teams kiezen om beurt een vak. 2 tot 6 teams.' },
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
-  { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Ontploft ze bij jou, dan verlies je een leven.' },
+  { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Alle vragen komen aan bod; de minste ontploffingen wint.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
@@ -51,7 +51,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Vragen die niet meedoen in dit spel (de vragenset zelf blijft ongewijzigd).
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
-  const [levens, setLevens] = useState(3);
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
   const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
@@ -114,7 +113,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       return;
     }
     const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
-    if (spel === 'bom') sessie.bom = nieuweBom(teams.length, levens, bomTijdKeuze);
+    if (spel === 'bom') sessie.bom = nieuweBom(teams.length, bomTijdKeuze);
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
   }
@@ -358,16 +357,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             </>
           ) : spel === 'bom' ? (
             <>
-              <div className="w-32">
-                <label className={labelClass}>Levens per team</label>
-                <select className={inputClass} value={levens} onChange={(e) => setLevens(Number(e.target.value))}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {'❤️'.repeat(n)}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="w-48">
                 <label className={labelClass}>Tijd tot de bom ontploft</label>
                 <select className={inputClass} value={bomTijdKeuze} onChange={(e) => setBomTijdKeuze(e.target.value as BomTijd)}>

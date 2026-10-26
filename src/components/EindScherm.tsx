@@ -10,7 +10,11 @@ export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }
   // Fanfare bij de eindstand (één keer).
   useEffect(() => speel('fanfare'), []);
   const scores = teamScores(sessie);
-  const volgorde = sessie.teams.map((t, i) => ({ ...t, i, score: scores[i] })).sort((a, b) => b.score - a.score);
+  // Bom doorgeven: minste ontploffingen eerst (bij gelijkstand de meeste juiste antwoorden).
+  const knallen = sessie.bom?.ontploffingen;
+  const volgorde = sessie.teams
+    .map((t, i) => ({ ...t, i, score: scores[i], knallen: knallen?.[i] ?? 0 }))
+    .sort((a, b) => (knallen ? a.knallen - b.knallen : 0) || b.score - a.score);
   const winnaars = winnaar !== undefined ? (winnaar === null ? [] : [winnaar]) : volgorde.filter((t) => t.score === volgorde[0].score && t.score > 0).map((t) => t.i);
   const kort = korteNaamVan(sessie);
   const rijen = resultatenPerLeerling(sessie)
@@ -40,7 +44,16 @@ export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }
             <div className="mt-1 text-lg font-bold" style={{ color: t.kleur }}>
               {t.naam}
             </div>
-            <div className="font-mono text-3xl font-bold">{t.score}</div>
+            {knallen ? (
+              <>
+                <div className="font-mono text-3xl font-bold">💥 {t.knallen}</div>
+                <div className="text-sm text-slate-500">
+                  {t.knallen === 1 ? 'ontploffing' : 'ontploffingen'} · {t.score} juist
+                </div>
+              </>
+            ) : (
+              <div className="font-mono text-3xl font-bold">{t.score}</div>
+            )}
           </div>
         ))}
       </div>
