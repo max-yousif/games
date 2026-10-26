@@ -25,6 +25,10 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
 
   const anna = await leerling(page, code, 'Anna');
   const bert = await leerling(page, code, 'Bert');
+  // Reacties in de wachtruimte verschijnen ook hier op het bord, en kunnen uit.
+  await anna.getByRole('button', { name: 'geit' }).click();
+  await expect(page.locator('.reactie-zweef', { hasText: '🐐' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '😀 Reacties aan' })).toBeVisible();
   await page.getByRole('button', { name: /Start Crypto Hack/ }).click();
 
   // Eerst een geheim wachtwoord kiezen.

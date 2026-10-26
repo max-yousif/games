@@ -4,6 +4,7 @@ import { Button, Notice } from '../components/ui';
 import { exporteerSessie, tijdTekst } from '../lib/exportResults';
 import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
+import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
 import { escapeBeoordelingen, escapeStand, escapeVoortgang, type EscapeVoortgang } from './escape';
 import { whodunitBeoordelingen } from './whodunit';
@@ -165,6 +166,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-8">
+      {server.status !== 'einde' && <ReactiesOpBord be={be} sessieId={live.sessieId} />}
       {fout && (
         <div className="mb-3">
           <Notice tone="warn">{fout}</Notice>

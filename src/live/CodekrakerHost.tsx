@@ -6,6 +6,7 @@ import { speel, useMuziek } from '../lib/geluid';
 import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { codekrakerBeoordelingen, codekrakerStand, codekrakerToestand, isActie, vraagIndex, type Toestand } from './codekraker';
+import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
 import { leerlingenVan, synchroniseer } from './logic';
@@ -180,6 +181,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-8">
+      {server.status !== 'einde' && <ReactiesOpBord be={be} sessieId={live.sessieId} />}
       {fout && (
         <div className="mb-3">
           <Notice tone="warn">{fout}</Notice>

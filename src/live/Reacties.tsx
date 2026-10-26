@@ -111,3 +111,21 @@ export function ReactieRegen({ be, sessieId }: { be: LiveBackend; sessieId: stri
     </div>
   );
 }
+
+/** Reacties op het bord, met een knop om ze te tonen of te verbergen. */
+export function ReactiesOpBord({ be, sessieId }: { be: LiveBackend; sessieId: string }) {
+  const [tonen, setTonen] = useReactiesTonen();
+  return (
+    <>
+      {tonen && <ReactieRegen be={be} sessieId={sessieId} />}
+      <button
+        type="button"
+        onClick={() => setTonen(!tonen)}
+        className="fixed right-4 bottom-4 z-40 rounded-full bg-surface px-3 py-1.5 text-sm text-slate-600 shadow-md hover:bg-slate-50"
+        title="Emoji-reacties van de leerlingen tonen of verbergen"
+      >
+        {tonen ? '😀 Reacties aan' : '🙈 Reacties uit'}
+      </button>
+    </>
+  );
+}

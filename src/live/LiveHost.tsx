@@ -9,7 +9,7 @@ import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS, tekstMetGaten } from '../lib/vraagtypes';
 import { backend } from './config';
-import { ReactieRegen, useReactiesTonen } from './Reacties';
+import { ReactiesOpBord } from './Reacties';
 import {
   antwoordWeergave,
   automatischeBeoordelingen,
@@ -47,7 +47,6 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
   const [antwoorden, setAntwoorden] = useState<LiveAntwoord[]>([]);
   const [fout, setFout] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
-  const [reactiesTonen, setReactiesTonen] = useReactiesTonen();
 
   useEffect(() => be.volgSessie(live.sessieId, setServer), [be, live.sessieId]);
   useEffect(() => be.volgSpelers(live.sessieId, setSpelers), [be, live.sessieId]);
@@ -208,17 +207,7 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-8">
-      {reactiesTonen && server.status !== 'einde' && <ReactieRegen be={be} sessieId={live.sessieId} />}
-      {server.status !== 'einde' && (
-        <button
-          type="button"
-          onClick={() => setReactiesTonen(!reactiesTonen)}
-          className="fixed right-4 bottom-4 z-40 rounded-full bg-surface px-3 py-1.5 text-sm text-slate-600 shadow-md hover:bg-slate-50"
-          title="Emoji-reacties van de leerlingen tonen of verbergen"
-        >
-          {reactiesTonen ? '😀 Reacties aan' : '🙈 Reacties uit'}
-        </button>
-      )}
+      {server.status !== 'einde' && <ReactiesOpBord be={be} sessieId={live.sessieId} />}
       {fout && (
         <div className="mb-3">
           <Notice tone="warn">{fout}</Notice>
