@@ -14,6 +14,8 @@ import { ga, href } from '../lib/route';
 import { beeindig, nieuweSessie } from '../lib/session';
 import type { Store } from '../lib/store';
 import type { Sessie } from '../lib/types';
+import { BomSpel } from '../games/BomSpel';
+import { bomWinnaar, nieuweBom } from '../lib/bom';
 
 /** Maakt de laatste handeling ongedaan (bij vier op een rij eerst de laatste schijf). */
 export function ongedaanMaken(s: Sessie): Sessie {
@@ -57,6 +59,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
       timer: s.timer,
       naamVolgorde: s.naamVolgorde,
     });
+    if (s.bom) nieuw.bom = nieuweBom(s.teams.length, s.bom.start, s.bom.tijd);
     store.bewaarSessie(nieuw);
     ga({ pagina: 'sessie', id: nieuw.id });
   }
@@ -68,9 +71,11 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
     store.setSessies((all) => all.filter((x) => x.id !== id));
   }
 
-  const vierWinnaar = sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : undefined;
+  const vierWinnaar =
+    sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
   const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit';
-  const kanOngedaan = sessie.beurten.length > 0 && !isLive;
+  // Bij de bom niet: de levens en de houder zouden niet mee teruggaan.
+  const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
 
   return (
     <div className="flex h-screen flex-col bg-slate-100">
@@ -113,6 +118,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       ) : sessie.spelType === 'quizbord' ? (
         <QuizBord sessie={sessie} onUpdate={store.bewaarSessie} />
+      ) : sessie.spelType === 'bom' ? (
+        <BomSpel sessie={sessie} onUpdate={store.bewaarSessie} />
       ) : (
         <VierOpEenRij sessie={sessie} onUpdate={store.bewaarSessie} />
       )}

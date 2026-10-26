@@ -83,7 +83,7 @@ export interface Klas {
   naamVolgorde?: NaamVolgorde;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'live' | 'escape' | 'whodunit';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit';
 
 export interface Team {
   naam: string;
@@ -145,6 +145,8 @@ export interface Sessie {
   live?: LiveInfo;
   /** Whodunit: kopie van het raadsel (met de oplossing) bij de start. */
   raadsel?: Raadsel;
+  /** Bom doorgeven: levens, wie de bom heeft en de ronde. */
+  bom?: import('./bom').BomToestand;
   /** Meegeteld in de statistiek van de vragenset. */
   geteld?: boolean;
   /** Quizbord: dubbele punten voor een leerling die alleen antwoordt. */

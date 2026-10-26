@@ -13,10 +13,13 @@ import { maakGroepjes, maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/sess
 import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
 import type { Leerling, SpelType, Team } from '../lib/types';
+import { VraagKeuze } from '../components/VraagKeuze';
+import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
   { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Categorieën × punten. Teams kiezen om beurt een vak. 2 tot 6 teams.' },
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
+  { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Ontploft ze bij jou, dan verlies je een leven.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
@@ -44,7 +47,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [fout, setFout] = useState<string | null>(null);
   const klas = store.klassen.find((k) => k.id === klasId) ?? null;
   const set = store.sets.find((s) => s.id === gekozenSet) ?? null;
-  const vragen = set ? speelbareVragen(set) : [];
+  const alleVragen = set ? speelbareVragen(set) : [];
+  // Vragen die niet meedoen in dit spel (de vragenset zelf blijft ongewijzigd).
+  const [uit, setUit] = useState<Set<string>>(new Set());
+  const vragen = alleVragen.filter((v) => !uit.has(v.id));
+  const [levens, setLevens] = useState(3);
+  const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
   const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
   const eigenTempo = spel === 'escape' || spel === 'whodunit';
@@ -105,7 +113,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       void startLive();
       return;
     }
-    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
+    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
+    if (spel === 'bom') sessie.bom = nieuweBom(teams.length, levens, bomTijdKeuze);
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
   }
@@ -199,7 +208,14 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       </PageHeader>
 
       <Section step={1} title="Vragenset" aside={set?.cover && <img src={set.cover} alt="" className="aspect-video w-32 rounded-lg object-cover shadow-sm" />}>
-        <select className={`${inputClass} max-w-xl`} value={gekozenSet} onChange={(e) => setGekozenSet(e.target.value)}>
+        <select
+          className={`${inputClass} max-w-xl`}
+          value={gekozenSet}
+          onChange={(e) => {
+            setGekozenSet(e.target.value);
+            setUit(new Set());
+          }}
+        >
           {store.sets.map((s) => (
             <option key={s.id} value={s.id}>
               {s.titel}
@@ -209,18 +225,19 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </select>
         {set && (
           <p className="mt-2 text-sm text-slate-500">
-            {vragen.length} speelbare vragen
-            {vragen.length < set.vragen.length && ` (${set.vragen.length - vragen.length} onvolledige vragen worden overgeslagen)`}
+            {alleVragen.length} speelbare vragen
+            {alleVragen.length < set.vragen.length && ` (${set.vragen.length - alleVragen.length} onvolledige vragen worden overgeslagen)`}
             {set.statistiek?.gespeeld ? ` · al ${set.statistiek.gespeeld}× gespeeld met ${set.statistiek.spelers} spelers` : ''}.{' '}
             <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
               Bewerken
             </a>
           </p>
         )}
+        {alleVragen.length > 1 && <VraagKeuze key={gekozenSet} vragen={alleVragen} uit={uit} onChange={setUit} />}
       </Section>
 
       <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {SPELLEN.map((s) => (
             <button
               key={s.type}
@@ -266,7 +283,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               ))}
             </select>
           </div>
-          {spel === 'quizbord' && (
+          {(spel === 'quizbord' || spel === 'bom') && (
             <div className="w-36">
               <label className={labelClass}>Aantal teams</label>
               <select
@@ -334,6 +351,29 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   {WACHTTIJDEN.map((w) => (
                     <option key={w} value={w}>
                       {w ? `${w} seconden` : 'niet wachten'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : spel === 'bom' ? (
+            <>
+              <div className="w-32">
+                <label className={labelClass}>Levens per team</label>
+                <select className={inputClass} value={levens} onChange={(e) => setLevens(Number(e.target.value))}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {'❤️'.repeat(n)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-48">
+                <label className={labelClass}>Tijd tot de bom ontploft</label>
+                <select className={inputClass} value={bomTijdKeuze} onChange={(e) => setBomTijdKeuze(e.target.value as BomTijd)}>
+                  {(Object.keys(BOM_TIJDEN) as BomTijd[]).map((t) => (
+                    <option key={t} value={t}>
+                      {BOM_TIJDEN[t].naam}
                     </option>
                   ))}
                 </select>

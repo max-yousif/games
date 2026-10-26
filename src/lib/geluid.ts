@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
  */
 
 export type MuziekStijl = 'uit' | 'rustig' | 'vrolijk' | 'spannend';
-export type Effect = 'klik' | 'onthul' | 'juist' | 'fout' | 'tik' | 'schijf' | 'fanfare' | 'start' | 'binnen' | 'rol';
+export type Effect = 'klik' | 'onthul' | 'juist' | 'fout' | 'tik' | 'schijf' | 'fanfare' | 'start' | 'binnen' | 'rol' | 'boem' | 'lont';
 
 export interface GeluidInstellingen {
   /** Muziek in de wachtruimte. */
@@ -170,6 +170,16 @@ export function speel(effect: Effect) {
       noot(c, uit, { freq: 900, start: t, duur: 0.25, type: 'sine', gain: 0.2, naar: 250 });
       noot(c, uit, { freq: 90, start: t + 0.25, duur: 0.15, type: 'sine', gain: 0.5, naar: 50 });
       ruis(c, uit, t + 0.25, 0.08, 0.2, { van: 600, type: 'lowpass' });
+      break;
+    case 'lont':
+      // Tik van de bom: hoog en kort.
+      noot(c, uit, { freq: 1800, start: t, duur: 0.03, type: 'square', gain: 0.07 });
+      noot(c, uit, { freq: 900, start: t + 0.01, duur: 0.04, type: 'sine', gain: 0.1 });
+      break;
+    case 'boem':
+      ruis(c, uit, t, 1.6, 0.9, { van: 2500, naar: 80, type: 'lowpass' });
+      noot(c, uit, { freq: 120, start: t, duur: 1.2, type: 'sine', gain: 0.9, naar: 30 });
+      noot(c, uit, { freq: 60, start: t + 0.05, duur: 1.4, type: 'triangle', gain: 0.6, naar: 25 });
       break;
     case 'fanfare': {
       const melodie: [number, number, number][] = [

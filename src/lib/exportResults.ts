@@ -13,6 +13,7 @@ export function tijdTekst(ms: number): string {
 export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   quizbord: 'Quizbord',
   vieropeenrij: 'Vier op een rij',
+  bom: 'Bom doorgeven',
   live: 'Live quiz',
   escape: 'Escape room',
   whodunit: 'Whodunit',

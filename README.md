@@ -3,6 +3,8 @@
 Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 
 - **Quizbord** (categorieën × punten, 2–6 teams) en **Vier op een rij** (2 teams), op het bord;
+- **Bom doorgeven** (2–6 teams, op het bord): juist antwoord = bom naar het volgende team; de
+  bom ontploft na een verborgen tijd en kost het team dat ze vasthoudt een leven;
 - **Live quiz**: elke leerling speelt op de eigen laptop terwijl jij live meevolgt op het bord;
 - **Escape room**: elke leerling opent sloten door vragen op te lossen; elk slot geeft een
   cijfer van de geheime code, en met de volledige code ontsnap je. Jij ziet live wie welk slot
@@ -14,6 +16,7 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 - Bij het quizbord kies je eerst wie antwoordt (een leerling, willekeurig of het hele team);
   pas dan verschijnt de vraag. Wie alleen antwoordt, krijgt dubbele punten (instelbaar).
 - Escape room en whodunit kunnen ook per 2 of per 3 op één laptop.
+- Per spel kies je welke vragen meedoen (bv. geen open vragen), zonder de vragenset te wijzigen.
 - Op het scherm staan enkel voornamen (met initiaal bij dezelfde voornaam).
 - Na een spel: **Afsluiten** (resultaten bewaren) of **Afsluiten zonder opslaan**.
 - **Muziek en geluid** (knop 🔊 Geluid): wachtmuziek, achtergrondmuziek tijdens het spel en
