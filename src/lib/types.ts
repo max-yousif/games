@@ -83,7 +83,7 @@ export interface Klas {
   naamVolgorde?: NaamVolgorde;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker';
 
 export interface Team {
   naam: string;
@@ -118,6 +118,10 @@ export interface LiveInfo {
   escapeCode?: string;
   /** Escape room: tijd tot ontsnappen (ms) per leerlingnaam. */
   ontsnapt?: Record<string, number>;
+  /** Codekraker: munten per leerlingnaam op het einde. */
+  munten?: Record<string, number>;
+  /** Codekraker: hacken toegestaan. */
+  hacken?: boolean;
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */
   namen?: Record<string, string[]>;
   /** Bijnamen per leerlingnaam (voor op het scherm). */

@@ -10,6 +10,10 @@ Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
 - **Escape room**: elke leerling opent sloten door vragen op te lossen; elk slot geeft een
   cijfer van de geheime code, en met de volledige code ontsnap je. Jij ziet live wie welk slot
   open heeft en wie ontsnapt is.
+- **Codekraker** (naar Crypto Hack van Blooket): elke leerling op de eigen laptop, in eigen tempo.
+  Juist antwoord = een kistje met munten (1.000 tot 25.000), ×2/×3, een firewall, pech of een
+  kans om te hacken: wie het geheime wachtwoord van een medespeler raadt, steelt 10–25 % van diens
+  munten. Op het bord: ranglijst en nieuws (wie hackte wie).
 - **Whodunit**: een logisch raadsel (bv. "wie deed wat op de 50 dagen?"). Elke juiste oefening
   levert een hint op; met de hints vullen leerlingen een tabel in. Wie de tabel als eerste juist
   heeft, wint. Het raadsel (verhaal, tabel met de oplossing, hints) stel je in onderaan de editor

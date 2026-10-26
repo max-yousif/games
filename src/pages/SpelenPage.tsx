@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
+import { AANTAL_NUMMERS } from '../live/codekraker';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
@@ -22,6 +23,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Alle vragen komen aan bod; de minste ontploffingen wint.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
+  { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
@@ -52,9 +54,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
-  const eigenTempo = spel === 'escape' || spel === 'whodunit';
+  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker';
+  const [hacken, setHacken] = useState(true);
   const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
   // Op het scherm enkel voornamen (met initiaal bij dezelfde voornaam).
@@ -128,6 +131,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const metNamen = klas !== null && leerlingen.length > 0;
       const escape = eigenTempo;
       const whodunit = spel === 'whodunit';
+      const codekraker = spel === 'codekraker';
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
@@ -150,15 +154,17 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         titel: set.titel,
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
-        aantalVragen: gekozen.length,
+        // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
+        aantalVragen: codekraker ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
         wachttijd: escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
+        codekraker: codekraker ? { hacken } : undefined,
       });
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : escape ? 'escape' : 'live',
         set,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -177,6 +183,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           snelheidsbonus: !escape && snelheidsbonus && timer !== null,
           afgesloten: false,
           escapeCode,
+          ...(codekraker ? { hacken } : {}),
           ...(metNamen ? { namen } : {}),
         },
       } as const;
@@ -236,7 +243,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       </Section>
 
       <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SPELLEN.map((s) => (
             <button
               key={s.type}
@@ -245,9 +252,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 setSpel(s.type);
                 verdeel(
                   klas?.leerlingen,
-                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' ? 1 : aantal,
+                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' ? 1 : aantal,
                   afwezig,
-                  s.type === 'escape' || s.type === 'whodunit' ? groepGrootte : 1,
+                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' ? groepGrootte : 1,
                 );
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
@@ -385,7 +392,19 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
         {isLive && (
           <div className="mb-4 space-y-2 text-sm">
-            {spel === 'whodunit' ? (
+            {spel === 'codekraker' ? (
+              <>
+                <p className="text-slate-600">
+                  Elke leerling kiest een geheim wachtwoord en beantwoordt vragen in eigen tempo (de vragen komen steeds opnieuw). Na een juist antwoord kiest de leerling een
+                  kistje: munten (1.000 tot 25.000), een vermenigvuldiger, een firewall, pech of een kans om te hacken. Wie het wachtwoord van een medespeler raadt, steelt 10 tot
+                  25 % van diens munten. Wie op het einde de meeste munten heeft, wint.
+                </p>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={hacken} onChange={(e) => setHacken(e.target.checked)} />
+                  Hacken toestaan (anders enkel kistjes met munten, vermenigvuldigers en firewalls)
+                </label>
+              </>
+            ) : spel === 'whodunit' ? (
               <>
                 <p className="text-slate-600">
                   Leerlingen lezen het verhaal, lossen de oefeningen op en krijgen voor elk juist antwoord een hint. Met de hints vullen ze de tabel in; wie de tabel als

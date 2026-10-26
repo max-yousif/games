@@ -17,6 +17,7 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   live: 'Live quiz',
   escape: 'Escape room',
   whodunit: 'Whodunit',
+  codekraker: 'Codekraker',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });
@@ -30,6 +31,7 @@ function sessieBladen(s: Sessie, prefix = '') {
   const ontsnapt = s.live?.ontsnapt;
   const tijd = (naam: string) => (ontsnapt?.[naam] !== undefined ? tijdTekst(ontsnapt[naam]) : '');
   const bijnamen = s.live?.bijnamen;
+  const munten = s.live?.munten;
   const perLeerling = [
     [
       bold('Leerling'),
@@ -40,6 +42,7 @@ function sessieBladen(s: Sessie, prefix = '') {
       bold('Fout'),
       bold('Punten'),
       ...(ontsnapt ? [bold(s.spelType === 'whodunit' ? 'Opgelost na' : 'Ontsnapt na')] : []),
+      ...(munten ? [bold('Munten')] : []),
     ],
     ...resultatenPerLeerling(s).map((r) => [
       r.naam,
@@ -50,6 +53,7 @@ function sessieBladen(s: Sessie, prefix = '') {
       r.fout,
       r.punten,
       ...(ontsnapt ? [tijd(r.naam)] : []),
+      ...(munten ? [munten[r.naam] ?? 0] : []),
     ]),
     [],
     [bold('Team'), bold('Score')],

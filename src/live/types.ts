@@ -1,4 +1,5 @@
 import type { VraagType } from '../lib/types';
+import type { CodekrakerInstellingen } from './codekraker';
 import type { PubliekRaadsel } from './whodunit';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
@@ -34,6 +35,10 @@ export interface StandRij {
   juist: number;
   /** Escape room: tijd tot ontsnappen (ms), of null als nog niet ontsnapt. */
   tijdMs?: number | null;
+  /** Codekraker: firewall actief, vermenigvuldiger, laatste melding (gehackt …). */
+  firewall?: boolean;
+  mult?: number;
+  melding?: { tekst: string; tijdMs: number };
 }
 
 export type LiveStatus = 'lobby' | 'vraag' | 'antwoord' | 'bezig' | 'einde';
@@ -56,6 +61,8 @@ export interface LiveSessie {
   wachttijd: number;
   /** Whodunit (escape-modus met een raadsel): het raadsel zonder oplossing. */
   raadsel?: PubliekRaadsel | null;
+  /** Codekraker (escape-modus): de instellingen. */
+  codekraker?: CodekrakerInstellingen | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -186,6 +193,7 @@ export interface LiveBackend {
     vragen?: PubliekeVraag[];
     wachttijd?: number;
     raadsel?: PubliekRaadsel;
+    codekraker?: CodekrakerInstellingen;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;

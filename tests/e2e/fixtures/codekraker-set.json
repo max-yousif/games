@@ -1,0 +1,79 @@
+{
+  "soort": "games-vragenset",
+  "versie": 1,
+  "set": {
+    "id": "codekraker-test",
+    "titel": "Codekraker test",
+    "beschrijving": "",
+    "vak": "wiskunde",
+    "leerjaar": "test",
+    "vragen": [
+      {
+        "id": "ck1",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "Hoeveel is 1+6?",
+        "antwoord": "7",
+        "opties": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      },
+      {
+        "id": "ck2",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "Hoeveel is 2+5?",
+        "antwoord": "7",
+        "opties": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      },
+      {
+        "id": "ck3",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "Hoeveel is 3+4?",
+        "antwoord": "7",
+        "opties": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      },
+      {
+        "id": "ck4",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "Hoeveel is 4+3?",
+        "antwoord": "7",
+        "opties": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      }
+    ],
+    "aangemaakt": "2026-10-26T00:00:00.000Z",
+    "gewijzigd": "2026-10-26T00:00:00.000Z"
+  }
+}
