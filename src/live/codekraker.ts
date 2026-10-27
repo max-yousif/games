@@ -58,8 +58,8 @@ export type Actie =
 
 export type Uitkomst = 'munten' | 'x2' | 'x3' | 'firewall' | 'hack' | 'pech';
 
-/** Soort hackkans: een willekeurig doelwit, iemand uit de top 6, of kiezen tussen twee. */
-export type HackSoort = 'willekeurig' | 'top6' | 'twee';
+/** Soort hackkans: iemand uit de top 3, of kiezen tussen twee van hen ("willekeurig" en "top6": oudere spellen). */
+export type HackSoort = 'top3' | 'twee' | 'willekeurig' | 'top6';
 
 export interface KistBeloning {
   uitkomst: Uitkomst;
@@ -269,24 +269,19 @@ export function rolKist(rand: RandomInt, p: SpelerToestand, hacken: boolean): Ki
   return { uitkomst: 'munten', bedrag: MUNTEN[0] * p.mult };
 }
 
-/** Wie gehackt mag worden: willekeurig (4 op 10), iemand uit de top 6 (3 op 10) of één van twee (3 op 10). */
+/**
+ * Wie gehackt mag worden: enkel de 3 medespelers met de meeste munten (wie niets heeft, valt af).
+ * Meestal kies je uit die top 3 (6 op 10), soms tussen twee van hen (4 op 10).
+ */
 export function kiesKandidaten(t: Toestand, p: SpelerToestand, nuMs: number, rand: RandomInt): { hackSoort: HackSoort; kandidaten: string[] } | null {
-  const anderen = [...t.spelers.values()].filter((x) => x.speler.id !== p.speler.id);
-  const mogelijk = anderen.filter((x) => x.wachtwoord && x.firewallTot <= nuMs);
+  const top3 = [...t.spelers.values()]
+    .filter((x) => x.speler.id !== p.speler.id && x.munten > 0)
+    .sort((x, y) => y.munten - x.munten)
+    .slice(0, 3);
+  const mogelijk = top3.filter((x) => x.wachtwoord && x.firewallTot <= nuMs).map((x) => x.speler.id);
   if (mogelijk.length === 0) return null;
-  const r = rand(10);
-  if (r >= 4 && r < 7) {
-    const top6 = new Set(
-      [...anderen]
-        .sort((x, y) => y.munten - x.munten)
-        .slice(0, 6)
-        .map((x) => x.speler.id),
-    );
-    const kandidaten = mogelijk.filter((x) => top6.has(x.speler.id)).map((x) => x.speler.id);
-    if (kandidaten.length) return { hackSoort: 'top6', kandidaten };
-  }
-  if (r >= 7 && mogelijk.length >= 2) return { hackSoort: 'twee', kandidaten: schud(mogelijk, rand).slice(0, 2).map((x) => x.speler.id) };
-  return { hackSoort: 'willekeurig', kandidaten: [mogelijk[rand(mogelijk.length)].speler.id] };
+  if (rand(10) >= 6 && mogelijk.length >= 3) return { hackSoort: 'twee', kandidaten: schud(mogelijk, rand).slice(0, 2) };
+  return { hackSoort: 'top3', kandidaten: mogelijk };
 }
 
 function schud<T>(l: readonly T[], rand: RandomInt): T[] {

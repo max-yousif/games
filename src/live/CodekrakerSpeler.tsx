@@ -164,7 +164,7 @@ export function CodekrakerSpeler({
       b.uitkomst === 'hack' && kans ? (
         <DoelKiezen
           stand={sessie.stand}
-          soort={b.hackSoort ?? 'willekeurig'}
+          soort={b.hackSoort ?? 'top3'}
           kandidaten={kans.kandidaten}
           bezig={bezig}
           onKies={(doel) => void doe({ soort: 'doel', kist: kans.nr, doel })}
@@ -203,7 +203,7 @@ export function CodekrakerSpeler({
     ) : kans !== undefined ? (
       <DoelKiezen
         stand={sessie.stand}
-        soort={kistBeloning?.hackSoort ?? 'willekeurig'}
+        soort={kistBeloning?.hackSoort ?? 'top3'}
         kandidaten={kans.kandidaten}
         bezig={bezig}
         boodschap={b.fout === 'firewall' ? `🛡️ ${b.doelNaam} heeft net een firewall opgezet.` : `${b.doelNaam} kan je nog niet hacken.`}
@@ -317,6 +317,7 @@ function VolgendeKnop({ onClick }: { onClick: () => void }) {
 }
 
 const HACK_TITEL: Record<HackSoort, string> = {
+  top3: '🏆 Hack iemand uit de top 3!',
   willekeurig: '🎲 Willekeurig doelwit!',
   top6: '🏆 Hack iemand uit de top 6!',
   twee: '🔓 Kies wie je hackt',

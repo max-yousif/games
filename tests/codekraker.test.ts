@@ -88,9 +88,9 @@ describe('codekraker', () => {
     ];
     alle = speel(alle, () => 3); // B: 1000 munten
     alle.push(ant('A', 0, juisteAntwoord('A', 0), 4), ant('A', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 2 }), 5));
-    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0)); // A: hackkans, willekeurig doelwit
+    alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0)); // A: hackkans op B (top 3)
     expect(codekrakerToestand(spelers, alle).spelers.get('A')!.hackKansen).toEqual([{ nr: ACTIE_BASIS + 1, kandidaten: ['B'] }]);
-    expect(leesBeloning<KistBeloning>(alle.at(-1)!.beloning)).toMatchObject({ uitkomst: 'hack', hackSoort: 'willekeurig' });
+    expect(leesBeloning<KistBeloning>(alle.at(-1)!.beloning)).toMatchObject({ uitkomst: 'hack', hackSoort: 'top3' });
     alle.push(ant('A', ACTIE_BASIS + 2, JSON.stringify({ soort: 'doel', kist: ACTIE_BASIS + 1, doel: 'B' }), 6));
     alle = speel(alle, () => 0);
     const opties = leesBeloning<DoelBeloning>(alle.at(-1)!.beloning)!.opties!;
@@ -151,11 +151,16 @@ describe('codekraker', () => {
   it('firewall: niet als doelwit gekozen, en tegengehouden als die net opgezet werd', () => {
     const firewallIndex = 22 + 20 + 13 + 6 + 2 + 10 + 4;
     const hackIndex = firewallIndex + 7 + 4;
-    let alle = [ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1)];
+    let alle = [
+      ant('B', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('B')[1] }), 1),
+      ant('B', 0, juisteAntwoord('B', 0), 1),
+      ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 1),
+    ];
+    alle = speel(alle, () => 0); // B: 1000 munten
     // A krijgt een hackkans op B; daarna zet B een firewall op.
     alle.push(ant('A', 0, juisteAntwoord('A', 0), 2), ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 3));
     alle = speel(alle, (n) => (n === TOTAAL ? hackIndex : 0));
-    alle.push(ant('B', 0, juisteAntwoord('B', 0), 4), ant('B', ACTIE_BASIS + 1, JSON.stringify({ soort: 'kist', vraag: 0, keuze: 0 }), 5));
+    alle.push(ant('B', 1, juisteAntwoord('B', 1), 4), ant('B', ACTIE_BASIS + 2, JSON.stringify({ soort: 'kist', vraag: 1, keuze: 0 }), 5));
     alle = speel(alle, (n) => (n === TOTAAL ? firewallIndex : 0));
     alle.push(ant('A', ACTIE_BASIS + 1, JSON.stringify({ soort: 'doel', kist: ACTIE_BASIS, doel: 'B' }), 6));
     alle = speel(alle, () => 0);
@@ -168,18 +173,24 @@ describe('codekraker', () => {
     expect(leesBeloning<KistBeloning>(alle.at(-1)!.beloning)!.uitkomst).not.toBe('hack');
   });
 
-  it('soorten hackkansen: top 6 en één van twee', () => {
+  it('hacken enkel in de top 3, nooit iemand zonder munten', () => {
     const veel: LiveSpeler[] = Array.from({ length: 9 }, (_, i) => ({ id: `P${i}`, naam: `P${i}`, bijnaam: null, verbonden: true }));
     const t = codekrakerToestand(veel, []);
     veel.forEach((s, i) => Object.assign(t.spelers.get(s.id)!, { munten: i * 1000, wachtwoord: 'x' }));
-    const ik = t.spelers.get('P8')!;
-    const top6 = kiesKandidaten(t, ik, 0, (n) => (n === 10 ? 5 : 0))!;
-    expect(top6.hackSoort).toBe('top6');
-    expect([...top6.kandidaten].sort()).toEqual(['P2', 'P3', 'P4', 'P5', 'P6', 'P7']);
-    const twee = kiesKandidaten(t, ik, 0, (n) => (n === 10 ? 8 : 0))!;
+    // P8 heeft de meeste munten: de top 3 van de anderen is P5, P6 en P7.
+    const top3 = kiesKandidaten(t, t.spelers.get('P8')!, 0, () => 0)!;
+    expect(top3.hackSoort).toBe('top3');
+    expect([...top3.kandidaten].sort()).toEqual(['P5', 'P6', 'P7']);
+    const twee = kiesKandidaten(t, t.spelers.get('P0')!, 0, (n) => (n === 10 ? 8 : 0))!;
     expect(twee.hackSoort).toBe('twee');
     expect(twee.kandidaten).toHaveLength(2);
-    expect(twee.kandidaten).not.toContain('P8');
-    expect(kiesKandidaten(t, ik, 0, () => 0)!).toMatchObject({ hackSoort: 'willekeurig' });
+    for (const id of twee.kandidaten) expect(['P6', 'P7', 'P8']).toContain(id);
+    // Een firewall in de top 3: niet vervangen door nummer 4.
+    t.spelers.get('P7')!.firewallTot = 10;
+    expect([...kiesKandidaten(t, t.spelers.get('P8')!, 0, () => 0)!.kandidaten].sort()).toEqual(['P5', 'P6']);
+    // Niemand anders heeft munten: geen hackkans.
+    veel.forEach((s) => (t.spelers.get(s.id)!.munten = 0));
+    t.spelers.get('P8')!.munten = 5000;
+    expect(kiesKandidaten(t, t.spelers.get('P8')!, 0, () => 0)).toBeNull();
   });
 });

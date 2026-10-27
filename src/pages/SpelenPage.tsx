@@ -439,7 +439,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <>
                 <p className="text-slate-600">
                   Elke leerling kiest een geheim wachtwoord en beantwoordt vragen in eigen tempo (de vragen komen steeds opnieuw). Na een juist antwoord kiest de leerling een
-                  kistje: munten (1.000 tot 25.000), een vermenigvuldiger, een firewall, pech of een kans om te hacken (een willekeurig doelwit, iemand uit de top 6 of één van twee). Wie
+                  kistje: munten (1.000 tot 25.000), een vermenigvuldiger, een firewall, pech of een kans om te hacken (iemand uit de top 3). Wie
                   het wachtwoord raadt, steelt een deel van diens munten. Wie op het einde de meeste munten heeft, wint.
                 </p>
                 <label className="flex items-center gap-2">
