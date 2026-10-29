@@ -1,5 +1,5 @@
 import { newId, nu } from './ids';
-import type { Vraag, Vragenset } from './types';
+import type { Vak, Vraag, Vragenset } from './types';
 import { gatenVan, gatLabel, WAAR_ONWAAR } from './vraagtypes';
 
 export function nieuweVraag(vorige?: Vraag): Vraag {
@@ -150,3 +150,6 @@ export function bordIndeling(vragen: readonly Vraag[]): BordKolom[] {
     vragen: [...vs].sort((a, b) => a.punten - b.punten),
   }));
 }
+
+/** Alle vakken van een vragenset (oudere sets: enkel het ene vak). */
+export const vakkenVan = (s: Pick<Vragenset, 'vak' | 'vakken'>): Vak[] => (s.vakken?.length ? s.vakken : [s.vak]);

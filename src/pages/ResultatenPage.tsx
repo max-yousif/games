@@ -1,5 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
+import { RichText } from '../components/RichText';
 import { Button, inputClass, Notice, PageHeader } from '../components/ui';
+import { statistieken } from '../lib/statistiek';
 import { beeindigSpel } from '../lib/beeindigen';
 import { datumTekst, exporteerAlles, exporteerSessie, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
@@ -42,7 +44,7 @@ export function ResultatenPage({ store }: { store: Store }) {
   const [spelFilter, setSpelFilter] = useState<Sessie['spelType'] | ''>('');
   const [zoek, setZoek] = useState('');
   const [open, setOpen] = useState<string | null>(null);
-  const [weergave, setWeergave] = useState<'spel' | 'leerling'>('spel');
+  const [weergave, setWeergave] = useState<'spel' | 'leerling' | 'statistiek'>('spel');
   // Enkel de spellen waarvan de resultaten bewaard werden.
   const bewaard = store.sessies.filter(isBewaard);
   // Leerjaar van een klas (zelf gekozen of uit de naam); ook voor klassen die intussen verwijderd zijn.
@@ -116,6 +118,7 @@ export function ResultatenPage({ store }: { store: Store }) {
                   [
                     ['spel', 'Per spel'],
                     ['leerling', 'Per leerling'],
+                    ['statistiek', 'Statistieken'],
                   ] as const
                 ).map(([w, label]) => (
                   <button
@@ -185,6 +188,7 @@ export function ResultatenPage({ store }: { store: Store }) {
           {sessies.length === 0 && <Notice>Geen resultaten met deze filter.</Notice>}
 
           {weergave === 'leerling' && sessies.length > 0 && <PerLeerling sessies={sessies} />}
+          {weergave === 'statistiek' && sessies.length > 0 && <StatistiekenWeergave sessies={sessies} />}
 
           {weergave === 'spel' && (
             <div className="space-y-6">
@@ -410,9 +414,126 @@ function PerLeerling({ sessies }: { sessies: Sessie[] }) {
           </table>
         </div>
       ))}
-      <p className="text-sm text-slate-500">
-        Leerlingen worden per klas op naam samengeteld. Beurten van het hele team tellen niet mee. De export (Excel) bevat ook een blad "Per leerling".
-      </p>
     </div>
+  );
+}
+
+/** Een horizontale balk (0-100 %) met het getal ernaast; de titel toont de details bij hover. */
+function Balk({ procent, titel }: { procent: number; titel: string }) {
+  return (
+    <span className="flex items-center gap-2" title={titel}>
+      <span className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
+        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(2, procent)}%` }} />
+      </span>
+      <span className="w-11 text-right font-mono text-sm tabular-nums">{procent}%</span>
+    </span>
+  );
+}
+
+function Kaart({ titel, children, leeg, leegTekst = 'Nog te weinig gegevens.' }: { titel: string; children: React.ReactNode; leeg?: boolean; leegTekst?: string }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-surface p-4 shadow-sm">
+      <h3 className="mb-3 font-semibold">{titel}</h3>
+      {leeg ? <p className="text-sm text-slate-500">{leegTekst}</p> : children}
+    </section>
+  );
+}
+
+function StatistiekenWeergave({ sessies }: { sessies: Sessie[] }) {
+  const st = useMemo(() => statistieken(sessies), [sessies]);
+  const meerdereKlassen = new Set(sessies.map((s) => s.klasNaam)).size > 1;
+  const wie = (naam: string, klas: string) => (meerdereKlassen ? `${naam} (${klas})` : naam);
+  const kort = (iso: string) => new Date(iso).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short' });
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Kaart titel="📈 % juist per spel (oud → nieuw)" leeg={st.perSpel.length === 0}>
+        <ol className="space-y-1.5">
+          {st.perSpel.slice(-12).map((p) => (
+            <li key={p.id} className="grid grid-cols-[5.5rem_1fr] items-center gap-2 text-sm">
+              <span className="truncate text-slate-500">{kort(p.datum)}</span>
+              <Balk procent={p.procent} titel={`${p.titel} · ${p.klas} · ${p.beurten} antwoorden`} />
+            </li>
+          ))}
+        </ol>
+      </Kaart>
+
+      <Kaart titel="📚 Per onderwerp (moeilijkste eerst)" leeg={st.perOnderwerp.length === 0}>
+        <ol className="space-y-1.5">
+          {st.perOnderwerp.slice(0, 10).map((o) => (
+            <li key={o.onderwerp} className="grid grid-cols-[9rem_1fr] items-center gap-2 text-sm">
+              <span className="truncate" title={o.onderwerp}>
+                {o.onderwerp}
+              </span>
+              <Balk procent={o.procent} titel={`${o.beurten} antwoorden`} />
+            </li>
+          ))}
+        </ol>
+      </Kaart>
+
+      <Kaart titel="🧩 Moeilijkste vragen" leeg={st.moeilijkst.length === 0}>
+        <ol className="space-y-2">
+          {st.moeilijkst.map((v, i) => (
+            <li key={i} className="grid grid-cols-[1fr_8rem] items-center gap-3 text-sm">
+              <span className="min-w-0">
+                <RichText text={v.tekst} className="line-clamp-2" />
+                <span className="text-xs text-slate-500">{v.set}</span>
+              </span>
+              <Balk procent={v.procent} titel={`${v.beurten} antwoorden`} />
+            </li>
+          ))}
+        </ol>
+      </Kaart>
+
+      <Kaart titel="⭐ Sterkste leerlingen" leeg={st.sterkst.length === 0}>
+        <LeerlingLijst rijen={st.sterkst.map((l) => ({ naam: wie(l.naam, l.klas), procent: l.procent, info: `${l.beurten} antwoorden in ${l.spellen} spellen` }))} />
+      </Kaart>
+
+      <Kaart titel="🤝 Extra aandacht (minder dan 60% juist)" leeg={st.aandacht.length === 0} leegTekst="Niemand onder 60% juist.">
+        <LeerlingLijst rijen={st.aandacht.map((l) => ({ naam: wie(l.naam, l.klas), procent: l.procent, info: `${l.beurten} antwoorden in ${l.spellen} spellen` }))} />
+      </Kaart>
+
+      <Kaart titel="🚀 Grootste vooruitgang" leeg={st.vooruitgang.length === 0}>
+        <ol className="space-y-1.5 text-sm">
+          {st.vooruitgang.map((v) => (
+            <li key={`${v.klas}:${v.naam}`} className="flex items-center gap-2" title="% juist in de eerste helft van de antwoorden → in de tweede helft">
+              <span className="min-w-0 flex-1 truncate font-medium">{wie(v.naam, v.klas)}</span>
+              <span className="font-mono tabular-nums text-slate-500">{v.voor}%</span>
+              <span>→</span>
+              <span className="font-mono font-semibold tabular-nums">{v.na}%</span>
+              <span className="w-14 text-right font-mono text-sm font-semibold text-emerald-700 tabular-nums">+{v.na - v.voor}</span>
+            </li>
+          ))}
+        </ol>
+      </Kaart>
+
+      <Kaart titel="🙋 Minst aanwezig" leeg={st.deelname.length === 0} leegTekst="Iedereen was telkens aanwezig.">
+        <ol className="space-y-1.5 text-sm">
+          {st.deelname.map((d) => (
+            <li key={`${d.klas}:${d.naam}`} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate font-medium">{wie(d.naam, d.klas)}</span>
+              <span className="text-slate-500">
+                {d.spellen} van {d.van} spellen
+              </span>
+            </li>
+          ))}
+        </ol>
+      </Kaart>
+    </div>
+  );
+}
+
+function LeerlingLijst({ rijen }: { rijen: { naam: string; procent: number; info: string }[] }) {
+  return (
+    <ol className="space-y-1.5">
+      {rijen.map((r) => (
+        <li key={r.naam} className="grid grid-cols-[9rem_1fr] items-center gap-2 text-sm">
+          <span className="truncate font-medium" title={r.naam}>
+            {r.naam}
+          </span>
+          <Balk procent={r.procent} titel={r.info} />
+        </li>
+      ))}
+    </ol>
   );
 }

@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Button, FileButton, inputClass, Notice, PageHeader } from '../components/ui';
 import { BackupError, bestandsnaam, downloadJson, leesBestand, setBestand, voegSamen } from '../lib/backup';
-import { nu } from '../lib/ids';
-import { dupliceerSet, nieuweSet, speelbareVragen } from '../lib/questions';
+import { dupliceerSet, nieuweSet, speelbareVragen, vakkenVan } from '../lib/questions';
 import { ga, href } from '../lib/route';
-import { ontbrekendeVoorbeelden, type Store } from '../lib/store';
+import type { Store } from '../lib/store';
 import type { Vak, Vragenset } from '../lib/types';
 
 export const VAK_LABELS: Record<Vak, string> = { wiskunde: 'Wiskunde', python: 'Python', ict: 'ICT', andere: 'Andere' };
@@ -31,7 +30,7 @@ function leesFilter(): { jaar: number | 0 | -1; vak: Vak | ''; sortering: Sorter
   }
 }
 
-const VAK_ICONEN: Record<Vak, string> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
+export const VAK_ICONEN: Record<Vak, string> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
 
 export function SetsPage({ store }: { store: Store }) {
   const [melding, setMelding] = useState<{ tone: 'ok' | 'warn'; tekst: string } | null>(null);
@@ -52,10 +51,10 @@ export function SetsPage({ store }: { store: Store }) {
     .filter((s) => {
       const jaren = jarenPerSet.get(s.id)!;
       if (filter.jaar === -1 ? jaren.length > 0 : filter.jaar !== 0 && !jaren.includes(filter.jaar)) return false;
-      if (filter.vak && s.vak !== filter.vak) return false;
+      if (filter.vak && !vakkenVan(s).includes(filter.vak)) return false;
       if (!zoekterm) return true;
       const categorieen = s.vragen.map((v) => v.categorie).join(' ');
-      return `${s.titel} ${s.beschrijving} ${s.leerjaar} ${categorieen}`.toLowerCase().includes(zoekterm);
+      return `${s.titel} ${s.beschrijving} ${s.leerjaar} ${vakkenVan(s).map((v) => VAK_LABELS[v]).join(' ')} ${categorieen}`.toLowerCase().includes(zoekterm);
     })
     .sort((a, b) =>
       filter.sortering === 'titel'
@@ -65,8 +64,7 @@ export function SetsPage({ store }: { store: Store }) {
           : b.gewijzigd.localeCompare(a.gewijzigd),
     );
   const telJaar = (j: number) => store.sets.filter((s) => (j === -1 ? jarenPerSet.get(s.id)!.length === 0 : jarenPerSet.get(s.id)!.includes(j))).length;
-  const vakken = (Object.keys(VAK_LABELS) as Vak[]).filter((v) => store.sets.some((s) => s.vak === v));
-  const ontbrekend = ontbrekendeVoorbeelden(store.sets);
+  const vakken = (Object.keys(VAK_LABELS) as Vak[]).filter((v) => store.sets.some((s) => vakkenVan(s).includes(v)));
 
   function nieuw() {
     const s = nieuweSet();
@@ -195,7 +193,11 @@ export function SetsPage({ store }: { store: Store }) {
                       {j}e jaar
                     </span>
                   ))}
-                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-tekst)]">{VAK_LABELS[s.vak]}</span>
+                  {vakkenVan(s).map((v) => (
+                    <span key={v} className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-tekst)]">
+                      {VAK_LABELS[v]}
+                    </span>
+                  ))}
                   {s.voorbeeld && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">voorbeeld</span>}
                 </div>
                 <div className="mt-0.5 truncate text-sm text-slate-600" title={s.beschrijving || s.leerjaar}>
@@ -243,27 +245,6 @@ export function SetsPage({ store }: { store: Store }) {
 
       {store.sets.length === 0 && <Notice>Nog geen vragensets. Maak een nieuwe set of importeer vragen.</Notice>}
 
-      <div className="mt-8 space-y-2 text-sm text-slate-600">
-        <p>
-          <strong>Vragen importeren:</strong> plak cellen uit Excel of Google Sheets, tekst uit Word of van een AI-chatbot, of sleep een Excel-bestand. Je ziet meteen
-          een voorbeeld van elke vraag voor je ze toevoegt.{' '}
-          <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'importeren' })}>
-            Vragen importeren
-          </a>
-        </p>
-        {ontbrekend.length > 0 && (
-          <p>
-            <button
-              type="button"
-              className="text-[var(--accent-tekst)] underline"
-              onClick={() => store.setSets((all) => [...all, ...ontbrekend.map((v) => ({ ...v, gewijzigd: nu() }))])}
-            >
-              Voorbeeldsets opnieuw toevoegen
-            </button>{' '}
-            ({ontbrekend.map((v) => v.titel).join(', ')})
-          </p>
-        )}
-      </div>
     </div>
   );
 }

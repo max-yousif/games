@@ -52,7 +52,10 @@ export interface Vragenset {
   id: string;
   titel: string;
   beschrijving: string;
+  /** Het eerste vak (voor oudere versies); alle vakken staan in `vakken`. */
   vak: Vak;
+  /** Eén of meer vakken. Ontbreekt bij oudere sets: dan enkel `vak`. */
+  vakken?: Vak[];
   leerjaar: string;
   vragen: Vraag[];
   /** Id van een voorbeeldset, zodat die niet dubbel toegevoegd wordt. */

@@ -5,15 +5,15 @@ import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '
 import { VraagWeergave } from '../components/VraagWeergave';
 import { CoverFout, maakCover } from '../lib/cover';
 import { nu } from '../lib/ids';
-import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vraagProblemen } from '../lib/questions';
+import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vakkenVan, vraagProblemen } from '../lib/questions';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { RaadselEditor } from '../components/RaadselEditor';
+import { VakKeuze } from '../components/VakKeuze';
 import { nieuwRaadsel } from '../live/whodunit';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
-import type { Vak, Vraag, VraagType, Vragenset } from '../lib/types';
+import type { Vraag, VraagType, Vragenset } from '../lib/types';
 import { isKeuzeVraag, VRAAG_TYPES } from '../lib/vraagtypes';
-import { VAK_LABELS } from './SetsPage';
 
 export function SetEditorPage({ id, store }: { id: string; store: Store }) {
   const set = store.sets.find((s) => s.id === id);
@@ -55,14 +55,8 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           <input className={inputClass} value={set.titel} onChange={(e) => update((s) => ({ ...s, titel: e.target.value }))} />
         </div>
         <div>
-          <label className={labelClass}>Vak</label>
-          <select className={inputClass} value={set.vak} onChange={(e) => update((s) => ({ ...s, vak: e.target.value as Vak }))}>
-            {Object.entries(VAK_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <span className={labelClass}>Vakken (één of meer)</span>
+          <VakKeuze vakken={vakkenVan(set)} onChange={(vakken) => update((s) => ({ ...s, vak: vakken[0], vakken }))} />
         </div>
         <div>
           <label className={labelClass}>Leerjaar / klas</label>

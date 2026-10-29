@@ -18,8 +18,8 @@ import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import { aiOpdracht, lijktTabel, TEKST_VOORBEELD, tekstNaarVragen } from '../lib/tekstImport';
 import type { Vak } from '../lib/types';
+import { VakKeuze } from '../components/VakKeuze';
 import { tekstMetGaten, VRAAG_TYPES } from '../lib/vraagtypes';
-import { VAK_LABELS } from './SetsPage';
 
 type Bron = { soort: 'tekst'; tekst: string } | { soort: 'bestand'; naam: string; rijen: string[][] };
 
@@ -44,7 +44,7 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
   const bestaand = store.sets.find((s) => s.id === setId);
   const [doel, setDoel] = useState<string>(bestaand?.id ?? 'nieuw');
   const [titel, setTitel] = useState('');
-  const [vak, setVak] = useState<Vak>('wiskunde');
+  const [vakken, setVakken] = useState<Vak[]>(['wiskunde']);
   const [leerjaar, setLeerjaar] = useState('');
   const [onderwerp, setOnderwerp] = useState('');
   const [gekopieerd, setGekopieerd] = useState(false);
@@ -95,7 +95,7 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
   function importeer() {
     if (vragen.length === 0) return;
     if (doel === 'nieuw') {
-      const s = { ...nieuweSet(), titel: titel.trim() || 'Geïmporteerde vragen', vak, leerjaar: leerjaar.trim(), vragen };
+      const s = { ...nieuweSet(), titel: titel.trim() || 'Geïmporteerde vragen', vak: vakken[0], vakken, leerjaar: leerjaar.trim(), vragen };
       store.setSets((all) => [...all, s]);
       ga({ pagina: 'set', id: s.id });
     } else {
@@ -372,16 +372,8 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
                   <input id="nieuw-titel" className={inputClass} placeholder="bv. Machten herhaling" value={titel} onChange={(e) => setTitel(e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="nieuw-vak">
-                    Vak
-                  </label>
-                  <select id="nieuw-vak" className={inputClass} value={vak} onChange={(e) => setVak(e.target.value as Vak)}>
-                    {Object.entries(VAK_LABELS).map(([k, l]) => (
-                      <option key={k} value={k}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
+                  <span className={labelClass}>Vakken</span>
+                  <VakKeuze vakken={vakken} onChange={setVakken} />
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="nieuw-leerjaar">

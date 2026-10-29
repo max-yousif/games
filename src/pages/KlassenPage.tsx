@@ -153,9 +153,6 @@ export function KlassenPage({ store }: { store: Store }) {
       <div className="mt-10">
         <CloudKaart store={store} />
       </div>
-      <p className="mt-4 text-sm text-slate-500">
-        Zonder aanmelden blijven de namen enkel in deze browser (en in je back-upbestand). Aangemeld staan ze in je account in Supabase: enkel jij kan ze lezen.
-      </p>
     </div>
   );
 }

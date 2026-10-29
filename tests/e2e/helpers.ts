@@ -16,12 +16,14 @@ export async function maakKlas(page: Page, naam: string, leerlingen: string[]) {
 /** Kiest een speltype op de pagina Spelen (met de eerste klas) en zet de demo-modus aan voor live spellen. */
 export async function kiesSpel(page: Page, set: string, spel: string) {
   await page.goto('#/spelen');
-  // Stap 1 spel, stap 2 vragenset, stap 3 klas (de eerste klas, of zonder klas).
+  // Stap 1 spel, stap 2 klas (de eerste klas, of zonder klas), stap 3 vragenset.
   await page.getByRole('button', { name: spel, exact: true }).click();
-  await page.getByRole('button', { name: set, exact: true }).click();
   const klas = page.locator('[data-klas]').first();
   if (await klas.count()) await klas.click();
   else await page.getByRole('button', { name: 'Zonder klas', exact: true }).click();
+  // Alle jaren tonen: de klas in de test hoort niet altijd bij het jaar van de set.
+  await page.getByRole('button', { name: 'Alle jaren' }).click();
+  await page.getByRole('button', { name: set, exact: true }).click();
   await expect(page.getByRole('button', { name: /Start het spel/ })).toBeVisible();
 }
 

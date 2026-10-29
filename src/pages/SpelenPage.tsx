@@ -10,7 +10,7 @@ import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
 import { LiveFout } from '../live/types';
-import { speelbareVragen } from '../lib/questions';
+import { speelbareVragen, vakkenVan } from '../lib/questions';
 import { ga, href } from '../lib/route';
 import { shuffle } from '../lib/random';
 import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
@@ -234,34 +234,38 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     setSpel(type);
     verdeel(klas?.leerlingen, type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : aantal, afwezig);
     if (type === 'live' && timer === null) setTimer(30);
-    setStap(set ? (klasGekozen ? 4 : 3) : 2);
+    setStap(klasGekozen ? (set ? 4 : 3) : 2);
   }
 
   function kiesSet(id: string) {
     setGekozenSet(id);
     setUit(new Set());
     laadCluedo(store.sets.find((s) => s.id === id)?.cluedo ?? STANDAARD_THEMA);
-    setStap(klasGekozen ? 4 : 3);
+    setStap(4);
   }
 
   function kiesKlas(id: string) {
     setKlasId(id);
     setAfwezig([]);
-    verdeel(store.klassen.find((k) => k.id === id)?.leerlingen ?? [], aantalTeams, []);
-    setStap(4);
+    const k = store.klassen.find((x) => x.id === id);
+    verdeel(k?.leerlingen ?? [], aantalTeams, []);
+    // Vragensets meteen gefilterd op het jaar van de klas.
+    setJaar(k ? (klasJaar(k) ?? 0) : 0);
+    setStap(set ? 4 : 3);
   }
 
   // Vragensets: zoeken op titel, leerjaar of vak; recent gewijzigde eerst.
   const zoekterm = zoek.trim().toLowerCase();
   const sets = [...store.sets]
-    .filter((s) => !jaar || jarenVan(s.leerjaar).includes(jaar))
-    .filter((s) => !zoekterm || `${s.titel} ${s.leerjaar} ${VAK_LABELS[s.vak]} ${s.beschrijving}`.toLowerCase().includes(zoekterm))
+    // Sets zonder jaar passen bij elke klas.
+    .filter((s) => !jaar || jarenVan(s.leerjaar).length === 0 || jarenVan(s.leerjaar).includes(jaar))
+    .filter((s) => !zoekterm || `${s.titel} ${s.leerjaar} ${vakkenVan(s).map((v) => VAK_LABELS[v]).join(' ')} ${s.beschrijving}`.toLowerCase().includes(zoekterm))
     .sort((a, b) => b.gewijzigd.localeCompare(a.gewijzigd));
 
   const stappen: { nr: Stap; titel: string; waarde: string | null; kan: boolean }[] = [
     { nr: 1, titel: 'Spel', waarde: spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : null, kan: true },
-    { nr: 2, titel: 'Vragenset', waarde: set?.titel ?? null, kan: spel !== null },
-    { nr: 3, titel: 'Klas', waarde: klasGekozen ? (klas ? `${klas.naam} (${klas.leerlingen.length})` : 'Zonder klas') : null, kan: spel !== null && set !== null },
+    { nr: 2, titel: 'Klas', waarde: klasGekozen ? (klas ? `${klas.naam} (${klas.leerlingen.length})` : 'Zonder klas') : null, kan: spel !== null },
+    { nr: 3, titel: 'Vragenset', waarde: set?.titel ?? null, kan: spel !== null && klasGekozen },
     { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && set !== null && klasGekozen },
   ];
 
@@ -330,8 +334,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </Section>
       )}
 
-      {stap === 2 && (
-        <Section step={2} title="Welke vragenset?">
+      {stap === 3 && (
+        <Section step={3} title="Welke vragenset?">
           <input
             type="search"
             className={`${inputClass} mb-4 max-w-md`}
@@ -377,7 +381,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   <div className="p-3">
                     <div className="font-semibold">{s.titel}</div>
                     <div className="mt-1 text-sm text-slate-500">
-                      {[s.leerjaar, VAK_LABELS[s.vak], `${n} vragen`].filter(Boolean).join(' · ')}
+                      {[s.leerjaar, vakkenVan(s).map((v) => VAK_LABELS[v]).join(', '), `${n} vragen`].filter(Boolean).join(' · ')}
                     </div>
                     <div className="mt-1 text-xs text-slate-400">{s.statistiek?.gespeeld ? `al ${s.statistiek.gespeeld}× gespeeld` : 'nog niet gespeeld'}</div>
                   </div>
@@ -389,8 +393,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </Section>
       )}
 
-      {stap === 3 && (
-        <Section step={3} title="Welke klas?">
+      {stap === 2 && (
+        <Section step={2} title="Welke klas?">
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {[...store.klassen]
               .sort((a, b) => (klasJaar(a) ?? 99) - (klasJaar(b) ?? 99) || a.naam.localeCompare(b.naam, 'nl', { numeric: true }))
@@ -741,8 +745,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1 truncate text-sm text-slate-600">
-            {spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : 'Kies een spel'} · {set ? `“${set.titel}”` : 'kies een vragenset'} ·{' '}
-            {klasGekozen ? (klas ? klas.naam : 'zonder klas') : 'kies een klas'}
+            {spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : 'Kies een spel'} · {klasGekozen ? (klas ? klas.naam : 'zonder klas') : 'kies een klas'} ·{' '}
+            {set ? `“${set.titel}”` : 'kies een vragenset'}
           </div>
           {fout && <span className="text-sm text-red-600">{fout}</span>}
           {stap < 4 ? (
