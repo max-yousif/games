@@ -53,6 +53,6 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   await expect(page.getByText(/Nog geen bewaarde resultaten/)).toBeVisible();
   // Zonder opslaan telt ook niet mee in de statistiek van de vragenset.
   await page.goto('#/sets');
-  await expect(page.locator('div.flex-col', { hasText: 'Whodunit: de nacht van de 50 dagen' }).getByText('▶ nog niet gespeeld')).toBeVisible();
+  await expect(page.locator('[data-set]', { hasText: 'Whodunit: de nacht van de 50 dagen' }).getByText('▶ nog niet gespeeld')).toBeVisible();
   controleer();
 });

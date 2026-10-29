@@ -18,7 +18,7 @@ import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
 import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
-import { VAK_LABELS } from './SetsPage';
+import { jarenVan, VAK_LABELS } from './SetsPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
@@ -52,6 +52,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // null = nog niet gekozen, '' = zonder klas.
   const [klasId, setKlasId] = useState<string | null>(null);
   const [zoek, setZoek] = useState('');
+  const [jaar, setJaar] = useState(0);
   const [aantal, setAantal] = useState(2);
   const [timer, setTimer] = useState<number | null>(null);
   const [snelheidsbonus, setSnelheidsbonus] = useState(true);
@@ -252,6 +253,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Vragensets: zoeken op titel, leerjaar of vak; recent gewijzigde eerst.
   const zoekterm = zoek.trim().toLowerCase();
   const sets = [...store.sets]
+    .filter((s) => !jaar || jarenVan(s.leerjaar).includes(jaar))
     .filter((s) => !zoekterm || `${s.titel} ${s.leerjaar} ${VAK_LABELS[s.vak]} ${s.beschrijving}`.toLowerCase().includes(zoekterm))
     .sort((a, b) => b.gewijzigd.localeCompare(a.gewijzigd));
 
@@ -338,6 +340,19 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             aria-label="Zoek een vragenset"
             autoFocus
           />
+          <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Leerjaar">
+            {[0, 3, 4, 5, 6].map((j) => (
+              <button
+                key={j}
+                type="button"
+                aria-pressed={jaar === j}
+                onClick={() => setJaar(j)}
+                className={`rounded-full border px-3 py-1 text-sm font-medium ${jaar === j ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
+              >
+                {j ? `${j}e jaar` : 'Alle jaren'}
+              </button>
+            ))}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {sets.map((s) => {
               const n = speelbareVragen(s).length;

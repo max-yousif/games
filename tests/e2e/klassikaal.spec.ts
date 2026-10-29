@@ -48,6 +48,6 @@ test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', asy
 
   // De vragenset telt het spel en de 4 spelers.
   await page.goto('#/sets');
-  await expect(page.locator('div', { hasText: 'Algebra: merkwaardige producten' }).getByText('▶ 1× gespeeld · 4 spelers')).toBeVisible();
+  await expect(page.locator('[data-set]', { hasText: 'Algebra: merkwaardige producten' }).getByText('▶ 1× gespeeld · 4 spelers')).toBeVisible();
   controleer();
 });
