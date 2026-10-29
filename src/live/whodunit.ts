@@ -1,5 +1,5 @@
 import type { Raadsel, Vraag } from '../lib/types';
-import { EINDCODE, slotVraag } from './escape';
+import { EINDCODE, slotVraag, STRAF } from './escape';
 import { automatischJuist } from './logic';
 import type { Beoordeling, LiveAntwoord } from './types';
 
@@ -80,13 +80,36 @@ export function hintsUitBeloning(beloning: string | null): Hint[] {
 }
 
 /**
- * Kijkt alle nog niet beoordeelde pogingen na. Een juiste oefening levert hints op; de tabel
- * (vraagnummer -1) moet volledig kloppen.
+ * Tot wanneer (ms sinds de start) de straftijd van een leerling loopt: na elke foute oefening of
+ * foute tabel `wachttijd` seconden waarin niets beantwoord kan worden.
  */
-export function whodunitBeoordelingen(vragen: readonly Vraag[], raadsel: Raadsel, antwoorden: readonly LiveAntwoord[]): Beoordeling[] {
-  return antwoorden
+export function whodunitStrafTot(eigen: readonly LiveAntwoord[], wachttijd: number): number {
+  return Math.max(0, ...eigen.filter((a) => a.juist === false && a.beloning !== STRAF).map((a) => a.tijdMs + wachttijd * 1000));
+}
+
+/**
+ * Kijkt alle nog niet beoordeelde pogingen na. Een juiste oefening levert hints op; de tabel
+ * (vraagnummer -1) moet volledig kloppen. Tijdens de straftijd wordt niets aanvaard.
+ */
+export function whodunitBeoordelingen(vragen: readonly Vraag[], raadsel: Raadsel, antwoorden: readonly LiveAntwoord[], wachttijd = 0): Beoordeling[] {
+  const beslist = new Map<string, Beoordeling>();
+  const gesorteerd = [...antwoorden].sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
+  return gesorteerd
     .filter((a) => a.juist === null)
     .flatMap((a) => {
+      // Straftijd: wat al beslist is (ook in deze ronde) telt mee.
+      const eigen = gesorteerd.filter((x) => x.spelerId === a.spelerId && x.tijdMs <= a.tijdMs && x.id !== a.id).map((x) => {
+        const b = beslist.get(x.id);
+        return b ? { ...x, juist: b.juist, beloning: b.beloning ?? null } : x;
+      });
+      const b = beoordeel(a);
+      if (a.tijdMs < whodunitStrafTot(eigen, wachttijd)) b.splice(0, b.length, { id: a.id, juist: false, punten: 0, beloning: STRAF });
+      for (const x of b) beslist.set(x.id, x);
+      return b;
+    });
+
+  function beoordeel(a: LiveAntwoord): Beoordeling[] {
+    return [a].flatMap((a) => {
       if (a.vraagNr === EINDCODE) return [{ id: a.id, juist: rasterJuist(raadsel, rasterUitTekst(a.antwoord)), punten: 0, beloning: null }];
       const v = vragen[slotVraag(a.spelerId, a.vraagNr, vragen)];
       if (!v) return [];
@@ -94,6 +117,7 @@ export function whodunitBeoordelingen(vragen: readonly Vraag[], raadsel: Raadsel
       const hints = hintsVoorOefening(a.vraagNr, vragen.length, raadsel.hints.length).map((i) => ({ nr: i + 1, tekst: raadsel.hints[i] }));
       return [{ id: a.id, juist, punten: juist ? v.punten : 0, beloning: juist ? hintsNaarBeloning(hints) : null }];
     });
+  }
 }
 
 /** Wat ontbreekt er nog aan een raadsel om te kunnen spelen? */

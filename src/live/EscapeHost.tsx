@@ -61,7 +61,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
   const [ronde, setRonde] = useState(0);
   useEffect(() => {
     if (!server) return;
-    const items = whodunit && sessie.raadsel ? whodunitBeoordelingen(vragen, sessie.raadsel, antwoorden) : escapeActieBeoordelingen(vragen, code, wachttijd, antwoorden);
+    const items = whodunit && sessie.raadsel ? whodunitBeoordelingen(vragen, sessie.raadsel, antwoorden, wachttijd) : escapeActieBeoordelingen(vragen, code, wachttijd, antwoorden);
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {

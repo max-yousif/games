@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { VOORBEELDSETS } from '../src/content/voorbeelden';
-import { EINDCODE, slotVraag } from '../src/live/escape';
+import { EINDCODE, slotVraag, STRAF } from '../src/live/escape';
 import { automatischJuist } from '../src/live/logic';
 import type { LiveAntwoord } from '../src/live/types';
-import { hintsUitBeloning, hintsVoorOefening, publiekRaadsel, raadselProblemen, rasterJuist, rasterNaarTekst, whodunitBeoordelingen } from '../src/live/whodunit';
+import { whodunitStrafTot, hintsUitBeloning, hintsVoorOefening, publiekRaadsel, raadselProblemen, rasterJuist, rasterNaarTekst, whodunitBeoordelingen } from '../src/live/whodunit';
 
 const set = VOORBEELDSETS.find((s) => s.raadsel)!;
 const raadsel = set.raadsel!;
@@ -38,7 +38,9 @@ describe('whodunit', () => {
   it('kijkt oefeningen en de tabel na', () => {
     // Achter welke oefening (slot) staat bij deze leerling de eerste en de tweede vraag van de set?
     const slot = (i: number) => set.vragen.findIndex((_, nr) => slotVraag('p1', nr, set.vragen) === i);
-    const items = whodunitBeoordelingen(set.vragen, raadsel, [antwoord(slot(0), 'y = π/2'), antwoord(slot(1), '131'), antwoord(EINDCODE, rasterNaarTekst(oplossing))]);
+    const alle = [antwoord(slot(0), 'y = π/2'), antwoord(slot(1), '131'), antwoord(EINDCODE, rasterNaarTekst(oplossing))];
+    const uit = whodunitBeoordelingen(set.vragen, raadsel, alle);
+    const items = alle.map((a) => uit.find((b) => b.id === a.id)!);
     expect(items[0]).toMatchObject({ juist: true, punten: 100 });
     expect(hintsUitBeloning(items[0].beloning!)).toEqual(hintsVoorOefening(slot(0), set.vragen.length, raadsel.hints.length).map((i) => ({ nr: i + 1, tekst: raadsel.hints[i] })));
     expect(items[1]).toMatchObject({ juist: false, beloning: null });
@@ -47,6 +49,19 @@ describe('whodunit', () => {
     [fout[0][0], fout[0][1]] = [fout[0][1], fout[0][0]];
     expect(rasterJuist(raadsel, fout)).toBe(false);
     expect(rasterJuist(raadsel, oplossing.map((r) => r.map((w) => ` ${w.toUpperCase()} `)))).toBe(true);
+  });
+
+  it('straftijd na een fout: dan wordt niets aanvaard, daarna wel', () => {
+    const slot = (i: number) => set.vragen.findIndex((_, nr) => slotVraag('p1', nr, set.vragen) === i);
+    const op = (nr: number, tekst: string, tijdMs: number, id: string): LiveAntwoord => ({ ...antwoord(nr, tekst, id), tijdMs });
+    const alle = [op(slot(0), 'fout', 1000, 'x1'), op(slot(0), 'y = π/2', 20000, 'x2'), op(slot(0), 'y = π/2', 70000, 'x3')];
+    const b = whodunitBeoordelingen(set.vragen, raadsel, alle, 60);
+    expect(b.map((x) => [x.juist, x.beloning === STRAF])).toEqual([
+      [false, false],
+      [false, true],
+      [true, false],
+    ]);
+    expect(whodunitStrafTot([{ ...alle[0], juist: false }], 60)).toBe(61000);
   });
 
   it('het voorbeeldraadsel is volledig en heeft precies één oplossing', () => {

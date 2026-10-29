@@ -6,7 +6,7 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await kiesSpel(page, 'Whodunit: de nacht van de 50 dagen (5e–6e jaar)', 'Whodunit');
-  await page.locator('div', { has: page.locator('label', { hasText: 'Wachten na fout antwoord' }) }).locator('select').last().selectOption('0');
+  await page.locator('div', { has: page.locator('label', { hasText: 'Straftijd na een fout' }) }).locator('select').last().selectOption('0');
   // Samen op één laptop werken kan niet (meer).
   await expect(page.locator('label:text-is("Werken")')).toHaveCount(0);
   const code = await startLive(page);

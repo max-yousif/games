@@ -556,7 +556,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 </div>
               ) : (
                 <div className="w-48">
-                  <label className={labelClass}>Wachten na fout antwoord</label>
+                  <label className={labelClass}>{spel === 'whodunit' ? 'Straftijd na een fout' : 'Wachten na fout antwoord'}</label>
                   <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
                     {WACHTTIJDEN.map((w) => (
                       <option key={w} value={w}>

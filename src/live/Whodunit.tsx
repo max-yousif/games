@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import type { Raadsel } from '../lib/types';
-import { EINDCODE, slotVraag } from './escape';
+import { EINDCODE, slotVraag, STRAF } from './escape';
 import { laatstePoging, type Status } from './EscapeSpeler';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
-import { hintsUitBeloning, rasterNaarTekst, rasterUitTekst, type Hint, type PubliekRaadsel } from './whodunit';
+import { hintsUitBeloning, rasterNaarTekst, rasterUitTekst, whodunitStrafTot, type Hint, type PubliekRaadsel } from './whodunit';
 
 /** De oplossing van het raadsel als tabel (voor de leerkracht). */
 export function OplossingTabel({ raadsel }: { raadsel: Raadsel }) {
@@ -84,13 +84,11 @@ export function WhodunitSpeler({
   const [open, setOpen] = useState<number | null>(null);
   const [raster, setRaster] = useRaster(sessie.id, raadsel);
   const [nu, setNu] = useState(() => Date.now());
-  const foutGezien = useRef(new Map<string, number>());
 
   useEffect(() => {
     const id = window.setInterval(() => setNu(Date.now()), 500);
     return () => window.clearInterval(id);
   }, []);
-  for (const a of antwoorden) if (a.juist === false && !foutGezien.current.has(a.id)) foutGezien.current.set(a.id, Date.now());
 
   const hints = new Map<number, Hint>();
   for (const a of antwoorden) if (a.juist && a.vraagNr !== EINDCODE) for (const h of hintsUitBeloning(a.beloning)) hints.set(h.nr, h);
@@ -98,14 +96,15 @@ export function WhodunitSpeler({
   const opgelost = antwoorden.find((a) => a.vraagNr === EINDCODE && a.juist);
   const verstreken = sessie.vraagStart ? Math.max(0, nu - new Date(sessie.vraagStart).getTime()) : 0;
   const resterend = sessie.timer ? sessie.timer * 1000 - verstreken : null;
+  // Straftijd na een fout antwoord of een foute tabel: dan kan je nergens antwoorden.
+  const straf = Math.max(0, Math.ceil((whodunitStrafTot(antwoorden, sessie.wachttijd) - verstreken) / 1000));
 
   function status(nr: number): Status {
     const laatste = laatstePoging(antwoorden, nr);
-    if (!laatste) return { soort: 'open' };
-    if (laatste.juist) return { soort: 'klaar' };
-    if (laatste.juist === null) return { soort: 'nakijken' };
-    const rest = sessie.wachttijd * 1000 - (nu - (foutGezien.current.get(laatste.id) ?? nu));
-    return rest > 0 ? { soort: 'wachten', seconden: Math.ceil(rest / 1000), fout: true } : { soort: 'open', fout: true };
+    if (laatste?.juist) return { soort: 'klaar' };
+    if (laatste && laatste.juist === null) return { soort: 'nakijken' };
+    const fout = laatste?.juist === false && laatste.beloning !== STRAF;
+    return straf > 0 ? { soort: 'wachten', seconden: straf, fout } : { soort: 'open', fout };
   }
 
   if (sessie.status === 'einde') {
@@ -229,13 +228,17 @@ function Oefening({ nr, spelerId, be, sessie, status, open, onOpen }: { nr: numb
           <span className="block text-sm font-semibold text-slate-500">Oefening {nr + 1}</span>
           <RichText text={v.tekst} className={open ? 'text-lg font-medium' : 'line-clamp-2'} />
         </span>
-        {status.soort === 'wachten' && <span className="shrink-0 text-sm text-red-600">opnieuw over {status.seconden}s</span>}
+        {status.soort === 'wachten' && <span className="shrink-0 text-sm text-red-600">{status.fout ? 'fout · ' : ''}⛔ {status.seconden}s</span>}
         {status.soort === 'open' && status.fout && <span className="shrink-0 text-sm text-red-600">fout</span>}
       </button>
       {open && status.soort !== 'klaar' && (
         <div className="border-t border-slate-100 p-4">
           {status.soort === 'nakijken' && <p className="text-slate-500">Wordt nagekeken…</p>}
-          {status.soort === 'wachten' && <p className="font-semibold text-red-600">Fout! Opnieuw proberen over {status.seconden} s, of probeer intussen een andere oefening.</p>}
+          {status.soort === 'wachten' && (
+            <p className="font-semibold text-red-600">
+              {status.fout ? 'Fout! ' : ''}⛔ Straftijd: je kan pas over {status.seconden} s weer antwoorden.
+            </p>
+          )}
           {status.soort === 'open' && (
             <>
               {status.fout && <p className="mb-2 rounded-lg bg-red-50 px-4 py-2 text-red-700">Dat was fout. Probeer opnieuw!</p>}
@@ -343,7 +346,7 @@ function Oplossen({
         {status.soort === 'nakijken' ? (
           <span className="text-slate-500">Je oplossing wordt gecontroleerd…</span>
         ) : status.soort === 'wachten' ? (
-          <span className="font-semibold text-red-600">Niet juist! Opnieuw controleren over {status.seconden} s.</span>
+          <span className="font-semibold text-red-600">{status.fout ? "Niet juist! " : ""}⛔ Straftijd: opnieuw controleren over {status.seconden} s.</span>
         ) : (
           <>
             <button
