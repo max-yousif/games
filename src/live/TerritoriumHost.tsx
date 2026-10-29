@@ -50,8 +50,6 @@ function gebiedPerNaam(sessie: Sessie, t: TerritoriumToestand): Record<string, n
 
 function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   const live = sessie.live!;
-  // Spellen van voor de instelbare tekentijd: 3 seconden.
-  const seconden = live.tekenSeconden ?? 3;
   const be = backend(live.backend);
   const [server, setServer] = useState<LiveSessie | null | undefined>(undefined);
   const [spelers, setSpelers] = useState<LiveSpeler[]>([]);
@@ -67,7 +65,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   const kleuren = useMemo(() => kenKleurenToe(spelers, live.kleuren ?? {}), [spelers, live.kleuren]);
   const beslist = useRef(new Map<string, Beoordeling>());
   const vragen = useMemo(() => sessie.vraagVolgorde.map((id) => sessie.vragen.find((v) => v.id === id)).filter((v): v is Vraag => !!v), [sessie]);
-  const toestand = useMemo(() => territoriumToestand(spelers, antwoorden, kleuren, seconden), [spelers, antwoorden, kleuren, seconden]);
+  const toestand = useMemo(() => territoriumToestand(spelers, antwoorden, kleuren), [spelers, antwoorden, kleuren]);
   const stand = territoriumStand(toestand);
 
   const [nu, setNu] = useState(() => Date.now());
@@ -86,7 +84,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
       const b = a.juist === null ? beslist.current.get(a.id) : undefined;
       return b ? { ...a, juist: b.juist, punten: b.punten, beloning: b.beloning ?? null } : a;
     });
-    const items = territoriumBeoordelingen(vragen, spelers, bekend, kleuren, seconden);
+    const items = territoriumBeoordelingen(vragen, spelers, bekend, kleuren);
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {
@@ -97,7 +95,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
           const i = items.find((x) => x.id === a.id);
           return i ? { ...a, juist: i.juist, punten: i.punten, beloning: i.beloning ?? null } : a;
         });
-        const t = territoriumToestand(spelers, bijgewerkt, kleuren, seconden);
+        const t = territoriumToestand(spelers, bijgewerkt, kleuren);
         await be.wijzigSessie(live.sessieId, { stand: territoriumStand(t), oplossing: alsOplossing(codeerVeld(t.veld)) });
         setFout(null);
       } catch (e) {
@@ -108,7 +106,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
         setRonde((r) => r + 1);
       }
     })();
-  }, [antwoorden, vragen, be, live.sessieId, spelers, kleuren, seconden, ronde]);
+  }, [antwoorden, vragen, be, live.sessieId, spelers, kleuren, ronde]);
 
   // Veld en stand doorsturen als er iets veranderde (bv. een nieuwe speler met een kleur).
   const veldTekst = codeerVeld(toestand.veld);

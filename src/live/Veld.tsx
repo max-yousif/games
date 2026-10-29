@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BREEDTE, HOOGTE, KLEUREN, MAX_PUNTEN, schilder } from './territorium';
+import { BREEDTE, codeerLijnen, HOOGTE, KLEUREN, leesLijnen, MAX_TEKENS, schilder } from './territorium';
 
 const SCHAAL = 10;
 
@@ -29,8 +29,6 @@ export function VeldBeeld({ veld, className = '' }: { veld: Uint8Array; classNam
 
 type Fase = 'wacht' | 'bezig' | 'klaar';
 
-/** Lengte van het antwoord: 4 tekens per punt en 1 per lijn (de server bewaart hoogstens 2000 tekens). */
-const lengte = (lijnen: [number, number][][]) => lijnen.reduce((n, l) => n + l.length * 4 + 1, 0);
 
 /**
  * Tekenen op het veld, over het hele scherm (zodat er niets kan scrollen). De tijd start bij de
@@ -109,11 +107,14 @@ export function VeldTekenen({
     const r = e.currentTarget.getBoundingClientRect();
     const x = Math.max(0, Math.min(BREEDTE - 0.01, ((e.clientX - r.left) / r.width) * BREEDTE));
     const y = Math.max(0, Math.min(HOOGTE - 0.01, ((e.clientY - r.top) / r.height) * HOOGTE));
-    return [Math.round(x * 2) / 2, Math.round(y * 2) / 2];
+    // Het midden van het vakje: precies zoals het bord de tekening leest.
+    return [Math.floor(x) + 0.5, Math.floor(y) + 0.5];
   };
 
-  const verf = (a: [number, number], b: [number, number]) => {
-    schilder(kopie.current, [[a, b]], straal, kleur + 1);
+  // Tonen wat het bord zal bewaren: de tekening gecodeerd en terug gelezen, op het veld van de server.
+  const toon = (code: string) => {
+    kopie.current = new Uint8Array(veld);
+    schilder(kopie.current, leesLijnen(code), straal, kleur + 1);
     const ctx = ref.current?.getContext('2d');
     if (ctx) teken(ctx, kopie.current);
   };
@@ -159,19 +160,24 @@ export function VeldTekenen({
               setFase('bezig');
             }
             omlaag.current = true;
-            const p = punt(e);
-            lijnen.current.push([p]);
-            verf(p, p);
+            lijnen.current.push([punt(e)]);
+            toon(codeerLijnen(lijnen.current));
           }}
           onPointerMove={(e) => {
             if (!omlaag.current || klaar.current) return;
             const lijn = lijnen.current.at(-1)!;
             const vorig = lijn.at(-1)!;
             const p = punt(e);
-            if (Math.hypot(p[0] - vorig[0], p[1] - vorig[1]) < 0.75) return;
+            if (p[0] === vorig[0] && p[1] === vorig[1]) return;
             lijn.push(p);
-            verf(vorig, p);
-            if (lengte(lijnen.current) > 1850 || lijnen.current.flat().length >= MAX_PUNTEN) stop();
+            const code = codeerLijnen(lijnen.current);
+            // Bijna te lang voor de server: hier stoppen (wat je ziet, is wat bewaard wordt).
+            if (code.length > MAX_TEKENS) {
+              lijn.pop();
+              stop();
+              return;
+            }
+            toon(code);
           }}
           onPointerUp={() => {
             omlaag.current = false;

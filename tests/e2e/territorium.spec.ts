@@ -50,8 +50,8 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
   await juistEnTeken(anna, 0.3);
   await juistEnTeken(bert, 0.7);
   // Anna heeft gebied op het bord en op haar eigen scherm.
-  await expect(page.locator('li', { hasText: 'Anna' }).getByText(/^[1-9][\d,.]* %$/)).toBeVisible();
-  await expect(anna.getByText(/^[1-9][\d,.]* %$/).first()).toBeVisible();
+  await expect(page.locator('li', { hasText: 'Anna' }).getByText(/^(?!0 %)[\d,.]+ %$/)).toBeVisible();
+  await expect(anna.getByText(/^(?!0 %)[\d,.]+ %$/).first()).toBeVisible();
 
   // Tweede juist antwoord na elkaar: een streak en een groter penseel.
   await juistEnTeken(anna, 0.5);

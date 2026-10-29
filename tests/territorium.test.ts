@@ -5,7 +5,7 @@ import {
   codeerLijnen,
   codeerVeld,
   HOOGTE,
-  MAX_SNELHEID,
+  MAX_TEKENS,
   kenKleurenToe,
   leesLijnen,
   leesVeld,
@@ -48,15 +48,29 @@ function speel(alle: LiveAntwoord[]) {
 
 describe('territorium', () => {
   it('lijnen en veld coderen en terug lezen', () => {
+    // Punten worden middens van vakjes; een grote sprong wordt in stapjes opgedeeld.
     const lijnen: [number, number][][] = [
       [
-        [0, 0],
-        [10.5, 3],
-        [79.5, 49.5],
+        [0.5, 0.5],
+        [3.5, 2.5],
+        [3.5, 2.5],
+        [9.5, 2.5],
       ],
-      [[4, 4]],
+      [[4.2, 4.9]],
     ];
-    expect(leesLijnen(codeerLijnen(lijnen))).toEqual(lijnen);
+    const terug = leesLijnen(codeerLijnen(lijnen));
+    expect(terug[0][0]).toEqual([0.5, 0.5]);
+    expect(terug[0].at(-1)).toEqual([9.5, 2.5]);
+    expect(terug[0]).toContainEqual([3.5, 2.5]);
+    expect(terug[1]).toEqual([[4.5, 4.5]]);
+    // Opnieuw coderen geeft hetzelfde: wat de laptop toont, is wat het bord bewaart.
+    expect(codeerLijnen(terug)).toBe(codeerLijnen(lijnen));
+    // Een snelle, lange krabbel (heen en weer over het hele veld) past ruim in het antwoord.
+    const krabbel: [number, number][] = [];
+    for (let i = 0; i < 12; i++) for (let x = 0; x < 80; x++) krabbel.push([i % 2 ? 79 - x : x, 4 * i]);
+    expect(codeerLijnen([krabbel]).length).toBeLessThan(MAX_TEKENS);
+    // Tekeningen van vroeger blijven leesbaar.
+    expect(leesLijnen('0a0k')).toEqual([[[5, 10]]]);
     const veld = new Uint8Array(BREEDTE * HOOGTE);
     veld.fill(3, 100, 400);
     veld.fill(12, 2000, 2001);
@@ -66,25 +80,23 @@ describe('territorium', () => {
   });
 
   it('penseel groeit met de reeks, tot een maximum', () => {
-    expect([1, 2, 3, 4, 5, 6, 10].map(penseel)).toEqual([1, 1.5, 2, 2.5, 3, 3.5, 3.5]);
+    expect([1, 2, 3, 4, 5, 6, 10].map(penseel)).toEqual([0.5, 0.75, 1, 1.5, 2, 2.5, 2.5]);
   });
 
-  it('schilderen: een groter penseel kleurt meer, de inkt is beperkt', () => {
+  it('schilderen: een groter penseel kleurt meer', () => {
     const lijn: [number, number][][] = [
       [
-        [5, 25],
-        [30, 25],
+        [5.5, 25.5],
+        [30.5, 25.5],
       ],
     ];
     const klein = schilder(new Uint8Array(BREEDTE * HOOGTE), lijn, 1, 1);
     const groot = schilder(new Uint8Array(BREEDTE * HOOGTE), lijn, 3, 1);
     expect(groot).toBeGreaterThan(klein * 2);
-    // Een onmogelijk snelle lijn wordt afgekapt (hier na 1 seconde tekenen).
-    const veld = new Uint8Array(BREEDTE * HOOGTE);
-    schilder(veld, [[[0, 10], [79, 10], [79, 40], [0, 40]]], 0.5, 1, MAX_SNELHEID);
-    const verste = Math.max(...[...veld].map((v, i) => (v ? (i % BREEDTE) + Math.floor(i / BREEDTE) : 0)));
-    expect(verste).toBeLessThanOrEqual(10 + MAX_SNELHEID + 1);
-    // Zonder grens: de hele lijn.
+    // Het kleinste penseel: een lijn van 1 vakje breed.
+    const smal = schilder(new Uint8Array(BREEDTE * HOOGTE), lijn, 0.5, 1);
+    expect(smal).toBe(26);
+    // De hele lijn telt, ook een lange.
     const vrij = new Uint8Array(BREEDTE * HOOGTE);
     schilder(vrij, [[[0, 10], [79, 10], [79, 40], [0, 40]]], 0.5, 1);
     expect(vrij[40 * BREEDTE + 1]).toBe(1);
@@ -94,7 +106,7 @@ describe('territorium', () => {
     let alle = [ant('A', 0, juist('A', 0), 1), ant('B', 0, 'fout', 2), ant('B', 1, juist('B', 1), 3)];
     alle = speel(alle);
     let t = territoriumToestand(spelers, alle, kleuren);
-    expect(t.spelers.get('A')!.beurten).toEqual([{ vraag: 0, penseel: 1 }]);
+    expect(t.spelers.get('A')!.beurten).toEqual([{ vraag: 0, penseel: 0.5 }]);
     expect(t.spelers.get('B')!.reeks).toBe(1);
     // Zonder beurt tekenen telt niet.
     alle.push(ant('A', ACTIE_BASIS, teken(5, [[[10, 10]]]), 4));
@@ -120,7 +132,7 @@ describe('territorium', () => {
     alle.push(ant('A', 4, 'fout', 10), ant('A', 5, juist('A', 5), 11));
     alle = speel(alle);
     const t = territoriumToestand(spelers, alle, kleuren);
-    expect(t.spelers.get('A')!.beurten.map((b) => b.penseel)).toEqual([1, 1.5, 2, 2.5, 1]);
+    expect(t.spelers.get('A')!.beurten.map((b) => b.penseel)).toEqual([0.5, 0.75, 1, 1.5, 0.5]);
     expect(t.spelers.get('A')!.besteReeks).toBe(4);
   });
 

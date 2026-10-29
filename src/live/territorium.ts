@@ -19,10 +19,8 @@ export const HOOGTE = 50;
 /** Keuzes voor de tekentijd per beurt (seconden); spellen van vroeger hadden 3 seconden. */
 export const TEKENTIJDEN = [3, 5, 8, 10];
 export const STANDAARD_SECONDEN = 5;
-/** Sneller dan dit kan niemand tekenen (vakjes per seconde): langere lijnen worden afgekapt. */
-export const MAX_SNELHEID = 45;
-/** Maximaal aantal punten per tekening (het antwoord mag hoogstens 2000 tekens zijn). */
-export const MAX_PUNTEN = 420;
+/** Maximale lengte van een gecodeerde tekening (het hele antwoord mag hoogstens 2000 tekens zijn). */
+export const MAX_TEKENS = 1900;
 
 /** Duidelijk verschillende kleuren; kleur 0 = eerste speler. */
 export const KLEUREN = [
@@ -31,9 +29,10 @@ export const KLEUREN = [
   '#e6beff', '#1abc9c', '#ff6f61', '#6b5b95', '#88b04b', '#f7cac9', '#92a8d1', '#955251', '#b565a7', '#009b77',
 ];
 
-/** Penseelstraal (in vakjes) bij een reeks van `reeks` juiste antwoorden na elkaar. */
+/** Penseelstraal (in vakjes) bij een reeks van `reeks` juiste antwoorden na elkaar: van een lijn van 1 vakje breed tot 5 breed. */
+const PENSELEN = [0.5, 0.75, 1, 1.5, 2, 2.5];
 export function penseel(reeks: number): number {
-  return Math.min(3.5, 0.5 + 0.5 * Math.max(1, reeks));
+  return PENSELEN[Math.min(PENSELEN.length, Math.max(1, reeks)) - 1];
 }
 
 export interface Tekening {
@@ -53,13 +52,66 @@ export interface VraagBeloning {
 // ---------- Coderen ----------
 
 const cijfer = (n: number) => Math.max(0, Math.min(1295, Math.round(n))).toString(36).padStart(2, '0');
+/** Stapjes tussen twee punten (-3 tot 3 vakjes in x en y) als één teken. */
+const STAPPEN = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLM';
+const vak = (n: number, max: number) => Math.max(0, Math.min(max - 1, Math.floor(n)));
 
-/** Lijnen (punten in vakjes, mag met halve vakjes) als korte tekst: 4 tekens per punt, lijnen gescheiden door "|". */
+/**
+ * Lijnen (punten in vakjes) als korte tekst, zodat ook een snelle, lange tekening past: per lijn
+ * het beginvakje (4 tekens) en daarna één teken per stapje naar een buurvakje. De punten komen
+ * terug als middens van de vakjes, op het bord en op de laptop precies hetzelfde.
+ */
 export function codeerLijnen(lijnen: [number, number][][]): string {
-  return lijnen.map((l) => l.map(([x, y]) => cijfer(x * 2) + cijfer(y * 2)).join('')).join('|');
+  const delen = lijnen
+    .filter((l) => l.length)
+    .map((l) => {
+      let x = vak(l[0][0], BREEDTE);
+      let y = vak(l[0][1], HOOGTE);
+      let tekst = cijfer(x) + cijfer(y);
+      for (const [px, py] of l.slice(1)) {
+        const nx = vak(px, BREEDTE);
+        const ny = vak(py, HOOGTE);
+        // Grote sprongen in stapjes van hoogstens 3 vakjes.
+        const n = Math.ceil(Math.max(Math.abs(nx - x), Math.abs(ny - y)) / 3);
+        const bx = x;
+        const by = y;
+        for (let k = 1; k <= n; k++) {
+          const tx = Math.round(bx + ((nx - bx) * k) / n);
+          const ty = Math.round(by + ((ny - by) * k) / n);
+          tekst += STAPPEN[(tx - x + 3) * 7 + (ty - y + 3)];
+          x = tx;
+          y = ty;
+        }
+      }
+      return tekst;
+    });
+  return `v2:${delen.join('|')}`;
 }
 
 export function leesLijnen(tekst: string): [number, number][][] {
+  if (!tekst.startsWith('v2:')) return leesOudeLijnen(tekst);
+  return tekst
+    .slice(3)
+    .split('|')
+    .filter((l) => l.length >= 4)
+    .map((l) => {
+      let x = parseInt(l.slice(0, 2), 36);
+      let y = parseInt(l.slice(2, 4), 36);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+      const punten: [number, number][] = [[x + 0.5, y + 0.5]];
+      for (const c of l.slice(4)) {
+        const i = STAPPEN.indexOf(c);
+        if (i < 0) continue;
+        x = vak(x + Math.floor(i / 7) - 3, BREEDTE);
+        y = vak(y + (i % 7) - 3, HOOGTE);
+        punten.push([x + 0.5, y + 0.5]);
+      }
+      return punten;
+    });
+}
+
+/** Tekeningen van vroeger: 4 tekens per punt (halve vakjes). */
+function leesOudeLijnen(tekst: string): [number, number][][] {
   return tekst
     .split('|')
     .filter(Boolean)
@@ -173,7 +225,6 @@ export function territoriumToestand(
   spelers: readonly LiveSpeler[],
   antwoorden: readonly LiveAntwoord[],
   kleuren: Record<string, number>,
-  seconden = STANDAARD_SECONDEN,
 ): TerritoriumToestand {
   const t: TerritoriumToestand = {
     veld: new Uint8Array(BREEDTE * HOOGTE),
@@ -200,7 +251,7 @@ export function territoriumToestand(
     const beurt = teken && p.beurten.find((b) => b.vraag === teken.vraag);
     if (!teken || !beurt) continue;
     p.beurten = p.beurten.filter((b) => b !== beurt);
-    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1, seconden * MAX_SNELHEID);
+    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1);
   }
   const tel = new Map<number, number>();
   for (const v of t.veld) if (v) tel.set(v, (tel.get(v) ?? 0) + 1);
@@ -225,14 +276,13 @@ export function territoriumBeoordelingen(
   spelers: readonly LiveSpeler[],
   antwoorden: readonly LiveAntwoord[],
   kleuren: Record<string, number>,
-  seconden = STANDAARD_SECONDEN,
 ): Beoordeling[] {
   const bekend = new Set(spelers.map((s) => s.id));
   const lijst = antwoorden.filter((a) => a.juist !== null);
   const open = antwoorden.filter((a) => a.juist === null && bekend.has(a.spelerId)).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
   const uit: Beoordeling[] = [];
   for (const a of open) {
-    const p = territoriumToestand(spelers, lijst, kleuren, seconden).spelers.get(a.spelerId)!;
+    const p = territoriumToestand(spelers, lijst, kleuren).spelers.get(a.spelerId)!;
     let b: Beoordeling;
     if (!isActie(a.vraagNr)) {
       const v = vragen[vraagIndex(a.spelerId, a.vraagNr, vragen.length)];
@@ -240,7 +290,7 @@ export function territoriumBeoordelingen(
       b = beoordeeld(a, juist, juist ? ({ teken: true, reeks: p.reeks + 1, penseel: penseel(p.reeks + 1) } satisfies VraagBeloning) : null);
     } else {
       const teken = leesTekening(a.antwoord);
-      const geldig = !!teken && p.beurten.some((x) => x.vraag === teken.vraag) && leesLijnen(teken.lijnen).flat().length <= MAX_PUNTEN;
+      const geldig = !!teken && p.beurten.some((x) => x.vraag === teken.vraag) && teken.lijnen.length <= MAX_TEKENS;
       b = beoordeeld(a, geldig, null);
     }
     uit.push(b);
