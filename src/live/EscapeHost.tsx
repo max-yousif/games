@@ -6,7 +6,7 @@ import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
-import { escapeBeoordelingen, escapeStand, escapeVoortgang, type EscapeVoortgang } from './escape';
+import { escapeBeoordelingen, escapeStand, escapeVoortgang, slotVraag, type EscapeVoortgang } from './escape';
 import { whodunitBeoordelingen } from './whodunit';
 import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
@@ -15,6 +15,10 @@ import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from '.
 import { speel, useMuziek } from '../lib/geluid';
 
 /** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
+/** Antwoorden per vraag in plaats van per slot (elke leerling heeft de vragen in een andere volgorde). */
+const perVraag = (antwoorden: readonly LiveAntwoord[], vragen: readonly Vraag[]) =>
+  antwoorden.map((a) => (a.vraagNr >= 0 ? { ...a, vraagNr: slotVraag(a.spelerId, a.vraagNr, vragen) } : a));
+
 export function EscapeHost({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void }) {
   if (sessie.live!.afgesloten) return <EscapeEinde sessie={sessie} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
   return <EscapeHostActief sessie={sessie} onUpdate={onUpdate} onBewaar={onBewaar} onVerwijder={onVerwijder} />;
@@ -77,7 +81,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
   sessieRef.current = sessie;
   useEffect(() => {
     const huidig = sessieRef.current;
-    const s = synchroniseer(huidig, spelers, antwoorden, huidig.vraagVolgorde);
+    const s = synchroniseer(huidig, spelers, perVraag(antwoorden, vragen), huidig.vraagVolgorde);
     const ontsnapt = ontsnaptPerNaam(huidig, voortgang);
     if (
       JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
@@ -103,7 +107,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
 
   async function einde() {
     await be.wijzigSessie(live.sessieId, { status: 'einde', stand: escapeStand(voortgang) });
-    const s = synchroniseer(sessie, spelers, antwoorden, sessie.vraagVolgorde);
+    const s = synchroniseer(sessie, spelers, perVraag(antwoorden, vragen), sessie.vraagVolgorde);
     onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: ontsnaptPerNaam(sessie, voortgang) } }));
   }
 

@@ -254,7 +254,7 @@ export function SetsPage({ store }: { store: Store }) {
                     ⋯
                   </button>
                   {menu === s.id && (
-                  <div onClick={() => setMenu(null)} className="absolute top-1/2 right-full z-20 mr-1 flex -translate-y-1/2 gap-1 rounded-xl border border-slate-200 bg-surface p-1 whitespace-nowrap shadow-lg">
+                  <div onClick={() => setMenu(null)} className="uitklap absolute top-1/2 right-full z-20 mr-1 flex -translate-y-1/2 gap-1 rounded-xl border border-slate-200 bg-surface p-1 whitespace-nowrap shadow-lg">
                     <button type="button" className="rounded-lg px-3 py-2 text-sm hover:bg-slate-100" onClick={() => store.setSets((all) => [...all, dupliceerSet(s)])}>
                       Dupliceren
                     </button>

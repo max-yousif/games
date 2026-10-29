@@ -54,7 +54,22 @@ export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (
       </div>
 
       <div className="min-h-0 w-full max-w-3xl flex-1">
-        <div className="mx-auto grid aspect-[7/6] max-h-full gap-2 rounded-3xl bg-gray-800 p-3 shadow-xl" style={{ gridTemplateColumns: `repeat(${KOLOMMEN}, minmax(0, 1fr))` }} onMouseLeave={() => setHover(null)}>
+        <div className="mx-auto grid aspect-[7/6.8] max-h-full gap-2 rounded-3xl bg-gray-800 p-3 shadow-xl" style={{ gridTemplateColumns: `repeat(${KOLOMMEN}, minmax(0, 1fr))` }} onMouseLeave={() => setHover(null)}>
+          {/* Kolomnummers: zo kunnen leerlingen zeggen welke kolom ze bedoelen. */}
+          {rooster[0].map((_, ki) => (
+            <button
+              key={`nr${ki}`}
+              type="button"
+              tabIndex={-1}
+              disabled={zetVan === null}
+              onMouseEnter={() => setHover(ki)}
+              onClick={() => laatVallen(ki)}
+              className={`text-center text-3xl font-bold ${hover === ki && zetVan !== null ? 'text-amber-300' : 'text-white'} ${zetVan !== null ? 'cursor-pointer' : 'cursor-default'}`}
+              aria-hidden
+            >
+              {ki + 1}
+            </button>
+          ))}
           {rooster.map((rij, ri) =>
             rij.map((cel, ki) => {
               const nieuw = laatsteZet && laatsteZet.kolom === ki && cel !== null && ri === rooster.findIndex((r) => r[ki] !== null);

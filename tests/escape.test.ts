@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { escapeBeoordelingen, escapeStand, escapeVoortgang, maakEscapeCode } from '../src/live/escape';
+import { escapeBeoordelingen, escapeStand, escapeVoortgang, maakEscapeCode, slotVraag } from '../src/live/escape';
 import { lokaalBackend, type Opslag } from '../src/live/lokaal';
 import { LiveFout, type LiveAntwoord } from '../src/live/types';
 import type { Vraag } from '../src/lib/types';
@@ -29,19 +29,35 @@ describe('escape room: logica', () => {
   });
 
   it('geeft het cijfer van het slot bij een juist antwoord en controleert de eindcode', () => {
+    // Elke leerling heeft de vragen in een andere volgorde achter de sloten; het cijfer hoort bij het slot.
+    const achter = (nr: number) => vragen[slotVraag('p', nr, vragen)];
+    const juist = (nr: number) => (achter(nr).type === 'getal' ? 'x = 6' : '1');
+    const fout = (nr: number) => (achter(nr).type === 'getal' ? '7' : '0');
     const b = escapeBeoordelingen(vragen, '48', [
-      ant('1', 'p', 0, 'x = 6'),
-      ant('2', 'p', 1, '0'),
+      ant('1', 'p', 0, juist(0)),
+      ant('2', 'p', 1, fout(1)),
       ant('3', 'p', -1, '4 8'),
       ant('4', 'p', -1, '84'),
       ant('5', 'p', 0, '6', { juist: true }),
     ]);
     expect(b).toEqual([
-      { id: '1', juist: true, punten: 100, beloning: '4' },
+      { id: '1', juist: true, punten: achter(0).punten, beloning: '4' },
       { id: '2', juist: false, punten: 0, beloning: null },
       { id: '3', juist: true, punten: 0, beloning: null },
       { id: '4', juist: false, punten: 0, beloning: null },
     ]);
+  });
+
+  it('elke leerling een eigen volgorde, enkel binnen dezelfde categorie', () => {
+    const lijst = ['A', 'A', 'A', 'A', 'B', 'B', 'B'].map((categorie) => ({ categorie }));
+    const volgorde = (id: string) => lijst.map((_, nr) => slotVraag(id, nr, lijst));
+    for (const id of ['anna', 'bert', 'chloe']) {
+      const v = volgorde(id);
+      expect([...v].sort()).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(v.slice(0, 4).every((i) => i < 4)).toBe(true);
+      expect(v).toEqual(volgorde(id));
+    }
+    expect(new Set(['anna', 'bert', 'chloe', 'dries'].map((id) => volgorde(id).join())).size).toBeGreaterThan(1);
   });
 
   it('rangschikt: ontsnapt (snelste eerst), dan meeste sloten', () => {

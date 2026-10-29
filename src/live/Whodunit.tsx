@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import type { Raadsel } from '../lib/types';
-import { EINDCODE } from './escape';
+import { EINDCODE, slotVraag } from './escape';
 import { laatstePoging, type Status } from './EscapeSpeler';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
@@ -186,7 +186,7 @@ export function WhodunitSpeler({
             <div key={gi} className="space-y-2">
               {g.naam && <h3 className="font-semibold text-slate-600">{g.naam}</h3>}
               {g.nrs.map((nr) => (
-                <Oefening key={nr} nr={nr} be={be} sessie={sessie} status={status(nr)} open={open === nr} onOpen={() => setOpen(open === nr ? null : nr)} />
+                <Oefening key={nr} nr={nr} spelerId={spelerId ?? ''} be={be} sessie={sessie} status={status(nr)} open={open === nr} onOpen={() => setOpen(open === nr ? null : nr)} />
               ))}
             </div>
           ))}
@@ -219,8 +219,8 @@ export function WhodunitSpeler({
   );
 }
 
-function Oefening({ nr, be, sessie, status, open, onOpen }: { nr: number; be: LiveBackend; sessie: LiveSessie; status: Status; open: boolean; onOpen: () => void }) {
-  const v = sessie.vragen![nr];
+function Oefening({ nr, spelerId, be, sessie, status, open, onOpen }: { nr: number; spelerId: string; be: LiveBackend; sessie: LiveSessie; status: Status; open: boolean; onOpen: () => void }) {
+  const v = sessie.vragen![slotVraag(spelerId, nr, sessie.vragen!)];
   return (
     <div className={`rounded-2xl border-2 bg-surface ${status.soort === 'klaar' ? 'border-emerald-300' : open ? 'border-[var(--accent)]' : 'border-slate-200'}`}>
       <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 p-4 text-left">
@@ -239,7 +239,7 @@ function Oefening({ nr, be, sessie, status, open, onOpen }: { nr: number; be: Li
           {status.soort === 'open' && (
             <>
               {status.fout && <p className="mb-2 rounded-lg bg-red-50 px-4 py-2 text-red-700">Dat was fout. Probeer opnieuw!</p>}
-              <Beantwoord key={String(status.fout)} vraag={v} onVerstuur={(a) => be.antwoord(sessie.id, nr, a)} />
+              <Beantwoord key={String(status.fout)} vraag={v} zaad={`${spelerId}:${nr}`} onVerstuur={(a) => be.antwoord(sessie.id, nr, a)} />
             </>
           )}
         </div>

@@ -15,11 +15,10 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
   await page.getByRole('button', { name: /Start de whodunit/ }).click();
   await expect(anna.getByText('50 dagen om nooit te vergeten!')).toBeVisible();
 
-  // Oefening 1 juist: roddel 1 verschijnt.
-  await anna.getByRole('button', { name: /^✏️ Oefening 1 / }).click();
+  // Elke leerling heeft de oefeningen in een andere volgorde: de oefening over de evenwichtsstand zoeken.
+  await anna.getByRole('button', { name: /^✏️ Oefening \d+ .*evenwichtsstand/ }).click();
   await anna.getByLabel('Je antwoord').fill('y = π/2');
   await anna.getByRole('button', { name: 'Versturen' }).click();
-  await expect(anna.getByText('De bierdrinker hing heel de avond aan de paal.')).toBeVisible();
   await expect(anna.getByText('1 / 12')).toBeVisible();
 
   // Tabel: eerst fout (Fien en Lars omgewisseld), daarna juist.

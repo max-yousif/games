@@ -4,7 +4,7 @@ import { VraagWeergave } from '../components/VraagWeergave';
 import { bomAntwoord, bomTijd, bomVragenOver, ontploffing } from '../lib/bom';
 import { speel, useMuziek } from '../lib/geluid';
 import { juistAntwoord } from '../lib/questions';
-import { volgendeVraag } from '../lib/session';
+import { korteNaamVan, volgendeVraag } from '../lib/session';
 import type { Sessie } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS } from '../lib/vraagtypes';
 
@@ -20,6 +20,7 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
   useMuziek(null);
   const bom = sessie.bom!;
   const team = sessie.teams[bom.houder];
+  const kort = korteNaamVan(sessie);
   const [fase, setFase] = useState<Fase>('klaar');
   const [getoond, setGetoond] = useState(false);
   const [gekozenOptie, setGekozenOptie] = useState<number | null>(null);
@@ -128,11 +129,21 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
           >
             💣
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-lg text-slate-500">De bom ligt bij</div>
             <div className="text-5xl font-bold" style={{ color: team.kleur }}>
               {team.naam}
             </div>
+            {/* Wie in het team zit: altijd zichtbaar, anders onthoudt niemand het. */}
+            {team.leerlingen.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2" data-teamleden>
+                {team.leerlingen.map((l) => (
+                  <span key={l.id} className="rounded-full px-3 py-1 text-xl font-semibold text-white" style={{ background: team.kleur }}>
+                    {kort(l.naam)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           {fase === 'tikt' && (
             <button type="button" onClick={() => setFase('pauze')} className="ml-auto rounded-xl bg-slate-100 px-4 py-2 text-lg hover:bg-slate-200">
@@ -237,7 +248,6 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
             </div>
           );
         })}
-        <p className="text-sm text-slate-500">Juist = bom naar het volgende team. Het spel stopt als alle vragen gesteld zijn; het team met de minste ontploffingen wint.</p>
       </aside>
     </div>
   );

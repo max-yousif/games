@@ -1,5 +1,6 @@
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { Vraag } from '../lib/types';
+import { vastGeschud } from '../lib/vraagtypes';
 import { automatischJuist, schermNaam } from './logic';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
 
@@ -9,6 +10,21 @@ export const EINDCODE = -1;
 /** Geheime code: één cijfer per slot. */
 export function maakEscapeCode(aantal: number, rand: RandomInt = defaultRandomInt): string {
   return Array.from({ length: aantal }, () => String(rand(10))).join('');
+}
+
+/**
+ * Welke vraag een leerling achter slot (of oefening) nr krijgt: per leerling een eigen volgorde,
+ * zodat afkijken niet helpt. Enkel binnen een groep met dezelfde categorie (bv. "Reeks 1"), zodat
+ * de opbouw van de set blijft. Het cijfer of de hint hoort bij het slot, niet bij de vraag.
+ */
+export function slotVraag(spelerId: string, nr: number, vragen: readonly { categorie: string }[]): number {
+  if (nr < 0 || nr >= vragen.length) return nr;
+  let begin = nr;
+  while (begin > 0 && vragen[begin - 1].categorie === vragen[nr].categorie) begin--;
+  let einde = nr;
+  while (einde < vragen.length - 1 && vragen[einde + 1].categorie === vragen[nr].categorie) einde++;
+  const groep = Array.from({ length: einde - begin + 1 }, (_, i) => begin + i);
+  return vastGeschud(groep, `${spelerId}:slot:${begin}`)[nr - begin];
 }
 
 const zonderSpaties = (t: string) => t.replace(/[\s-]/g, '');
@@ -22,7 +38,7 @@ export function escapeBeoordelingen(vragen: readonly Vraag[], code: string, antw
     .filter((a) => a.juist === null)
     .flatMap((a) => {
       if (a.vraagNr === EINDCODE) return [{ id: a.id, juist: zonderSpaties(a.antwoord) === code, punten: 0, beloning: null }];
-      const v = vragen[a.vraagNr];
+      const v = vragen[slotVraag(a.spelerId, a.vraagNr, vragen)];
       if (!v) return [];
       const juist = automatischJuist(v, a.antwoord);
       return [{ id: a.id, juist, punten: juist ? v.punten : 0, beloning: juist ? (code[a.vraagNr] ?? null) : null }];

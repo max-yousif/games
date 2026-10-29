@@ -1,3 +1,4 @@
+import { vastGeschud } from '../lib/vraagtypes';
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { Vraag } from '../lib/types';
 import { automatischJuist, schermNaam } from './logic';
@@ -94,11 +95,29 @@ export interface RaadBeloning {
 
 export const isActie = (nr: number) => nr >= ACTIE_BASIS;
 
-/** Welke vraag een leerling bij nummer nr krijgt: elke leerling begint op een andere plaats. */
+const volgordes = new Map<string, number[]>();
+
+/**
+ * Welke vraag een leerling bij nummer nr krijgt: elke leerling krijgt de vragen in een eigen
+ * willekeurige volgorde (vast voor die leerling, dus op het bord en de laptop dezelfde). Na alle
+ * vragen komen ze opnieuw, telkens in een andere volgorde.
+ */
 export function vraagIndex(spelerId: string, nr: number, aantal: number): number {
-  let h = 0;
-  for (const c of spelerId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return (nr + (h % aantal)) % aantal;
+  if (aantal <= 1) return 0;
+  const sleutel = `${spelerId}:${Math.floor(nr / aantal)}:${aantal}`;
+  let volgorde = volgordes.get(sleutel);
+  if (!volgorde) {
+    const ronde = Math.floor(nr / aantal);
+    volgorde = vastGeschud(
+      Array.from({ length: aantal }, (_, i) => i),
+      sleutel,
+    );
+    // Niet twee keer dezelfde vraag na elkaar (op de grens van twee rondes).
+    if (ronde > 0 && volgorde[0] === vraagIndex(spelerId, ronde * aantal - 1, aantal)) [volgorde[0], volgorde[1]] = [volgorde[1], volgorde[0]];
+    if (volgordes.size > 5000) volgordes.clear();
+    volgordes.set(sleutel, volgorde);
+  }
+  return volgorde[((nr % aantal) + aantal) % aantal];
 }
 
 export function leesActie(tekst: string): Actie | null {

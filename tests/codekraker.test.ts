@@ -54,6 +54,19 @@ describe('codekraker', () => {
     expect([0, 1, 2, 3].map((n) => vraagIndex('A', n, 2))).toEqual([0, 1, 0, 1].map((i) => (i + vraagIndex('A', 0, 2)) % 2));
   });
 
+  it('elke leerling krijgt de vragen in een eigen willekeurige volgorde, elke ronde opnieuw', () => {
+    const reeks = (id: string) => Array.from({ length: 50 }, (_, n) => vraagIndex(id, n, 10));
+    for (const id of ['A', 'B', 'C']) {
+      const r = reeks(id);
+      for (let ronde = 0; ronde < 5; ronde++) expect([...r.slice(ronde * 10, ronde * 10 + 10)].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      // Nooit twee keer dezelfde vraag na elkaar.
+      expect(r.every((v, i) => i === 0 || v !== r[i - 1])).toBe(true);
+      expect(r).toEqual(reeks(id));
+    }
+    expect(reeks('A').slice(0, 10)).not.toEqual(reeks('A').slice(10, 20));
+    expect(reeks('A').slice(0, 10)).not.toEqual(reeks('B').slice(0, 10));
+  });
+
   it('juist antwoord geeft een kistje; het kistje geeft munten', () => {
     let alle = [ant('A', ACTIE_BASIS, JSON.stringify({ soort: 'wachtwoord', woord: wachtwoordOpties('A')[0] }), 1), ant('A', 0, juisteAntwoord('A', 0), 2)];
     alle = speel(alle, () => 0);

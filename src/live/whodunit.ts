@@ -1,5 +1,5 @@
 import type { Raadsel, Vraag } from '../lib/types';
-import { EINDCODE } from './escape';
+import { EINDCODE, slotVraag } from './escape';
 import { automatischJuist } from './logic';
 import type { Beoordeling, LiveAntwoord } from './types';
 
@@ -88,7 +88,7 @@ export function whodunitBeoordelingen(vragen: readonly Vraag[], raadsel: Raadsel
     .filter((a) => a.juist === null)
     .flatMap((a) => {
       if (a.vraagNr === EINDCODE) return [{ id: a.id, juist: rasterJuist(raadsel, rasterUitTekst(a.antwoord)), punten: 0, beloning: null }];
-      const v = vragen[a.vraagNr];
+      const v = vragen[slotVraag(a.spelerId, a.vraagNr, vragen)];
       if (!v) return [];
       const juist = automatischJuist(v, a.antwoord);
       const hints = hintsVoorOefening(a.vraagNr, vragen.length, raadsel.hints.length).map((i) => ({ nr: i + 1, tekst: raadsel.hints[i] }));

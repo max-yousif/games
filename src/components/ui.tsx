@@ -1,4 +1,28 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+
+/**
+ * Uitklapmenu: sluit bij een klik ernaast of met Esc. Zet de ref op het element met de knop én
+ * het menu.
+ */
+export function useUitklap<T extends HTMLElement = HTMLDivElement>(open: boolean, sluit: () => void) {
+  const ref = useRef<T>(null);
+  const sluitRef = useRef(sluit);
+  sluitRef.current = sluit;
+  useEffect(() => {
+    if (!open) return;
+    const klik = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) sluitRef.current();
+    };
+    const toets = (e: KeyboardEvent) => e.key === 'Escape' && sluitRef.current();
+    document.addEventListener('pointerdown', klik);
+    document.addEventListener('keydown', toets);
+    return () => {
+      document.removeEventListener('pointerdown', klik);
+      document.removeEventListener('keydown', toets);
+    };
+  }, [open]);
+  return ref;
+}
 
 export function Section({ step, title, children, aside }: { step?: number; title: string; children: ReactNode; aside?: ReactNode }) {
   return (

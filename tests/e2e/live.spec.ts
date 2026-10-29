@@ -24,7 +24,8 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(bert.getByText(/Die bijnaam kan niet/)).toBeVisible();
 
   await page.getByRole('button', { name: /Start de quiz \(2 spelers\)/ }).click();
-  await anna.getByRole('button', { name: /^B/ }).click();
+  // Antwoorden staan bij elke leerling in een andere volgorde: klikken op de tekst.
+  await anna.getByRole('button', { name: '$x^2+6x+9$', exact: true }).click();
   await expect(anna.getByText('Antwoord verstuurd!')).toBeVisible();
 
   // Reageren terwijl ze wacht: de emoji zweeft over het bord, met haar bijnaam.
@@ -37,7 +38,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(bert.getByText(/Je hebt het spel verlaten/)).toBeVisible();
   await bert.getByRole('button', { name: 'Bert', exact: true }).click();
   await expect(bert.getByText('Vraag 1 / 16')).toBeVisible();
-  await bert.getByRole('button', { name: /^A/ }).click();
+  await bert.getByRole('button', { name: '$x^2+9$', exact: true }).click();
 
   // Iedereen geantwoord: het antwoord verschijnt vanzelf, met de bijnaam in de tussenstand.
   await expect(page.getByText('Tussenstand', { exact: true })).toBeVisible();

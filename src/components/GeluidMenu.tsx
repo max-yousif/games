@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { MAX_GROOTTE, useEigenNummers, verwijderNummer, voegNummerToe } from '../lib/eigenMuziek';
+import { useEigenNummers, verwijderNummer, voegNummerToe } from '../lib/eigenMuziek';
 import { beluister, MUZIEK_NAMEN, speel, speeltMuziek, useGeluid, type MuziekStijl } from '../lib/geluid';
-import { inputClass, labelClass } from './ui';
+import { inputClass, labelClass, useUitklap } from './ui';
 
 const INGEBOUWD = Object.keys(MUZIEK_NAMEN) as MuziekStijl[];
 
 /** Knop met de keuze van wacht- en spelmuziek, eigen nummers, geluidseffecten en volume (onthouden per browser). */
 export function GeluidMenu({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false);
+  const houder = useUitklap(open, () => setOpen(false));
   const [g, zet] = useGeluid();
   const nummers = useEigenNummers();
   const [bezig, setBezig] = useState(false);
@@ -96,7 +97,7 @@ export function GeluidMenu({ className = '' }: { className?: string }) {
   );
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={houder} className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -107,10 +108,9 @@ export function GeluidMenu({ className = '' }: { className?: string }) {
         {stil ? '🔇' : '🔊'} Geluid
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 max-h-[80vh] w-80 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
+        <div className="uitklap absolute right-0 z-50 mt-2 max-h-[80vh] w-80 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
           {keuzes('muziek-wacht', 'Wachtmuziek (wachtruimte)', g.wacht, 'wacht')}
           {keuzes('muziek-spel', 'Achtergrondmuziek tijdens het spel', g.spel, 'spel')}
-          <p className="text-xs text-slate-500">De muziek wordt al spelend gemaakt: nooit twee keer hetzelfde nummer.</p>
 
           <div className="rounded-lg border border-slate-200 p-3">
             <div className="font-semibold">🎵 Eigen muziek</div>
@@ -138,7 +138,6 @@ export function GeluidMenu({ className = '' }: { className?: string }) {
               <input ref={bestand} type="file" accept="audio/*" multiple className="sr-only" disabled={bezig} onChange={(e) => void voegToe(e.target.files)} />
             </label>
             {fout && <p className="mt-1 text-red-600">{fout}</p>}
-            <p className="mt-1 text-xs text-slate-500">mp3, m4a, wav … tot {MAX_GROOTTE / 1024 / 1024} MB per nummer. Enkel bewaard in deze browser, op deze laptop.</p>
           </div>
 
           <label className="flex items-center gap-2">

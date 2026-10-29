@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { CloudStatus } from '../lib/useCloud';
-import { Button } from './ui';
+import { Button, useUitklap } from './ui';
 
 const STATUS: Record<CloudStatus, { icoon: string; tekst: string }> = {
   uit: { icoon: '', tekst: '' },
@@ -14,6 +14,7 @@ const STATUS: Record<CloudStatus, { icoon: string; tekst: string }> = {
 /** Knop rechtsboven: aanmelden, of de aangemelde leerkracht met de cloudstatus en afmelden. */
 export function AccountKnop({ store }: { store: Store }) {
   const [open, setOpen] = useState(false);
+  const houder = useUitklap(open, () => setOpen(false));
   const { account, cloud } = store;
   if (!account.beschikbaar) return null;
   if (!account.leerkracht)
@@ -25,7 +26,7 @@ export function AccountKnop({ store }: { store: Store }) {
 
   const s = STATUS[cloud.status];
   return (
-    <div className="relative ml-auto">
+    <div ref={houder} className="relative ml-auto">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -37,7 +38,7 @@ export function AccountKnop({ store }: { store: Store }) {
         {account.leerkracht.naam}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
+        <div className="uitklap absolute right-0 z-40 mt-2 w-80 space-y-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm shadow-lg">
           <p>
             Aangemeld als <strong>{account.leerkracht.naam}</strong>.
           </p>

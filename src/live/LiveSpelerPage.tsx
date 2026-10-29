@@ -344,7 +344,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
         <RichText text={v.tekst} className="text-2xl leading-snug font-medium" />
       </div>
 
-      {sessie.status === 'vraag' && !mijn && <Beantwoord key={sessie.vraagNr} vraag={v} onVerstuur={(a) => be.antwoord(sessie.id, sessie.vraagNr, a)} />}
+      {sessie.status === 'vraag' && !mijn && <Beantwoord key={sessie.vraagNr} vraag={v} zaad={`${ik?.id}:${sessie.vraagNr}`} onVerstuur={(a) => be.antwoord(sessie.id, sessie.vraagNr, a)} />}
 
       {sessie.status === 'vraag' && mijn && (
         <Kaart>

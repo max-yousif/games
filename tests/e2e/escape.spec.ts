@@ -16,19 +16,24 @@ test('escape room: sloten openen, foute code, ontsnappen', async ({ page }) => {
   await page.getByRole('button', { name: /Start de escape room/ }).click();
   const slot = (n: number) => anna.locator('main button', { hasText: `Slot ${n}` });
 
-  await slot(1).click();
-  await anna.getByLabel('Je antwoord').fill('8');
-  await anna.getByRole('button', { name: 'Versturen' }).click();
-  await expect(anna.getByText('Dat was fout. Probeer opnieuw!')).toBeVisible();
-  await anna.getByLabel('Je antwoord').fill('7');
-  await anna.getByRole('button', { name: 'Versturen' }).click();
-  await expect(anna.getByText(/Slot open! Je cijfer/)).toBeVisible();
-  await expect(slot(2)).toBeVisible({ timeout: 6000 });
-  await slot(2).click();
-  await anna.getByRole('button', { name: /32/ }).click();
-  await expect(slot(3)).toBeVisible({ timeout: 6000 });
-  await slot(3).click();
-  await anna.getByRole('button', { name: /^A\s*Waar/ }).click();
+  // Elke leerling heeft de vragen in een andere volgorde achter de sloten: antwoorden op wat er staat.
+  for (let n = 1; n <= 3; n++) {
+    await expect(slot(n)).toBeVisible({ timeout: 6000 });
+    await slot(n).click();
+    await expect(anna.getByRole('button', { name: '← Terug naar de sloten' })).toBeVisible();
+    if (await anna.getByLabel('Je antwoord').count()) {
+      await anna.getByLabel('Je antwoord').fill('8');
+      await anna.getByRole('button', { name: 'Versturen' }).click();
+      await expect(anna.getByText('Dat was fout. Probeer opnieuw!')).toBeVisible();
+      await anna.getByLabel('Je antwoord').fill('7');
+      await anna.getByRole('button', { name: 'Versturen' }).click();
+    } else if (await anna.getByRole('button', { name: '32', exact: true }).count()) {
+      await anna.getByRole('button', { name: '32', exact: true }).click();
+    } else {
+      await anna.getByRole('button', { name: 'Waar', exact: true }).click();
+    }
+    await expect(anna.getByText(/Slot open! Je cijfer/)).toBeVisible();
+  }
   await expect(anna.getByText('Alle sloten zijn open!')).toBeVisible({ timeout: 6000 });
 
   const cijfers = (await anna.locator('.font-mono.text-4xl.font-bold').allTextContents()).map((t) => t.trim()).join('');

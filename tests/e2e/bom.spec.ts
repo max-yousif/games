@@ -17,8 +17,11 @@ test('bom doorgeven: vragen kiezen, juist geeft door, ontploffing beslist', asyn
   await page.locator('label:text-is("Tijd tot de bom ontploft") + select').selectOption('kort');
   await page.getByRole('button', { name: /Start het spel/ }).click();
 
-  const houder = page.locator('text=De bom ligt bij').locator('xpath=following-sibling::div');
+  const houder = page.locator('text=De bom ligt bij').locator('xpath=following-sibling::div').first();
+  // Wie in het team zit, staat altijd op het scherm.
+  await expect(page.locator('[data-teamleden] span')).not.toHaveCount(0);
   const eerste = (await houder.textContent())!.trim();
+  if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK });
   await page.getByRole('button', { name: /Steek de lont aan/ }).click();
   await page.keyboard.press(' ');
   await page.keyboard.press('j');

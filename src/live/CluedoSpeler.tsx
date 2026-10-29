@@ -155,7 +155,7 @@ export function CluedoSpeler({
       <Kaart titel="">
         {v.categorie && <div className="mb-1 text-sm font-semibold text-slate-500">{v.categorie}</div>}
         <RichText text={v.tekst} className="mb-4 text-2xl leading-snug font-medium" />
-        <Beantwoord key={volgendeNr} vraag={v} onVerstuur={(a) => stuur(volgendeNr, a)} />
+        <Beantwoord key={volgendeNr} vraag={v} zaad={`${spelerId}:${volgendeNr}`} onVerstuur={(a) => stuur(volgendeNr, a)} />
       </Kaart>
     );
   }

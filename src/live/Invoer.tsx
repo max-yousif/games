@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
 import { GatSymbool, RichText } from '../components/RichText';
-import { gatKleur, LETTERS } from '../lib/vraagtypes';
+import { gatKleur, LETTERS, vastGeschud } from '../lib/vraagtypes';
 import { antwoordWeergave } from './logic';
 import { LiveFout, type PubliekeVraag } from './types';
 import { WiskundeInvoer } from './WiskundeInvoer';
@@ -13,8 +13,17 @@ export function AntwoordTekst({ vraag, antwoord }: { vraag: PubliekeVraag; antwo
   return <RichText text={antwoordWeergave(vraag, antwoord)} className="inline font-semibold" />;
 }
 
-/** Invoer voor het antwoord, afhankelijk van het type vraag. */
-export function Beantwoord({ vraag: v, onVerstuur }: { vraag: PubliekeVraag; onVerstuur: (antwoord: string) => Promise<void> }) {
+const volgordeVan = (aantal: number, zaad: string | undefined) => {
+  const nrs = Array.from({ length: aantal }, (_, i) => i);
+  return zaad ? vastGeschud(nrs, zaad) : nrs;
+};
+
+/**
+ * Invoer voor het antwoord, afhankelijk van het type vraag. Met een `zaad` (leerling + vraag)
+ * staan meerkeuzeantwoorden en te ordenen of te koppelen items bij elke leerling anders, zodat
+ * afkijken niet helpt.
+ */
+export function Beantwoord({ vraag: v, zaad, onVerstuur }: { vraag: PubliekeVraag; zaad?: string; onVerstuur: (antwoord: string) => Promise<void> }) {
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
 
@@ -35,27 +44,29 @@ export function Beantwoord({ vraag: v, onVerstuur }: { vraag: PubliekeVraag; onV
     <div>
       {v.type === 'meerkeuze' || v.type === 'waaronwaar' ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {v.opties.map((o, i) => (
+          {(v.type === 'meerkeuze' ? volgordeVan(v.opties.length, zaad) : [0, 1]).map((i, plaats) => (
             <button
               key={i}
               type="button"
               disabled={bezig}
+              aria-label={v.opties[i]}
               onClick={() => void verstuur(String(i))}
               className={`flex min-h-24 items-center gap-4 rounded-2xl px-5 py-4 text-left text-2xl font-medium text-white shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 ${
-                v.type === 'waaronwaar' ? (i === 0 ? 'bg-emerald-600' : 'bg-red-600') : OPTIE_KLEUREN[i % OPTIE_KLEUREN.length]
+                v.type === 'waaronwaar' ? (i === 0 ? 'bg-emerald-600' : 'bg-red-600') : OPTIE_KLEUREN[plaats % OPTIE_KLEUREN.length]
               }`}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/25 text-xl font-bold">{LETTERS[i]}</span>
-              <RichText text={o} className="[&_code]:bg-white/20 [&_code]:text-white" />
+              {/* Geschud: geen letters, die zouden niet overeenkomen met het bord of met de buur. */}
+              {!zaad && <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/25 text-xl font-bold">{LETTERS[i]}</span>}
+              <RichText text={v.opties[i]} className="[&_code]:bg-white/20 [&_code]:text-white" />
             </button>
           ))}
         </div>
       ) : v.type === 'invullen' ? (
         <Invullen aantal={v.gaten} bezig={bezig} onVerstuur={verstuur} />
       ) : v.type === 'ordenen' ? (
-        <Ordenen items={v.opties} code={v.alsCode} bezig={bezig} onVerstuur={verstuur} />
+        <Ordenen items={v.opties} start={volgordeVan(v.opties.length, zaad)} code={v.alsCode} bezig={bezig} onVerstuur={verstuur} />
       ) : v.type === 'koppelen' ? (
-        <Koppelen links={v.links} rechts={v.rechts} bezig={bezig} onVerstuur={verstuur} />
+        <Koppelen links={v.links} rechts={v.rechts} start={volgordeVan(v.rechts.length, zaad)} bezig={bezig} onVerstuur={verstuur} />
       ) : (
         <TekstInvoer getal={v.type === 'getal'} bezig={bezig} onVerstuur={verstuur} />
       )}
@@ -222,8 +233,8 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
  * Slepen om de volgorde te wijzigen (muis en vinger). Items in `houder` met `data-sleep` zijn de
  * plaatsen; de volgorde bevat de posities in de oorspronkelijke lijst.
  */
-function useSleepLijst(aantal: number) {
-  const [volgorde, setVolgorde] = useState(() => Array.from({ length: aantal }, (_, i) => i));
+function useSleepLijst(start: number[]) {
+  const [volgorde, setVolgorde] = useState(start);
   const [sleept, setSleept] = useState<number | null>(null);
   const houder = useRef<HTMLDivElement>(null);
   const verplaats = (van: number, naar: number) =>
@@ -300,8 +311,8 @@ const Greep = () => (
   </span>
 );
 
-function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
-  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(items.length);
+function Ordenen({ items, start, code, bezig, onVerstuur }: { items: string[]; start: number[]; code: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
+  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(start);
   return (
     <div>
       <p className="mb-2 text-slate-600">Sleep in de juiste volgorde.</p>
@@ -320,9 +331,9 @@ function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: bo
   );
 }
 
-function Koppelen({ links, rechts, bezig, onVerstuur }: { links: string[]; rechts: string[]; bezig: boolean; onVerstuur: (a: string) => void }) {
+function Koppelen({ links, rechts, start, bezig, onVerstuur }: { links: string[]; rechts: string[]; start: number[]; bezig: boolean; onVerstuur: (a: string) => void }) {
   // Links blijft vast; de items rechts sleep je naast het item waar ze bij horen.
-  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(rechts.length);
+  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(start);
   return (
     <div>
       <p className="mb-2 text-slate-600">Sleep rechts naast het item waar het bij hoort.</p>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { VOORBEELDSETS } from '../src/content/voorbeelden';
-import { EINDCODE } from '../src/live/escape';
+import { EINDCODE, slotVraag } from '../src/live/escape';
 import { automatischJuist } from '../src/live/logic';
 import type { LiveAntwoord } from '../src/live/types';
 import { hintsUitBeloning, hintsVoorOefening, publiekRaadsel, raadselProblemen, rasterJuist, rasterNaarTekst, whodunitBeoordelingen } from '../src/live/whodunit';
@@ -36,9 +36,11 @@ describe('whodunit', () => {
   });
 
   it('kijkt oefeningen en de tabel na', () => {
-    const items = whodunitBeoordelingen(set.vragen, raadsel, [antwoord(0, 'y = π/2'), antwoord(1, '131'), antwoord(EINDCODE, rasterNaarTekst(oplossing))]);
+    // Achter welke oefening (slot) staat bij deze leerling de eerste en de tweede vraag van de set?
+    const slot = (i: number) => set.vragen.findIndex((_, nr) => slotVraag('p1', nr, set.vragen) === i);
+    const items = whodunitBeoordelingen(set.vragen, raadsel, [antwoord(slot(0), 'y = π/2'), antwoord(slot(1), '131'), antwoord(EINDCODE, rasterNaarTekst(oplossing))]);
     expect(items[0]).toMatchObject({ juist: true, punten: 100 });
-    expect(hintsUitBeloning(items[0].beloning!)).toEqual([{ nr: 1, tekst: raadsel.hints[0] }]);
+    expect(hintsUitBeloning(items[0].beloning!)).toEqual(hintsVoorOefening(slot(0), set.vragen.length, raadsel.hints.length).map((i) => ({ nr: i + 1, tekst: raadsel.hints[i] })));
     expect(items[1]).toMatchObject({ juist: false, beloning: null });
     expect(items[2].juist).toBe(true);
     const fout = oplossing.map((r) => [...r]);

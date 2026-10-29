@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
-import { EINDCODE } from './escape';
+import { EINDCODE, slotVraag } from './escape';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
 
@@ -126,7 +126,8 @@ export function EscapeSpeler({
       {open === null ? (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {vragen.map((v, nr) => {
+            {vragen.map((_, nr) => {
+              const v = vragen[slotVraag(spelerId ?? '', nr, vragen)];
               const st = status(nr);
               return (
                 <button
@@ -154,14 +155,14 @@ export function EscapeSpeler({
           {opgelost === vragen.length && <Eindcode be={be} sessie={sessie} status={status(EINDCODE)} aantal={vragen.length} />}
         </>
       ) : (
-        <Slot key={open} nr={open} be={be} sessie={sessie} status={status(open)} cijfer={cijfers[open]} onTerug={terug} />
+        <Slot key={open} nr={open} spelerId={spelerId ?? ''} be={be} sessie={sessie} status={status(open)} cijfer={cijfers[open]} onTerug={terug} />
       )}
     </div>
   );
 }
 
-function Slot({ nr, be, sessie, status, cijfer, onTerug }: { nr: number; be: LiveBackend; sessie: LiveSessie; status: Status; cijfer: string | null; onTerug: () => void }) {
-  const v = sessie.vragen![nr];
+function Slot({ nr, spelerId, be, sessie, status, cijfer, onTerug }: { nr: number; spelerId: string; be: LiveBackend; sessie: LiveSessie; status: Status; cijfer: string | null; onTerug: () => void }) {
+  const v = sessie.vragen![slotVraag(spelerId, nr, sessie.vragen!)];
   // Na een juist antwoord even het cijfer tonen en dan terug naar de sloten.
   useEffect(() => {
     if (status.soort !== 'klaar') return;
@@ -198,7 +199,7 @@ function Slot({ nr, be, sessie, status, cijfer, onTerug }: { nr: number; be: Liv
       {status.soort === 'open' && (
         <>
           {status.fout && <p className="rounded-lg bg-red-50 px-4 py-3 text-red-700">Dat was fout. Probeer opnieuw!</p>}
-          <Beantwoord key={String(status.fout)} vraag={v} onVerstuur={(a) => be.antwoord(sessie.id, nr, a)} />
+          <Beantwoord key={String(status.fout)} vraag={v} zaad={`${spelerId}:${nr}`} onVerstuur={(a) => be.antwoord(sessie.id, nr, a)} />
         </>
       )}
     </div>
