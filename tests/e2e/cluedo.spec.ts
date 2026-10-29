@@ -64,6 +64,6 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   await expect(page.getByText('de dader')).toBeVisible();
   await expect(bert.getByText('Het spel is gedaan!')).toBeVisible();
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK });
-  await page.getByRole('button', { name: '✓ Afsluiten' }).click();
+  await page.getByRole('button', { name: '💾 Resultaten bewaren' }).click();
   controleer();
 });

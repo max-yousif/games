@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
 import { loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
-import { telGespeeld as telSpel } from './session';
+import { isBewaard, ruimOp, telGespeeld as telSpel } from './session';
 import type { Klas, Sessie, Vragenset } from './types';
 import { useAccount, type Account } from './account';
 import { useCloud, vergeetCloud, type Cloud } from './useCloud';
@@ -35,22 +35,23 @@ export interface Store {
 export function useStore(): Store {
   const [sets, setSetsState] = useState(() => metVoorbeelden(loadSets()));
   const [klassen, setKlassenState] = useState(loadKlassen);
-  const [sessies, setSessiesState] = useState(loadSessies);
+  // Niet-bewaarde spellen die afgelopen zijn of stilliggen, meteen opruimen.
+  const [sessies, setSessiesState] = useState(() => ruimOp(loadSessies()));
 
   useEffect(() => saveVoorbeelden([...new Set([...(loadVoorbeelden() ?? []), ...VOORBEELDSETS.map((v) => v.voorbeeld!)])]), []);
   useEffect(() => saveSets(sets), [sets]);
   useEffect(() => saveKlassen(klassen), [klassen]);
   useEffect(() => saveSessies(sessies), [sessies]);
 
-  // Een afgelopen spel meetellen in de statistiek van zijn vragenset: enkel bij "Afsluiten" op het
-  // eindscherm (niet bij beëindigen zonder uitspelen en niet bij "Afsluiten zonder opslaan").
+  // "Resultaten bewaren" op het eindscherm: het spel komt bij de resultaten en telt mee in de
+  // statistiek van zijn vragenset (anders niet).
   const sessiesRef = useRef(sessies);
   sessiesRef.current = sessies;
   const telGespeeld = useCallback((id: string) => {
     const s = sessiesRef.current.find((x) => x.id === id);
-    if (!s || s.geteld) return;
-    setSetsState((all) => telSpel(all, [s]));
-    setSessiesState((all) => all.map((x) => (x.id === id ? { ...x, geteld: true } : x)));
+    if (!s) return;
+    if (!s.geteld) setSetsState((all) => telSpel(all, [s]));
+    setSessiesState((all) => all.map((x) => (x.id === id ? { ...x, geteld: true, bewaard: true } : x)));
   }, []);
 
   const bewaarSessie = useCallback(
@@ -60,18 +61,23 @@ export function useStore(): Store {
 
   const account = useAccount();
   const uid = account.leerkracht?.uid ?? null;
+  // Enkel bewaarde spellen gaan naar de cloud; een lopend (nog niet bewaard) spel blijft lokaal staan.
   const zetLokaal = useCallback((l: { sets: Vragenset[]; klassen: Klas[]; sessies: Sessie[] }) => {
     setSetsState(l.sets);
     setKlassenState(l.klassen);
-    setSessiesState(l.sessies);
+    setSessiesState((oud) => [...l.sessies, ...oud.filter((s) => !isBewaard(s) && !l.sessies.some((x) => x.id === s.id))]);
   }, []);
-  const cloud = useCloud(uid, { sets, klassen, sessies }, zetLokaal);
+  const bewaardeSessies = useMemo(() => sessies.filter(isBewaard), [sessies]);
+  const cloud = useCloud(uid, { sets, klassen, sessies: bewaardeSessies }, zetLokaal);
 
   const afmelden = useCallback(
     async (wissen: boolean) => {
       if (uid) vergeetCloud(uid);
       await account.afmelden();
-      if (wissen) zetLokaal({ sets: [], klassen: [], sessies: [] });
+      if (wissen) {
+        zetLokaal({ sets: [], klassen: [], sessies: [] });
+        setSessiesState([]);
+      }
     },
     [uid, account, zetLokaal],
   );

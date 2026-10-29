@@ -179,6 +179,11 @@ export interface Sessie {
   bom?: import('./bom').BomToestand;
   /** Meegeteld in de statistiek van de vragenset. */
   geteld?: boolean;
+  /**
+   * De leerkracht koos "Resultaten bewaren". Enkel bewaarde spellen staan bij de resultaten en gaan
+   * naar de cloud; niet-bewaarde spellen worden opgeruimd. (Ontbreekt bij spellen van vroeger.)
+   */
+  bewaard?: boolean;
   /** Quizbord: dubbele punten voor een leerling die alleen antwoordt. */
   dubbelIndividueel?: boolean;
   /** Naamvolgorde van de klas, voor de korte namen op het scorebord. */

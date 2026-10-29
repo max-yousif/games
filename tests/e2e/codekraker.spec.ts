@@ -63,6 +63,6 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await page.getByRole('button', { name: /Beëindigen/ }).click();
   await expect(page.getByText(/Meeste juiste antwoorden: Anna/)).toBeVisible();
   await expect(anna.getByText('Het spel is gedaan!')).toBeVisible();
-  await page.getByRole('button', { name: '✓ Afsluiten' }).click();
+  await page.getByRole('button', { name: '💾 Resultaten bewaren' }).click();
   controleer();
 });

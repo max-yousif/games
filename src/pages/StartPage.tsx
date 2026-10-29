@@ -4,6 +4,7 @@ import { BackupError, downloadJson, leesBestand, maakBackup, voegSamen } from '.
 import { beeindigSpel } from '../lib/beeindigen';
 import { datumTekst, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
+import { isBewaard } from '../lib/session';
 import type { Store } from '../lib/store';
 
 const TEGELS = [
@@ -109,7 +110,7 @@ export function StartPage({ store }: { store: Store }) {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={() => downloadJson(`klasspelen-backup-${new Date().toISOString().slice(0, 10)}.json`, maakBackup(store.sets, store.klassen, store.sessies))}
+              onClick={() => downloadJson(`klasspelen-backup-${new Date().toISOString().slice(0, 10)}.json`, maakBackup(store.sets, store.klassen, store.sessies.filter(isBewaard)))}
             >
               Back-up downloaden
             </Button>

@@ -50,6 +50,7 @@ export function nieuweSessie(opts: {
     zetten: [],
     gestart: nu(),
     beeindigd: null,
+    bewaard: false,
     ...(opts.naamVolgorde === 'achternaam' ? { naamVolgorde: 'achternaam' as const } : {}),
     ...(opts.dubbelIndividueel ? { dubbelIndividueel: true } : {}),
   };
@@ -220,4 +221,12 @@ export function leerlingNaam(s: Sessie, id: string | null): string {
     if (l) return l.naam;
   }
   return '?';
+}
+
+/** Staat het spel bij de resultaten? Spellen van vroeger (zonder keuze): als ze afgelopen zijn. */
+export const isBewaard = (s: Sessie) => s.bewaard ?? s.beeindigd !== null;
+
+/** Wat weg mag: niet-bewaarde spellen die afgelopen zijn, of die al een dag stilliggen. */
+export function ruimOp(sessies: Sessie[], nuMs = Date.now()): Sessie[] {
+  return sessies.filter((s) => isBewaard(s) || (s.beeindigd === null && nuMs - new Date(s.gestart).getTime() < 24 * 3600_000));
 }

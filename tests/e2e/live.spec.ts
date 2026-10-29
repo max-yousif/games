@@ -77,7 +77,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(anna.getByText('Helaas, fout')).toBeVisible();
 
   await page.getByRole('button', { name: /Nu stoppen/ }).click();
-  await expect(page.getByRole('button', { name: 'Afsluiten zonder opslaan' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Afsluiten (niet bewaren)' })).toBeVisible();
   await expect(anna.getByText(/Je eindigde op plaats/)).toBeVisible();
   await anna.getByRole('button', { name: 'Nieuw spel meespelen' }).click();
   await expect(anna.getByLabel('Code')).toBeVisible();

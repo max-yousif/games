@@ -3,7 +3,7 @@ import { Button, Notice, PageHeader } from '../components/ui';
 import { beeindigSpel } from '../lib/beeindigen';
 import { datumTekst, exporteerAlles, exporteerSessie, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
-import { leerlingNaam, overzichtPerLeerling, procentJuist, resultatenPerLeerling, teamScores, type LeerlingOverzicht } from '../lib/session';
+import { isBewaard, leerlingNaam, overzichtPerLeerling, procentJuist, resultatenPerLeerling, teamScores, type LeerlingOverzicht } from '../lib/session';
 import type { Store } from '../lib/store';
 import type { Sessie } from '../lib/types';
 
@@ -11,8 +11,10 @@ export function ResultatenPage({ store }: { store: Store }) {
   const [klasFilter, setKlasFilter] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [weergave, setWeergave] = useState<'spel' | 'leerling'>('spel');
-  const klassen = [...new Set(store.sessies.map((s) => s.klasNaam))].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
-  const sessies = store.sessies.filter((s) => !klasFilter || s.klasNaam === klasFilter).sort((a, b) => b.gestart.localeCompare(a.gestart));
+  // Enkel de spellen waarvan de resultaten bewaard werden.
+  const bewaard = store.sessies.filter(isBewaard);
+  const klassen = [...new Set(bewaard.map((s) => s.klasNaam))].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
+  const sessies = bewaard.filter((s) => !klasFilter || s.klasNaam === klasFilter).sort((a, b) => b.gestart.localeCompare(a.gestart));
 
   return (
     <div>
@@ -30,7 +32,7 @@ export function ResultatenPage({ store }: { store: Store }) {
         </Button>
       </PageHeader>
 
-      {sessies.length === 0 && <Notice>Nog geen gespeelde spellen.</Notice>}
+      {sessies.length === 0 && <Notice>Nog geen bewaarde resultaten. Kies op het einde van een spel “💾 Resultaten bewaren” om ze hier te zien.</Notice>}
 
       {sessies.length > 0 && (
         <div className="mb-4 inline-flex rounded-lg border border-slate-300 bg-surface p-1 text-sm" role="tablist">

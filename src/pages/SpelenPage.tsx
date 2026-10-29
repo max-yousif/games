@@ -13,11 +13,12 @@ import { LiveFout } from '../live/types';
 import { speelbareVragen } from '../lib/questions';
 import { ga, href } from '../lib/route';
 import { shuffle } from '../lib/random';
-import { maakGroepjes, maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
+import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
 import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
 import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
+import { VAK_LABELS } from './SetsPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
@@ -32,24 +33,33 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
+const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
+const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'cluedo', 'whodunit'];
+const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
+
 const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
 const WACHTTIJDEN = [0, 10, 15, 30, 60];
 
 const TIMERS = [null, 30, 60, 90, 120, 180];
 
+type Stap = 1 | 2 | 3 | 4;
+
 export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
-  const [gekozenSet, setGekozenSet] = useState(setId ?? store.sets[0]?.id ?? '');
-  const [spel, setSpel] = useState<SpelType>('quizbord');
-  const [klasId, setKlasId] = useState(store.klassen[0]?.id ?? '');
+  // Niets vooraf gekozen: zo kan je niet per ongeluk met de verkeerde vragenset of klas starten.
+  const [stap, setStap] = useState<Stap>(1);
+  const [gekozenSet, setGekozenSet] = useState(setId ?? '');
+  const [spel, setSpel] = useState<SpelType | null>(null);
+  // null = nog niet gekozen, '' = zonder klas.
+  const [klasId, setKlasId] = useState<string | null>(null);
+  const [zoek, setZoek] = useState('');
   const [aantal, setAantal] = useState(2);
   const [timer, setTimer] = useState<number | null>(null);
   const [snelheidsbonus, setSnelheidsbonus] = useState(true);
   const [willekeurig, setWillekeurig] = useState(false);
   const [vrijeNaam, setVrijeNaam] = useState(false);
   const [dubbel, setDubbel] = useState(true);
-  // Escape room en whodunit: alleen (1) of per 2 of 3 op één laptop.
-  const [groepGrootte, setGroepGrootte] = useState<1 | 2 | 3>(1);
-  const [demo, setDemo] = useState(!supabaseIngesteld);
+  // Zonder live server (enkel bij het testen van de website) speelt alles in deze browser.
+  const demo = !supabaseIngesteld;
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
   const klas = store.klassen.find((k) => k.id === klasId) ?? null;
@@ -91,11 +101,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   const [teams, setTeams] = useState<Team[]>(() => maakTeams(klas?.leerlingen ?? [], aantalTeams));
   const [afwezig, setAfwezig] = useState<Leerling[]>([]);
-  const verdeel = (leerlingen = klas?.leerlingen ?? [], n = aantalTeams, zonder = afwezig, grootte: 1 | 2 | 3 = eigenTempo ? groepGrootte : 1) => {
+  const verdeel = (leerlingen = klas?.leerlingen ?? [], n = aantalTeams, zonder = afwezig) => {
     const aanwezig = leerlingen.filter((l) => !zonder.some((a) => a.id === l.id));
-    setTeams(grootte > 1 ? maakGroepjes(aanwezig, grootte as 2 | 3) : maakTeams(aanwezig, n));
+    setTeams(maakTeams(aanwezig, n));
   };
-  const metGroepjes = eigenTempo && groepGrootte > 1 && klas !== null;
 
   function markeerAfwezig(ti: number, l: Leerling) {
     setTeams((ts) => ts.map((t, i) => (i === ti ? { ...t, leerlingen: t.leerlingen.filter((x) => x.id !== l.id) } : t)));
@@ -124,7 +133,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   }
 
   function start() {
-    if (!set) return;
+    if (!set || !spel) return;
     if (isLive) {
       void startLive();
       return;
@@ -136,7 +145,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   }
 
   async function startLive() {
-    if (!set) return;
+    if (!set || !spel) return;
     setBezig(true);
     setFout(null);
     try {
@@ -152,20 +161,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
       const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
-      // Op de server enkel voornamen, of groepjes zoals "Anna & Bert"; de koppeling blijft hier.
-      const namen: Record<string, string[]> = metNamen
-        ? Object.fromEntries(
-            metGroepjes
-              ? teams.filter((t) => t.leerlingen.length).map((t) => [
-                  t.leerlingen
-                    .map(kortNaam)
-                    .sort((x, y) => x.localeCompare(y, 'nl'))
-                    .join(' & '),
-                  t.leerlingen.map((l) => l.id),
-                ])
-              : leerlingen.map((l) => [kortNaam(l), [l.id]]),
-          )
-        : {};
+      // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
+      const namen: Record<string, string[]> = metNamen ? Object.fromEntries(leerlingen.map((l) => [kortNaam(l), [l.id]])) : {};
       const server = await backend(soort).maakSessie({
         titel: set.titel,
         namen: Object.keys(namen),
@@ -228,89 +225,204 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     );
   }
 
+  const spelInfo = SPELLEN.find((s) => s.type === spel) ?? null;
+  const klasGekozen = klasId !== null;
+
+  function kiesSpel(type: SpelType) {
+    setSpel(type);
+    verdeel(klas?.leerlingen, type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : aantal, afwezig);
+    if (type === 'live' && timer === null) setTimer(30);
+    setStap(set ? (klasGekozen ? 4 : 3) : 2);
+  }
+
+  function kiesSet(id: string) {
+    setGekozenSet(id);
+    setUit(new Set());
+    laadCluedo(store.sets.find((s) => s.id === id)?.cluedo ?? STANDAARD_THEMA);
+    setStap(klasGekozen ? 4 : 3);
+  }
+
+  function kiesKlas(id: string) {
+    setKlasId(id);
+    setAfwezig([]);
+    verdeel(store.klassen.find((k) => k.id === id)?.leerlingen ?? [], aantalTeams, []);
+    setStap(4);
+  }
+
+  // Vragensets: zoeken op titel, leerjaar of vak; recent gewijzigde eerst.
+  const zoekterm = zoek.trim().toLowerCase();
+  const sets = [...store.sets]
+    .filter((s) => !zoekterm || `${s.titel} ${s.leerjaar} ${VAK_LABELS[s.vak]} ${s.beschrijving}`.toLowerCase().includes(zoekterm))
+    .sort((a, b) => b.gewijzigd.localeCompare(a.gewijzigd));
+
+  const stappen: { nr: Stap; titel: string; waarde: string | null; kan: boolean }[] = [
+    { nr: 1, titel: 'Spel', waarde: spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : null, kan: true },
+    { nr: 2, titel: 'Vragenset', waarde: set?.titel ?? null, kan: spel !== null },
+    { nr: 3, titel: 'Klas', waarde: klasGekozen ? (klas ? `${klas.naam} (${klas.leerlingen.length})` : 'Zonder klas') : null, kan: spel !== null && set !== null },
+    { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && set !== null && klasGekozen },
+  ];
+
+  const kanStarten = spel !== null && set !== null && klasGekozen && vragen.length > 0 && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <PageHeader title="Spelen">
         <GeluidMenu />
       </PageHeader>
 
-      <Section step={1} title="Vragenset" aside={set?.cover && <img src={set.cover} alt="" className="aspect-video w-32 rounded-lg object-cover shadow-sm" />}>
-        <select
-          className={`${inputClass} max-w-xl`}
-          value={gekozenSet}
-          onChange={(e) => {
-            setGekozenSet(e.target.value);
-            setUit(new Set());
-            laadCluedo(store.sets.find((s) => s.id === e.target.value)?.cluedo ?? STANDAARD_THEMA);
-          }}
-        >
-          {store.sets.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.titel}
-              {s.leerjaar ? ` (${s.leerjaar})` : ''}
-            </option>
-          ))}
-        </select>
-        {set && (
-          <p className="mt-2 text-sm text-slate-500">
-            {alleVragen.length} speelbare vragen
-            {alleVragen.length < set.vragen.length && ` (${set.vragen.length - alleVragen.length} onvolledige vragen worden overgeslagen)`}
-            {set.statistiek?.gespeeld ? ` · al ${set.statistiek.gespeeld}× gespeeld met ${set.statistiek.spelers} spelers` : ''}.{' '}
-            <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
-              Bewerken
-            </a>
-          </p>
-        )}
-        {alleVragen.length > 1 && <VraagKeuze key={gekozenSet} vragen={alleVragen} uit={uit} onChange={setUit} />}
-      </Section>
-
-      <Section step={2} title="Spel">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {SPELLEN.map((s) => (
+      {/* Stappen: wat al gekozen is, staat erbij; klik om het te wijzigen. */}
+      <ol className="grid gap-2 sm:grid-cols-4" aria-label="Stappen">
+        {stappen.map((st) => (
+          <li key={st.nr}>
             <button
-              key={s.type}
               type="button"
-              onClick={() => {
-                setSpel(s.type);
-                verdeel(
-                  klas?.leerlingen,
-                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' || s.type === 'territorium' ? 1 : aantal,
-                  afwezig,
-                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' || s.type === 'territorium' ? groepGrootte : 1,
-                );
-                if (s.type === 'live' && timer === null) setTimer(30);
-              }}
-              className={`rounded-xl border-2 p-4 text-left transition ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 hover:border-slate-300'}`}
+              disabled={!st.kan}
+              onClick={() => setStap(st.nr)}
+              aria-current={stap === st.nr ? 'step' : undefined}
+              className={`flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition disabled:opacity-40 ${
+                stap === st.nr ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'
+              }`}
             >
-              <div className="text-2xl">{s.icoon}</div>
-              <div className="mt-1 font-semibold">{s.naam}</div>
-              <div className="text-sm text-slate-600">{s.tekst}</div>
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${st.waarde ? 'bg-emerald-500 text-white' : stap === st.nr ? 'bg-[var(--accent)] text-white' : 'bg-slate-200 text-slate-600'}`}
+              >
+                {st.waarde ? '✓' : st.nr}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold tracking-wide text-slate-500 uppercase">{st.titel}</span>
+                <span className="block truncate font-semibold">{st.waarde ?? (st.nr === 4 ? '' : 'kies…')}</span>
+              </span>
             </button>
-          ))}
-        </div>
-      </Section>
+          </li>
+        ))}
+      </ol>
 
-      <Section step={3} title={isLive ? 'Klas en instellingen' : 'Klas en teams'}>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <div className="w-60">
-            <label className={labelClass}>Klas</label>
-            <select
-              className={inputClass}
-              value={klasId}
-              onChange={(e) => {
-                setKlasId(e.target.value);
-                setAfwezig([]);
-                verdeel(store.klassen.find((k) => k.id === e.target.value)?.leerlingen ?? [], aantalTeams, []);
-              }}
-            >
-              <option value="">Zonder namen (enkel teams)</option>
-              {store.klassen.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.naam} ({k.leerlingen.length})
-                </option>
-              ))}
-            </select>
+      {stap === 1 && (
+        <Section step={1} title="Welk spel?">
+          {[
+            { titel: 'Op het bord, in teams', types: BORD_SPELLEN },
+            { titel: 'Elke leerling op de eigen laptop', types: LIVE_SPELLEN },
+          ].map((groep) => (
+            <div key={groep.titel} className="mb-5 last:mb-0">
+              <h3 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">{groep.titel}</h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {SPELLEN.filter((s) => groep.types.includes(s.type)).map((s) => (
+                  <button
+                    key={s.type}
+                    type="button"
+                    aria-label={s.naam}
+                    onClick={() => kiesSpel(s.type)}
+                    className={`rounded-xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${spel === s.type ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{s.icoon}</span>
+                      <span className="text-lg font-semibold">{s.naam}</span>
+                    </div>
+                    <div className="mt-1 text-sm text-slate-600">{s.tekst}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </Section>
+      )}
+
+      {stap === 2 && (
+        <Section step={2} title="Welke vragenset?">
+          <input
+            type="search"
+            className={`${inputClass} mb-4 max-w-md`}
+            placeholder="🔍 Zoek op titel, leerjaar of vak…"
+            value={zoek}
+            onChange={(e) => setZoek(e.target.value)}
+            aria-label="Zoek een vragenset"
+            autoFocus
+          />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sets.map((s) => {
+              const n = speelbareVragen(s).length;
+              const gekozen = s.id === gekozenSet;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  aria-label={`${s.titel}${s.leerjaar ? ` (${s.leerjaar})` : ''}`}
+                  disabled={n === 0}
+                  onClick={() => kiesSet(s.id)}
+                  className={`flex flex-col overflow-hidden rounded-xl border-2 text-left transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 ${gekozen ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+                >
+                  {s.cover ? (
+                    <img src={s.cover} alt="" className="aspect-[16/6] w-full object-cover" />
+                  ) : (
+                    <div className="flex aspect-[16/6] w-full items-center justify-center bg-slate-100 text-4xl" aria-hidden>
+                      {VAK_ICONEN[s.vak] ?? '📚'}
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="font-semibold">{s.titel}</div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      {[s.leerjaar, VAK_LABELS[s.vak], `${n} vragen`].filter(Boolean).join(' · ')}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">{s.statistiek?.gespeeld ? `al ${s.statistiek.gespeeld}× gespeeld` : 'nog niet gespeeld'}</div>
+                  </div>
+                </button>
+              );
+            })}
+            {sets.length === 0 && <p className="text-slate-500">Geen vragenset gevonden voor “{zoek}”.</p>}
           </div>
+        </Section>
+      )}
+
+      {stap === 3 && (
+        <Section step={3} title="Welke klas?">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[...store.klassen]
+              .sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric: true }))
+              .map((k) => (
+                <button
+                  key={k.id}
+                  type="button"
+                  data-klas
+                  aria-label={`Klas ${k.naam}`}
+                  onClick={() => kiesKlas(k.id)}
+                  className={`rounded-xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${klasId === k.id ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+                >
+                  <div className="text-2xl font-bold">{k.naam}</div>
+                  <div className="text-sm text-slate-500">{k.leerlingen.length} leerlingen</div>
+                </button>
+              ))}
+            <button
+              type="button"
+              aria-label="Zonder klas"
+              onClick={() => kiesKlas('')}
+              className={`rounded-xl border-2 border-dashed p-4 text-left transition hover:shadow-md ${klasId === '' ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-300 bg-surface'}`}
+            >
+              <div className="text-lg font-semibold">Zonder klas</div>
+              <div className="text-sm text-slate-500">{isLive ? 'leerlingen typen zelf hun naam' : 'enkel teams, geen namen'}</div>
+            </button>
+          </div>
+          {store.klassen.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">
+              Tip: maak een <a className="underline" href={href({ pagina: 'klassen' })}>klas</a> aan om namen van leerlingen te zien en resultaten per leerling bij te houden.
+            </p>
+          )}
+        </Section>
+      )}
+
+      {stap === 4 && spel && set && klasGekozen && (
+        <>
+          <div className="flex flex-wrap items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-4">
+            {set.cover ? <img src={set.cover} alt="" className="aspect-video w-28 rounded-lg object-cover" /> : <span className="text-5xl">{spelInfo?.icoon}</span>}
+            <div className="text-lg">
+              <strong>
+                {spelInfo?.icoon} {spelInfo?.naam}
+              </strong>{' '}
+              met <strong>“{set.titel}”</strong> ({vragen.length} vragen) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+            </div>
+          </div>
+
+          <Section step={4} title={isLive ? 'Instellingen' : 'Instellingen en teams'}>
+        <div className="mb-4 flex flex-wrap items-end gap-4">
           {(spel === 'quizbord' || spel === 'bom') && (
             <div className="w-36">
               <label className={labelClass}>Aantal teams</label>
@@ -342,24 +454,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                         {n} (willekeurig gekozen)
                       </option>
                     ))}
-                  </select>
-                </div>
-              )}
-              {klas && (
-                <div className="w-44">
-                  <label className={labelClass}>Werken</label>
-                  <select
-                    className={inputClass}
-                    value={groepGrootte}
-                    onChange={(e) => {
-                      const g = Number(e.target.value) as 1 | 2 | 3;
-                      setGroepGrootte(g);
-                      verdeel(klas.leerlingen, 1, afwezig, g);
-                    }}
-                  >
-                    <option value={1}>alleen</option>
-                    <option value={2}>per 2 (één laptop)</option>
-                    <option value={3}>per 3 (één laptop)</option>
                   </select>
                 </div>
               )}
@@ -430,7 +524,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           <div className="mb-4 space-y-2 text-sm">
             {spel === 'territorium' ? (
               <p className="text-slate-600">
-                Elke leerling (of elk groepje) krijgt een eigen kleur. Bij een juist antwoord mag de leerling enkele seconden tekenen op het gedeelde veld (hoe sneller, hoe meer gebied), ook over het gebied van
+                Elke leerling krijgt een eigen kleur. Bij een juist antwoord mag de leerling enkele seconden tekenen op het gedeelde veld (hoe sneller, hoe meer gebied), ook over het gebied van
                 een ander. Wie meerdere vragen na elkaar juist heeft, krijgt een steeds groter penseel. Na de speeltijd wint wie het meeste gebied heeft. De vragen komen
                 steeds opnieuw.
               </p>
@@ -524,36 +618,19 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 Leerlingen mogen ook een naam typen die niet op de klaslijst staat
               </label>
             )}
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={demo} disabled={!supabaseIngesteld} onChange={(e) => setDemo(e.target.checked)} />
-              Demo in deze browser (leerlingen in andere tabbladen van deze browser, zonder internet-server)
-            </label>
             {supabaseIngesteld && !demo && !store.account.leerkracht && (
               <Notice tone="warn">
                 Live spelen met echte laptops kan enkel als leerkracht.{' '}
                 <a className="font-semibold underline" href={href({ pagina: 'aanmelden' })}>
                   Meld je aan
-                </a>{' '}
-                of kies de demo.
-              </Notice>
-            )}
-            {!supabaseIngesteld && (
-              <Notice tone="warn">
-                De live server (Supabase) is nog niet ingesteld, dus enkel de demo werkt: open het leerlingenscherm in een tweede tabblad. Zie{' '}
-                <strong>supabase/README.md</strong> om live spelen met echte laptops aan te zetten.
+                </a>
+                .
               </Notice>
             )}
             {!klas && <p className="text-slate-500">Zonder klas typen leerlingen zelf hun naam.</p>}
           </div>
         )}
 
-        {store.klassen.length === 0 && (
-          <div className="mb-4">
-            <Notice>
-              Tip: maak een <a className="underline" href={href({ pagina: 'klassen' })}>klas</a> aan om namen van leerlingen te zien en resultaten per leerling bij te houden.
-            </Notice>
-          </div>
-        )}
 
         {spel === 'quizbord' && klas && (
           <label className="mb-3 flex items-center gap-2 text-sm">
@@ -561,17 +638,20 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             Dubbele punten als één leerling alleen antwoordt (zonder overleggen)
           </label>
         )}
-        {metGroepjes && <p className="mb-3 text-sm text-slate-600">Elk groepje speelt samen op één laptop. Klik op een naam om die naar het volgende groepje te verplaatsen.</p>}
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={isLive && !klas}>
           {teams.map((t, ti) => (
-            <div key={ti} className="rounded-xl border-2 p-3" style={{ borderColor: t.kleur }}>
-              <input
-                className="mb-2 w-full rounded border-0 bg-transparent px-1 font-semibold outline-none focus:ring-2"
-                style={{ color: t.kleur }}
-                value={t.naam}
-                onChange={(e) => setTeams((ts) => ts.map((x, i) => (i === ti ? { ...x, naam: e.target.value } : x)))}
-                aria-label="Teamnaam"
-              />
+            <div key={ti} className="rounded-xl border-2 p-3" style={{ borderColor: isLive ? 'var(--color-slate-200)' : t.kleur }}>
+              {isLive ? (
+                <div className="mb-2 px-1 font-semibold text-slate-600">Aanwezig ({t.leerlingen.length})</div>
+              ) : (
+                <input
+                  className="mb-2 w-full rounded border-0 bg-transparent px-1 font-semibold outline-none focus:ring-2"
+                  style={{ color: t.kleur }}
+                  value={t.naam}
+                  onChange={(e) => setTeams((ts) => ts.map((x, i) => (i === ti ? { ...x, naam: e.target.value } : x)))}
+                  aria-label="Teamnaam"
+                />
+              )}
               <div className="flex flex-wrap gap-1">
                 {t.leerlingen.map((l) => (
                   <span key={l.id} className="inline-flex items-center rounded-full bg-slate-100 text-sm">
@@ -622,13 +702,41 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               : 'Klik op een naam om die leerling naar het volgende team te verplaatsen, of op ✕ als de leerling afwezig is.'}
           </p>
         )}
-      </Section>
+          </Section>
 
-      {fout && <Notice tone="warn">{fout}</Notice>}
-      <div className="flex justify-end">
-        <Button variant="primary" className="px-8 py-3 text-base" disabled={!set || vragen.length === 0 || bezig || (isLive && !demo && !store.account.leerkracht) || raadselFouten.length > 0 || cluedoFouten.length > 0} onClick={start}>
-          {bezig ? 'Bezig…' : '▶ Start het spel'}
-        </Button>
+          {alleVragen.length > 1 && (
+            <Section title="Vragen">
+              <p className="mb-2 text-sm text-slate-500">
+                {alleVragen.length} speelbare vragen
+                {alleVragen.length < set.vragen.length && ` (${set.vragen.length - alleVragen.length} onvolledige vragen worden overgeslagen)`}.{' '}
+                <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
+                  Vragenset bewerken
+                </a>
+              </p>
+              <VraagKeuze key={gekozenSet} vragen={alleVragen} uit={uit} onChange={setUit} />
+            </Section>
+          )}
+        </>
+      )}
+
+      {/* Startbalk: altijd zichtbaar onderaan. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1 truncate text-sm text-slate-600">
+            {spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : 'Kies een spel'} · {set ? `“${set.titel}”` : 'kies een vragenset'} ·{' '}
+            {klasGekozen ? (klas ? klas.naam : 'zonder klas') : 'kies een klas'}
+          </div>
+          {fout && <span className="text-sm text-red-600">{fout}</span>}
+          {stap < 4 ? (
+            <Button variant="primary" disabled={!stappen[stap].kan} onClick={() => setStap((stap + 1) as Stap)}>
+              Volgende ▶
+            </Button>
+          ) : (
+            <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
+              {bezig ? 'Bezig…' : '▶ Start het spel'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

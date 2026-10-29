@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ongedaanMaken } from '../src/pages/SessiePage';
 import { wachtOpZet } from '../src/games/VierOpEenRij';
-import { aantalBeurten, kiesLeerling, maakTeams, resultatenPerLeerling, teamAanDeBeurt, teamScores, voegBeurtToe, volgendeVraag } from '../src/lib/session';
+import { aantalBeurten, isBewaard, kiesLeerling, maakTeams, resultatenPerLeerling, ruimOp, teamAanDeBeurt, teamScores, voegBeurtToe, volgendeVraag } from '../src/lib/session';
 import { sessie, vraag } from './helpers';
 
 describe('maakTeams', () => {
@@ -113,5 +113,25 @@ describe('statistiek per vragenset', () => {
   it('telt spellen en spelers op', () => {
     const [s] = telGespeeld([{ ...set, statistiek: { gespeeld: 2, spelers: 40 } }], [sessie(false, []), sessie(true, ['c'])]);
     expect(s.statistiek).toEqual({ gespeeld: 4, spelers: 44 });
+  });
+});
+
+describe('enkel bewaarde resultaten', () => {
+  const basis = { gestart: new Date(Date.now() - 3600_000).toISOString(), beeindigd: null } as const;
+  const s = (over: Partial<Sessie>) => ({ id: Math.random().toString(), ...basis, ...over }) as Sessie;
+
+  it('een nieuw spel is niet bewaard; spellen van vroeger wel als ze afgelopen zijn', () => {
+    expect(isBewaard(s({ bewaard: false, beeindigd: new Date().toISOString() }))).toBe(false);
+    expect(isBewaard(s({ bewaard: true }))).toBe(true);
+    expect(isBewaard(s({ beeindigd: new Date().toISOString() }))).toBe(true);
+    expect(isBewaard(s({}))).toBe(false);
+  });
+
+  it('opruimen: afgelopen of al een dag stil en niet bewaard = weg; lopend en bewaard blijven', () => {
+    const lopend = s({ bewaard: false });
+    const oud = s({ bewaard: false, gestart: new Date(Date.now() - 30 * 3600_000).toISOString() });
+    const afgelopen = s({ bewaard: false, beeindigd: new Date().toISOString() });
+    const bewaard = s({ bewaard: true, beeindigd: new Date().toISOString() });
+    expect(ruimOp([lopend, oud, afgelopen, bewaard])).toEqual([lopend, bewaard]);
   });
 });

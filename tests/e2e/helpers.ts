@@ -13,10 +13,13 @@ export async function maakKlas(page: Page, naam: string, leerlingen: string[]) {
 /** Kiest een speltype op de pagina Spelen (met de eerste klas) en zet de demo-modus aan voor live spellen. */
 export async function kiesSpel(page: Page, set: string, spel: string) {
   await page.goto('#/spelen');
-  await page.getByRole('combobox').first().selectOption({ label: set });
-  await page.getByRole('button', { name: new RegExp(`^\\S*\\s*${spel}`) }).click();
-  const demo = page.getByLabel(/Demo in deze browser/);
-  if ((await demo.count()) && (await demo.isEnabled()) && !(await demo.isChecked())) await demo.check();
+  // Stap 1 spel, stap 2 vragenset, stap 3 klas (de eerste klas, of zonder klas).
+  await page.getByRole('button', { name: spel, exact: true }).click();
+  await page.getByRole('button', { name: set, exact: true }).click();
+  const klas = page.locator('[data-klas]').first();
+  if (await klas.count()) await klas.click();
+  else await page.getByRole('button', { name: 'Zonder klas', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Start het spel/ })).toBeVisible();
 }
 
 /** Start het spel en geeft de deelnamecode terug (live spellen). */
