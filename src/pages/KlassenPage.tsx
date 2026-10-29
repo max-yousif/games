@@ -15,6 +15,9 @@ export function jaarVanKlas(naam: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** Het leerjaar van een klas: zelf gekozen, anders uit de naam. */
+export const klasJaar = (k: Pick<Klas, 'naam' | 'jaar'>): number | null => (k.jaar === undefined ? jaarVanKlas(k.naam) : k.jaar || null);
+
 export function KlassenPage({ store }: { store: Store }) {
   // Overzicht van alle klassen, of één klas open.
   const [gekozen, setGekozen] = useState<string | null>(null);
@@ -62,12 +65,12 @@ export function KlassenPage({ store }: { store: Store }) {
 
   const term = zoek.trim().toLowerCase();
   const gefilterd = store.klassen
-    .filter((k) => !jaar || jaarVanKlas(k.naam) === jaar)
+    .filter((k) => !jaar || klasJaar(k) === jaar)
     .filter((k) => !term || k.naam.toLowerCase().includes(term) || k.leerlingen.some((l) => l.naam.toLowerCase().includes(term)))
     .sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric: true }));
-  const jaren = [...new Set(store.klassen.map((k) => jaarVanKlas(k.naam)))].sort((a, b) => (a ?? 99) - (b ?? 99));
+  const jaren = [...new Set(store.klassen.map(klasJaar))].sort((a, b) => (a ?? 99) - (b ?? 99));
   const groepen = jaren
-    .map((j) => ({ jaar: j, klassen: gefilterd.filter((k) => jaarVanKlas(k.naam) === j) }))
+    .map((j) => ({ jaar: j, klassen: gefilterd.filter((k) => klasJaar(k) === j) }))
     .filter((g) => g.klassen.length > 0);
   const chip = (actief: boolean) =>
     `rounded-full border px-3 py-1 text-sm font-medium transition ${actief ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`;
@@ -207,6 +210,25 @@ function KlasEditor({
             Naam van de klas
           </label>
           <input id="klasnaam" className={`${inputClass} text-xl font-bold`} value={klas.naam} onChange={(e) => onChange((k) => ({ ...k, naam: e.target.value }))} />
+        </div>
+        <div className="w-44">
+          <label className={labelClass} htmlFor="klasjaar">
+            Leerjaar
+          </label>
+          <select
+            id="klasjaar"
+            className={inputClass}
+            value={klas.jaar === undefined ? 'auto' : String(klas.jaar)}
+            onChange={(e) => onChange((k) => ({ ...k, jaar: e.target.value === 'auto' ? undefined : Number(e.target.value) }))}
+          >
+            <option value="auto">{jaarVanKlas(klas.naam) ? `${jaarVanKlas(klas.naam)}e jaar (uit de naam)` : 'kies…'}</option>
+            {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+              <option key={j} value={j}>
+                {j}e jaar
+              </option>
+            ))}
+            <option value="0">geen jaar</option>
+          </select>
         </div>
         <div className="pb-2 text-sm text-slate-500">
           👥 {klas.leerlingen.length} leerlingen

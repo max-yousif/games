@@ -19,6 +19,7 @@ import type { Store } from '../lib/store';
 import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
 import { jarenVan, VAK_LABELS } from './SetsPage';
+import { klasJaar } from './KlassenPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
@@ -392,7 +393,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         <Section step={3} title="Welke klas?">
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {[...store.klassen]
-              .sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric: true }))
+              .sort((a, b) => (klasJaar(a) ?? 99) - (klasJaar(b) ?? 99) || a.naam.localeCompare(b.naam, 'nl', { numeric: true }))
               .map((k) => (
                 <button
                   key={k.id}
@@ -403,7 +404,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   className={`rounded-xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${klasId === k.id ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
                 >
                   <div className="text-2xl font-bold">{k.naam}</div>
-                  <div className="text-sm text-slate-500">{k.leerlingen.length} leerlingen</div>
+                  <div className="text-sm text-slate-500">
+                    {k.leerlingen.length} leerlingen{klasJaar(k) ? ` · ${klasJaar(k)}e jaar` : ''}
+                  </div>
                 </button>
               ))}
             <button

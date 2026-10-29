@@ -83,6 +83,8 @@ export interface Klas {
   leerlingen: Leerling[];
   /** Standaard voornaam eerst. */
   naamVolgorde?: NaamVolgorde;
+  /** Leerjaar (1-7), zelf gekozen; 0 = geen jaar. Ontbreekt: afgeleid uit de naam (3A = 3). */
+  jaar?: number;
 }
 
 /** Cluedo: de kaarten waaruit de oplossing getrokken wordt. */

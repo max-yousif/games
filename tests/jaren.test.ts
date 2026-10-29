@@ -24,3 +24,13 @@ describe('leerjaar van een klas', () => {
     expect(jaarVanKlas('12B')).toBeNull();
   });
 });
+
+describe('leerjaar zelf gekozen', () => {
+  it('gekozen jaar wint van de naam; 0 = geen jaar', async () => {
+    const { klasJaar } = await import('../src/pages/KlassenPage');
+    expect(klasJaar({ naam: '3A' })).toBe(3);
+    expect(klasJaar({ naam: 'Wiskunde B', jaar: 5 })).toBe(5);
+    expect(klasJaar({ naam: '3A', jaar: 4 })).toBe(4);
+    expect(klasJaar({ naam: '3A', jaar: 0 })).toBeNull();
+  });
+});
