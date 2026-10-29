@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
 import { GatSymbool, RichText } from '../components/RichText';
 import { gatKleur, LETTERS } from '../lib/vraagtypes';
 import { antwoordWeergave } from './logic';
@@ -218,11 +218,14 @@ function Invullen({ aantal, bezig, onVerstuur }: { aantal: number; bezig: boolea
   );
 }
 
-function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
-  // De volgorde als posities in `items`: vaste sleutels, zodat het gesleepte item tijdens het slepen blijft bestaan.
-  const [volgorde, setVolgorde] = useState(() => items.map((_, i) => i));
+/**
+ * Slepen om de volgorde te wijzigen (muis en vinger). Items in `houder` met `data-sleep` zijn de
+ * plaatsen; de volgorde bevat de posities in de oorspronkelijke lijst.
+ */
+function useSleepLijst(aantal: number) {
+  const [volgorde, setVolgorde] = useState(() => Array.from({ length: aantal }, (_, i) => i));
   const [sleept, setSleept] = useState<number | null>(null);
-  const lijst = useRef<HTMLOListElement>(null);
+  const houder = useRef<HTMLDivElement>(null);
   const verplaats = (van: number, naar: number) =>
     setVolgorde((v) => {
       if (naar < 0 || naar >= v.length || naar === van) return v;
@@ -230,120 +233,116 @@ function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: bo
       n.splice(naar, 0, ...n.splice(van, 1));
       return n;
     });
-  function begin(e: PointerEvent<HTMLLIElement>, i: number) {
+  useEffect(() => {
+    if (sleept === null) return;
+    const beweeg = (e: globalThis.PointerEvent) => {
+      if (!houder.current) return;
+      // Nieuwe plaats = aantal andere items waarvan het midden boven de muis/vinger ligt.
+      const anderen = [...houder.current.querySelectorAll('[data-sleep]')].filter((_, j) => j !== sleept);
+      const naar = anderen.filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top + r.height / 2 < e.clientY;
+      }).length;
+      if (naar !== sleept) {
+        verplaats(sleept, naar);
+        setSleept(naar);
+      }
+    };
+    const stop = () => setSleept(null);
+    window.addEventListener('pointermove', beweeg);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    return () => {
+      window.removeEventListener('pointermove', beweeg);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+    };
+  }, [sleept]);
+  const begin = (e: PointerEvent<HTMLElement>, i: number) => {
     if ((e.target as HTMLElement).closest('button') || e.button !== 0) return;
     e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
     setSleept(i);
-  }
-  function beweeg(e: PointerEvent<HTMLLIElement>) {
-    if (sleept === null || !lijst.current) return;
-    // Nieuwe plaats = aantal andere items waarvan het midden boven de muis/vinger ligt.
-    const anderen = [...lijst.current.children].filter((_, j) => j !== sleept);
-    const naar = anderen.filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2 < e.clientY;
-    }).length;
-    if (naar !== sleept) {
-      verplaats(sleept, naar);
-      setSleept(naar);
-    }
-  }
+  };
+  const stijl = (i: number) =>
+    `flex cursor-grab touch-none items-center gap-3 rounded-xl border-2 bg-surface px-4 py-2 select-none ${
+      sleept === i ? 'relative z-10 cursor-grabbing border-[var(--accent)] shadow-lg' : 'border-slate-200 hover:border-slate-400'
+    }`;
+  return { volgorde, houder, begin, verplaats, stijl };
+}
+
+function Pijltjes({ i, aantal, verplaats }: { i: number; aantal: number; verplaats: (van: number, naar: number) => void }) {
+  const knop = 'rounded-lg bg-slate-100 px-3 py-2 text-xl hover:bg-slate-200 disabled:opacity-30';
+  return (
+    <>
+      <button type="button" aria-label="Omhoog" disabled={i === 0} onClick={() => verplaats(i, i - 1)} className={knop}>
+        ↑
+      </button>
+      <button type="button" aria-label="Omlaag" disabled={i === aantal - 1} onClick={() => verplaats(i, i + 1)} className={knop}>
+        ↓
+      </button>
+    </>
+  );
+}
+
+function VerstuurLijst({ bezig, onClick }: { bezig: boolean; onClick: () => void }) {
+  return (
+    <div className="mt-3 flex justify-end">
+      <button type="button" disabled={bezig} onClick={onClick} className="rounded-xl bg-[var(--accent)] px-8 py-3 text-xl font-semibold text-white disabled:opacity-50">
+        Versturen
+      </button>
+    </div>
+  );
+}
+
+const Greep = () => (
+  <span className="text-xl text-slate-300" aria-hidden>
+    ⠿
+  </span>
+);
+
+function Ordenen({ items, code, bezig, onVerstuur }: { items: string[]; code: boolean; bezig: boolean; onVerstuur: (a: string) => void }) {
+  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(items.length);
   return (
     <div>
       <p className="mb-2 text-slate-600">Sleep in de juiste volgorde.</p>
-      <ol ref={lijst} className="space-y-2">
+      <div ref={houder} className="space-y-2">
         {volgorde.map((nr, i) => (
-          <li
-            key={nr}
-            data-orden-item
-            onPointerDown={(e) => begin(e, i)}
-            onPointerMove={beweeg}
-            onPointerUp={() => setSleept(null)}
-            onPointerCancel={() => setSleept(null)}
-            className={`flex cursor-grab touch-none items-center gap-3 rounded-xl border-2 bg-surface px-4 py-2 select-none ${
-              sleept === i ? 'relative z-10 cursor-grabbing border-[var(--accent)] shadow-lg' : 'border-slate-200 hover:border-slate-400'
-            }`}
-          >
-            <span className="text-xl text-slate-300" aria-hidden>
-              ⠿
-            </span>
+          <div key={nr} data-sleep data-orden-item onPointerDown={(e) => begin(e, i)} className={stijl(i)}>
+            <Greep />
             <span className="w-6 font-bold text-slate-400">{i + 1}.</span>
             <div className="min-w-0 flex-1">{code ? <pre className="overflow-x-auto font-mono text-lg whitespace-pre">{items[nr]}</pre> : <RichText text={items[nr]} className="text-xl" />}</div>
-            <button type="button" aria-label="Omhoog" disabled={i === 0} onClick={() => verplaats(i, i - 1)} className="rounded-lg bg-slate-100 px-3 py-2 text-xl hover:bg-slate-200 disabled:opacity-30">
-              ↑
-            </button>
-            <button
-              type="button"
-              aria-label="Omlaag"
-              disabled={i === volgorde.length - 1}
-              onClick={() => verplaats(i, i + 1)}
-              className="rounded-lg bg-slate-100 px-3 py-2 text-xl hover:bg-slate-200 disabled:opacity-30"
-            >
-              ↓
-            </button>
-          </li>
+            <Pijltjes i={i} aantal={volgorde.length} verplaats={verplaats} />
+          </div>
         ))}
-      </ol>
-      <div className="mt-3 flex justify-end">
-        <button
-          type="button"
-          disabled={bezig}
-          onClick={() => onVerstuur(JSON.stringify(volgorde.map((nr) => items[nr])))}
-          className="rounded-xl bg-[var(--accent)] px-8 py-3 text-xl font-semibold text-white disabled:opacity-50"
-        >
-          Versturen
-        </button>
       </div>
+      <VerstuurLijst bezig={bezig} onClick={() => onVerstuur(JSON.stringify(volgorde.map((nr) => items[nr])))} />
     </div>
   );
 }
 
 function Koppelen({ links, rechts, bezig, onVerstuur }: { links: string[]; rechts: string[]; bezig: boolean; onVerstuur: (a: string) => void }) {
-  const [keuze, setKeuze] = useState<string[]>(() => links.map(() => ''));
-  const klaar = keuze.every(Boolean);
+  // Links blijft vast; de items rechts sleep je naast het item waar ze bij horen.
+  const { volgorde, houder, begin, verplaats, stijl } = useSleepLijst(rechts.length);
   return (
     <div>
-      <div className="mb-4 grid gap-2 rounded-xl bg-surface p-4 sm:grid-cols-2">
-        {rechts.map((r, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-800 font-bold text-white">{LETTERS[i]}</span>
-            <RichText text={r} className="text-lg" />
-          </div>
-        ))}
-      </div>
-      <p className="mb-2 text-slate-600">Kies bij elk item de juiste letter.</p>
-      <div className="space-y-2">
-        {links.map((l, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-surface px-4 py-2">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-bold text-white">{i + 1}</span>
-            <RichText text={l} className="flex-1 text-xl" />
-            <div className="flex flex-wrap gap-1">
-              {rechts.map((r, j) => (
-                <button
-                  key={j}
-                  type="button"
-                  onClick={() => setKeuze((k) => k.map((x, n) => (n === i ? r : x)))}
-                  className={`h-10 w-10 rounded-lg text-lg font-bold ${keuze[i] === r ? 'bg-[var(--accent)] text-white' : 'bg-slate-100 hover:bg-slate-200'}`}
-                  aria-label={`${i + 1} koppelen aan ${LETTERS[j]}`}
-                >
-                  {LETTERS[j]}
-                </button>
-              ))}
+      <p className="mb-2 text-slate-600">Sleep rechts naast het item waar het bij hoort.</p>
+      <div ref={houder} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-3 gap-y-2">
+        {volgorde.map((nr, i) => (
+          <Fragment key={i}>
+            <div className="flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-2">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-bold text-white">{i + 1}</span>
+              <RichText text={links[i]} className="min-w-0 flex-1 text-xl" />
+              <span className="text-slate-400">↔</span>
             </div>
-          </div>
+            <div data-sleep data-koppel-item onPointerDown={(e) => begin(e, i)} className={stijl(i)}>
+              <Greep />
+              <RichText text={rechts[nr]} className="min-w-0 flex-1 text-xl" />
+              <Pijltjes i={i} aantal={volgorde.length} verplaats={verplaats} />
+            </div>
+          </Fragment>
         ))}
       </div>
-      <div className="mt-3 flex justify-end">
-        <button
-          type="button"
-          disabled={!klaar || bezig}
-          onClick={() => onVerstuur(JSON.stringify(keuze))}
-          className="rounded-xl bg-[var(--accent)] px-8 py-3 text-xl font-semibold text-white disabled:opacity-50"
-        >
-          Versturen
-        </button>
-      </div>
+      <VerstuurLijst bezig={bezig} onClick={() => onVerstuur(JSON.stringify(volgorde.map((nr) => rechts[nr])))} />
     </div>
   );
 }

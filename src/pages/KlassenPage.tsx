@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { LEERJAREN } from '../components/JaarKeuze';
 import { CloudKaart } from '../components/Account';
 import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { newId } from '../lib/ids';
@@ -22,7 +23,6 @@ export function KlassenPage({ store }: { store: Store }) {
   // Overzicht van alle klassen, of één klas open.
   const [gekozen, setGekozen] = useState<string | null>(null);
   const [zoek, setZoek] = useState('');
-  const [jaar, setJaar] = useState<number | 0>(0);
   const klas = store.klassen.find((k) => k.id === gekozen) ?? null;
 
   function nieuweKlas() {
@@ -65,15 +65,35 @@ export function KlassenPage({ store }: { store: Store }) {
 
   const term = zoek.trim().toLowerCase();
   const gefilterd = store.klassen
-    .filter((k) => !jaar || klasJaar(k) === jaar)
     .filter((k) => !term || k.naam.toLowerCase().includes(term) || k.leerlingen.some((l) => l.naam.toLowerCase().includes(term)))
     .sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric: true }));
-  const jaren = [...new Set(store.klassen.map(klasJaar))].sort((a, b) => (a ?? 99) - (b ?? 99));
-  const groepen = jaren
-    .map((j) => ({ jaar: j, klassen: gefilterd.filter((k) => klasJaar(k) === j) }))
-    .filter((g) => g.klassen.length > 0);
-  const chip = (actief: boolean) =>
-    `rounded-full border px-3 py-1 text-sm font-medium transition ${actief ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`;
+  const vanJaar = (j: number) => gefilterd.filter((k) => klasJaar(k) === j);
+  const andere = gefilterd.filter((k) => !LEERJAREN.includes(klasJaar(k) ?? 0));
+  const kaart = (k: Klas) => {
+    const sp = spellen.get(k.naam);
+    const namen = k.leerlingen.map((l) => l.naam);
+    const voornamen = korteNamen(namen, naamVolgordeVan(namen, k.naamVolgorde));
+    return (
+      <button
+        key={k.id}
+        type="button"
+        aria-label={`${k.naam} ${k.leerlingen.length}`}
+        onClick={() => setGekozen(k.id)}
+        className="flex w-full flex-col rounded-2xl border-2 border-slate-200 bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md"
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-2xl font-bold">{k.naam || 'Naamloze klas'}</span>
+          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-sm font-semibold text-[var(--accent-tekst)]">👥 {k.leerlingen.length}</span>
+        </div>
+        <div className="mt-2 line-clamp-2 text-sm text-slate-600">
+          {voornamen.length ? voornamen.slice(0, 12).join(', ') + (voornamen.length > 12 ? ', …' : '') : 'Nog geen leerlingen'}
+        </div>
+        <div className="mt-auto pt-3 text-xs text-slate-500">
+          {sp ? `${sp.aantal} ${sp.aantal === 1 ? 'spel' : 'spellen'} · laatst ${datumTekst(sp.laatst)}` : 'nog geen bewaarde spellen'}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div>
@@ -96,57 +116,27 @@ export function KlassenPage({ store }: { store: Store }) {
               onChange={(e) => setZoek(e.target.value)}
               aria-label="Zoek een klas of leerling"
             />
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Leerjaar">
-              <button type="button" className={chip(jaar === 0)} aria-pressed={jaar === 0} onClick={() => setJaar(0)}>
-                Alle ({store.klassen.length})
-              </button>
-              {jaren
-                .filter((j): j is number => j !== null)
-                .map((j) => (
-                  <button key={j} type="button" className={chip(jaar === j)} aria-pressed={jaar === j} onClick={() => setJaar(j)}>
-                    {j}e jaar
-                  </button>
-                ))}
-            </div>
           </div>
 
-          <div className="space-y-6">
-            {groepen.map((g) => (
-              <section key={g.jaar ?? 'x'}>
-                <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">{g.jaar ? `${g.jaar}e jaar` : 'Andere klassen'}</h2>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {g.klassen.map((k) => {
-                    const sp = spellen.get(k.naam);
-                    const namen = k.leerlingen.map((l) => l.naam);
-                    const voornamen = korteNamen(namen, naamVolgordeVan(namen, k.naamVolgorde));
-                    return (
-                      <button
-                        key={k.id}
-                        type="button"
-                        aria-label={`${k.naam} ${k.leerlingen.length}`}
-                        onClick={() => setGekozen(k.id)}
-                        className="flex flex-col rounded-2xl border-2 border-slate-200 bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md"
-                      >
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-2xl font-bold">{k.naam || 'Naamloze klas'}</span>
-                          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-sm font-semibold text-[var(--accent-tekst)]">
-                            👥 {k.leerlingen.length}
-                          </span>
-                        </div>
-                        <div className="mt-2 line-clamp-2 text-sm text-slate-600">
-                          {voornamen.length ? voornamen.slice(0, 12).join(', ') + (voornamen.length > 12 ? ', …' : '') : 'Nog geen leerlingen'}
-                        </div>
-                        <div className="mt-auto pt-3 text-xs text-slate-500">
-                          {sp ? `${sp.aantal} bewaarde ${sp.aantal === 1 ? 'spel' : 'spellen'} · laatst ${datumTekst(sp.laatst)}` : 'nog geen bewaarde spellen'}
-                        </div>
-                      </button>
-                    );
-                  })}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {LEERJAREN.map((j) => (
+              <section key={j} className="rounded-2xl bg-slate-100/70 p-3">
+                <h2 className="mb-3 flex items-baseline justify-between px-1 text-lg font-bold">
+                  {j}e jaar <span className="text-sm font-medium text-slate-500">{vanJaar(j).length}</span>
+                </h2>
+                <div className="space-y-3">
+                  {vanJaar(j).map(kaart)}
+                  {vanJaar(j).length === 0 && <p className="px-1 text-sm text-slate-400">{term ? 'Niets gevonden.' : 'Geen klassen.'}</p>}
                 </div>
               </section>
             ))}
-            {groepen.length === 0 && <p className="text-slate-500">Geen klassen gevonden.</p>}
           </div>
+          {andere.length > 0 && (
+            <section className="mt-6">
+              <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">Zonder leerjaar</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{andere.map(kaart)}</div>
+            </section>
+          )}
         </>
       )}
 
@@ -219,7 +209,7 @@ function KlasEditor({
             onChange={(e) => onChange((k) => ({ ...k, jaar: e.target.value === 'auto' ? undefined : Number(e.target.value) }))}
           >
             <option value="auto">{jaarVanKlas(klas.naam) ? `${jaarVanKlas(klas.naam)}e jaar (uit de naam)` : 'kies…'}</option>
-            {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+            {LEERJAREN.map((j) => (
               <option key={j} value={j}>
                 {j}e jaar
               </option>

@@ -1,8 +1,11 @@
+/** De leerjaren waarin les gegeven wordt. */
+export const LEERJAREN = [3, 4, 5, 6];
+
 /** Eén of meer leerjaren aanduiden (of geen). */
 export function JaarKeuze({ jaren, onChange }: { jaren: number[]; onChange: (j: number[]) => void }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Leerjaren">
-      {[1, 2, 3, 4, 5, 6].map((j) => {
+      {LEERJAREN.map((j) => {
         const aan = jaren.includes(j);
         return (
           <button

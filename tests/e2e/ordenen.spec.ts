@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
-test('ordenen: items slepen in de juiste volgorde', async ({ page }) => {
+test('ordenen en koppelen: items slepen', async ({ page }) => {
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert']);
@@ -27,6 +27,25 @@ test('ordenen: items slepen in de juiste volgorde', async ({ page }) => {
     await expect(items.nth(k)).toContainText(juist[k]);
   }
   await expect(items).toHaveText(juist.map((t) => new RegExp(t)));
+  await anna.getByRole('button', { name: 'Versturen' }).click();
+  await expect(anna.getByText(/Juist! \+\d+/)).toBeVisible();
+
+  // Koppelen: de woorden rechts naast het juiste cijfer slepen.
+  await page.getByRole('button', { name: /Volgende vraag/ }).click();
+  const rechts = anna.locator('[data-koppel-item]');
+  await expect(rechts).toHaveCount(4);
+  const woorden = ['een', 'twee', 'drie', 'vier'];
+  for (let k = 0; k < woorden.length; k++) {
+    const van = (await rechts.filter({ hasText: new RegExp(`^⠿${woorden[k]}`) }).boundingBox())!;
+    const naar = (await rechts.nth(k).boundingBox())!;
+    await anna.mouse.move(van.x + 20, van.y + van.height / 2);
+    await anna.mouse.down();
+    await anna.mouse.move(naar.x + 20, naar.y + naar.height / 2, { steps: 8 });
+    await anna.mouse.move(naar.x + 20, naar.y + 3, { steps: 2 });
+    await anna.mouse.up();
+    await expect(rechts.nth(k)).toContainText(woorden[k]);
+  }
+  if (process.env.SCHERMAFDRUK) await anna.screenshot({ path: process.env.SCHERMAFDRUK });
   await anna.getByRole('button', { name: 'Versturen' }).click();
   await expect(anna.getByText(/Juist! \+\d+/)).toBeVisible();
   controleer();

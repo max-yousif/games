@@ -26,17 +26,30 @@
         "uitleg": ""
       },
       {
-        "id": "o2",
+        "id": "k1",
         "categorie": "Test",
         "punten": 100,
-        "type": "open",
-        "tekst": "1+1?",
-        "antwoord": "2",
-        "opties": [
-          "",
-          "",
-          "",
-          ""
+        "type": "koppelen",
+        "tekst": "Koppel cijfer en woord",
+        "antwoord": "",
+        "opties": [],
+        "paren": [
+          [
+            "1",
+            "een"
+          ],
+          [
+            "2",
+            "twee"
+          ],
+          [
+            "3",
+            "drie"
+          ],
+          [
+            "4",
+            "vier"
+          ]
         ],
         "juisteOptie": 0,
         "uitleg": ""
