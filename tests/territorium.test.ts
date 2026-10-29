@@ -6,8 +6,13 @@ import {
   codeerVeld,
   HOOGTE,
   MAX_TEKENS,
+  aantalVakjes,
+  gekleurd,
   kenKleurenToe,
+  KLEURPLATEN,
   leesLijnen,
+  maskerVan,
+  maxLengte,
   leesVeld,
   penseel,
   schilder,
@@ -143,5 +148,38 @@ describe('territorium', () => {
     expect(k2.A).toBe(k1.A);
     expect(k2.B).toBe(k1.B);
     expect(new Set(Object.values(k2)).size).toBe(3);
+  });
+
+  it('een beurt kleurt hoogstens een lijn zo lang als het penseel in die tijd kan gaan', () => {
+    // Heen en weer over het hele veld: veel te lang voor 3 seconden.
+    const krabbel: [number, number][] = [];
+    for (let i = 0; i < 10; i++) for (let x = 0; x < 80; x++) krabbel.push([(i % 2 ? 79 - x : x) + 0.5, 5 * i + 0.5]);
+    let alle = [ant('A', 0, juist('A', 0), 1), ant('A', ACTIE_BASIS, teken(0, [krabbel]), 2)];
+    alle = speel(alle);
+    const vrij = territoriumToestand(spelers, alle, kleuren);
+    const beperkt = territoriumToestand(spelers, alle, kleuren, { seconden: 3 });
+    expect(gekleurd(vrij.veld)).toBeGreaterThan(700);
+    expect(gekleurd(beperkt.veld)).toBeLessThanOrEqual(maxLengte(3) + 2);
+    expect(gekleurd(beperkt.veld)).toBeGreaterThan(50);
+  });
+
+  it('samen inkleuren: enkel lege vakjes in de tekening', () => {
+    for (const k of KLEURPLATEN) {
+      const m = maskerVan(k.id)!;
+      expect(aantalVakjes(m), k.id).toBeGreaterThan(600);
+      expect(aantalVakjes(m), k.id).toBeLessThan(BREEDTE * HOOGTE * 0.5);
+    }
+    expect(maskerVan(undefined)).toBeNull();
+    expect(aantalVakjes(null)).toBe(BREEDTE * HOOGTE);
+    const masker = maskerVan('hart')!;
+    // A kleurt een lijn dwars over het hart, B daarna over dezelfde lijn: B kan A niet overschilderen.
+    const lijn: [number, number][][] = [[[0.5, 20.5], [79.5, 20.5]]];
+    let alle = [ant('A', 0, juist('A', 0), 1), ant('B', 0, juist('B', 0), 2), ant('A', ACTIE_BASIS, teken(0, lijn), 3), ant('B', ACTIE_BASIS, teken(0, lijn), 4)];
+    alle = speel(alle);
+    const t = territoriumToestand(spelers, alle, kleuren, { masker });
+    const rij = Array.from({ length: BREEDTE }, (_, x) => t.veld[20 * BREEDTE + x]);
+    expect(rij.filter((v, x) => v && !masker[20 * BREEDTE + x])).toEqual([]);
+    expect(t.spelers.get('A')!.vakjes).toBeGreaterThan(30);
+    expect(t.spelers.get('B')!.vakjes).toBe(0);
   });
 });

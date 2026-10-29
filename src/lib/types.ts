@@ -148,6 +148,8 @@ export interface LiveInfo {
   gebied?: Record<string, number>;
   /** Territorium: seconden per tekenbeurt. */
   tekenSeconden?: number;
+  /** Territorium: samen een kleurplaat inkleuren (id van de tekening) in plaats van tegen elkaar. */
+  kleurplaat?: string;
   /** Territorium: het veld en de ranglijst op het einde (om het eindscherm te tonen). */
   eindveld?: string;
   eindstand?: { naam: string; punten: number; juist: number; kleur?: number }[];

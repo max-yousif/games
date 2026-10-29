@@ -11,13 +11,15 @@ import { Wachtruimte } from './LiveHost';
 import { leerlingenVan, synchroniseer } from './logic';
 import { ReactiesOpBord } from './Reacties';
 import {
+  aantalVakjes,
   alsOplossing,
-  BREEDTE,
   codeerVeld,
-  HOOGTE,
+  gekleurd,
   kenKleurenToe,
+  kleurplaatVan,
   KLEUREN,
   leesVeld,
+  maskerVan,
   territoriumBeoordelingen,
   territoriumStand,
   territoriumToestand,
@@ -29,8 +31,7 @@ import { VeldBeeld } from './Veld';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
 
-const TOTAAL = BREEDTE * HOOGTE;
-const procent = (vakjes: number) => `${Math.round((vakjes / TOTAAL) * 1000) / 10} %`;
+const procent = (vakjes: number, totaal: number) => `${Math.round((vakjes / totaal) * 1000) / 10} %`;
 
 /** Territorium op het bord: het veld, de ranglijst en de klok. */
 export function TerritoriumHost(props: Props) {
@@ -65,7 +66,11 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   const kleuren = useMemo(() => kenKleurenToe(spelers, live.kleuren ?? {}), [spelers, live.kleuren]);
   const beslist = useRef(new Map<string, Beoordeling>());
   const vragen = useMemo(() => sessie.vraagVolgorde.map((id) => sessie.vragen.find((v) => v.id === id)).filter((v): v is Vraag => !!v), [sessie]);
-  const toestand = useMemo(() => territoriumToestand(spelers, antwoorden, kleuren), [spelers, antwoorden, kleuren]);
+  // Samen inkleuren: enkel de vakjes van de tekening tellen.
+  const masker = useMemo(() => maskerVan(live.kleurplaat), [live.kleurplaat]);
+  const totaal = aantalVakjes(masker);
+  const opties = useMemo(() => ({ seconden: live.tekenSeconden, masker }), [live.tekenSeconden, masker]);
+  const toestand = useMemo(() => territoriumToestand(spelers, antwoorden, kleuren, opties), [spelers, antwoorden, kleuren, opties]);
   const stand = territoriumStand(toestand);
 
   const [nu, setNu] = useState(() => Date.now());
@@ -95,7 +100,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
           const i = items.find((x) => x.id === a.id);
           return i ? { ...a, juist: i.juist, punten: i.punten, beloning: i.beloning ?? null } : a;
         });
-        const t = territoriumToestand(spelers, bijgewerkt, kleuren);
+        const t = territoriumToestand(spelers, bijgewerkt, kleuren, opties);
         await be.wijzigSessie(live.sessieId, { stand: territoriumStand(t), oplossing: alsOplossing(codeerVeld(t.veld)) });
         setFout(null);
       } catch (e) {
@@ -106,7 +111,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
         setRonde((r) => r + 1);
       }
     })();
-  }, [antwoorden, vragen, be, live.sessieId, spelers, kleuren, ronde]);
+  }, [antwoorden, vragen, be, live.sessieId, spelers, kleuren, ronde, opties]);
 
   // Veld en stand doorsturen als er iets veranderde (bv. een nieuwe speler met een kleur).
   const veldTekst = codeerVeld(toestand.veld);
@@ -169,9 +174,11 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
     await be.verwijderSessie(live.sessieId);
   };
 
+  // Samen: de tekening is helemaal ingekleurd = gedaan.
+  const samenKlaar = masker !== null && gekleurd(toestand.veld) >= totaal;
   const gestopt = useRef(false);
   useEffect(() => {
-    if (server?.status === 'bezig' && resterend !== null && resterend < -3000 && !gestopt.current) {
+    if (server?.status === 'bezig' && ((resterend !== null && resterend < -3000) || samenKlaar) && !gestopt.current) {
       gestopt.current = true;
       void actie(einde);
     }
@@ -216,15 +223,16 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             <span className={`rounded-2xl px-5 py-2 font-mono text-5xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
               ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
             </span>
-            <span className="text-3xl font-semibold">🖌️ Territorium</span>
+            <span className="text-3xl font-semibold">{masker ? `🤝 Samen inkleuren: ${kleurplaatVan(live.kleurplaat)?.naam}` : '🖌️ Territorium'}</span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
             <Button variant="primary" disabled={bezig} onClick={() => confirm('Territorium nu beëindigen?') && void actie(einde)}>
               ⏹ Beëindigen
             </Button>
           </div>
+          {masker && <SamenBalk gekleurd={gekleurd(toestand.veld)} totaal={totaal} />}
           <div className="grid items-start gap-5 xl:grid-cols-[3fr_1fr]">
-            <VeldBeeld veld={toestand.veld} />
-            <Ranglijst stand={stand} />
+            <VeldBeeld veld={toestand.veld} masker={masker} />
+            <Ranglijst stand={stand} totaal={totaal} samen={masker !== null} />
           </div>
         </div>
       )}
@@ -238,12 +246,27 @@ function Kleur({ kleur }: { kleur?: number }) {
   return <span className="inline-block h-6 w-6 shrink-0 rounded-md border border-black/10" style={{ background: KLEUREN[(kleur ?? 0) % KLEUREN.length] }} aria-hidden />;
 }
 
-function Ranglijst({ stand }: { stand: StandRij[] }) {
+/** Samen inkleuren: hoeveel van de tekening al gekleurd is. */
+function SamenBalk({ gekleurd, totaal }: { gekleurd: number; totaal: number }) {
+  const deel = Math.min(1, gekleurd / totaal);
+  return (
+    <div className="flex items-center gap-4 rounded-2xl bg-surface px-5 py-3 shadow-sm">
+      <span className="text-2xl font-bold">Samen</span>
+      <div className="h-6 flex-1 overflow-hidden rounded-full bg-slate-200" aria-label="Ingekleurd">
+        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${deel * 100}%` }} />
+      </div>
+      <span className="w-24 text-right font-mono text-3xl font-bold">{Math.floor(deel * 100)} %</span>
+    </div>
+  );
+}
+
+function Ranglijst({ stand, totaal, samen }: { stand: StandRij[]; totaal: number; samen: boolean }) {
   return (
     <ol className="space-y-2">
+      {samen && <li className="px-1 text-sm font-semibold tracking-wide text-slate-500 uppercase">Bijdrage</li>}
       {stand.map((r, i) => (
         <li key={r.id ?? r.naam} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-2 text-xl shadow-sm">
-          <span className="w-8 font-bold text-slate-500">{['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`}</span>
+          {!samen && <span className="w-8 font-bold text-slate-500">{['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`}</span>}
           <Kleur kleur={r.kleur} />
           <span className="min-w-0 flex-1 truncate font-semibold">{r.naam}</span>
           {(r.reeks ?? 0) >= 2 && (
@@ -251,7 +274,7 @@ function Ranglijst({ stand }: { stand: StandRij[] }) {
               🔥{r.reeks}
             </span>
           )}
-          <span className="w-20 text-right font-mono font-bold">{procent(r.punten)}</span>
+          <span className="w-20 text-right font-mono font-bold">{procent(r.punten, totaal)}</span>
         </li>
       ))}
       {stand.length === 0 && <li className="text-slate-500">Nog niemand aangemeld.</li>}
@@ -263,6 +286,8 @@ function TerritoriumEinde({ sessie, onAfsluiten, onBewaar, onVerwijder }: { sess
   const kort = korteNaamVan(sessie);
   const gebied = sessie.live?.gebied ?? {};
   const veld = useMemo(() => leesVeld(sessie.live?.eindveld), [sessie.live?.eindveld]);
+  const masker = useMemo(() => maskerVan(sessie.live?.kleurplaat), [sessie.live?.kleurplaat]);
+  const totaal = aantalVakjes(masker);
   const rijen = resultatenPerLeerling(sessie).filter((r) => r.naam !== '(hele team)');
   const ranking: { naam: string; vakjes: number; juist: number; kleur?: number }[] =
     sessie.live?.eindstand?.map((r) => ({ naam: r.naam, vakjes: r.punten, juist: r.juist, kleur: r.kleur })) ??
@@ -272,7 +297,13 @@ function TerritoriumEinde({ sessie, onAfsluiten, onBewaar, onVerwijder }: { sess
   return (
     <div className="mx-auto w-full max-w-5xl py-6">
       <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
-        <VeldBeeld veld={veld} />
+        <VeldBeeld veld={veld} masker={masker} />
+        {masker ? (
+          <div className="pop rounded-2xl bg-surface p-6 text-center shadow-sm">
+            <div className="text-6xl">{gekleurd(veld) >= totaal ? '🎉' : '🤝'}</div>
+            <div className="mt-2 text-3xl font-bold">{gekleurd(veld) >= totaal ? 'Samen helemaal ingekleurd!' : `Samen ${procent(gekleurd(veld), totaal)} ingekleurd`}</div>
+          </div>
+        ) : (
         <div className="flex items-end justify-center gap-3">
           {[1, 0, 2].map(
             (i) =>
@@ -280,12 +311,13 @@ function TerritoriumEinde({ sessie, onAfsluiten, onBewaar, onVerwijder }: { sess
                 <div key={i} className="pop flex w-32 flex-col items-center" style={{ animationDelay: `${(2 - i) * 0.15}s` }}>
                   <div className="text-4xl">{['🥇', '🥈', '🥉'][i]}</div>
                   <div className="mt-1 text-center text-lg font-bold">{podium[i].naam}</div>
-                  <div className="font-mono">{procent(podium[i].vakjes)}</div>
+                  <div className="font-mono">{procent(podium[i].vakjes, totaal)}</div>
                   <div className={`mt-2 w-full rounded-t-xl ${['h-32', 'h-20', 'h-12'][i]}`} style={{ background: KLEUREN[(podium[i].kleur ?? 0) % KLEUREN.length] }} />
                 </div>
               ),
           )}
         </div>
+        )}
       </div>
       <table className="mt-8 w-full overflow-hidden rounded-xl bg-surface text-left shadow-sm">
         <thead className="bg-slate-100 text-sm text-slate-600">
@@ -293,7 +325,7 @@ function TerritoriumEinde({ sessie, onAfsluiten, onBewaar, onVerwijder }: { sess
             <th className="px-4 py-2">#</th>
             <th className="px-4 py-2">Leerling</th>
             <th className="px-4 py-2 text-right">Juist</th>
-            <th className="px-4 py-2 text-right">Gebied</th>
+            <th className="px-4 py-2 text-right">{masker ? 'Bijdrage' : 'Gebied'}</th>
           </tr>
         </thead>
         <tbody>
@@ -308,7 +340,7 @@ function TerritoriumEinde({ sessie, onAfsluiten, onBewaar, onVerwijder }: { sess
               </td>
               <td className="px-4 py-2 text-right">{r.juist}</td>
               <td className="px-4 py-2 text-right font-mono">
-                {procent(r.vakjes)} <span className="text-slate-400">({r.vakjes})</span>
+                {procent(r.vakjes, totaal)} <span className="text-slate-400">({r.vakjes})</span>
               </td>
             </tr>
           ))}

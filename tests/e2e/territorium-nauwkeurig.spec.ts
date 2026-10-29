@@ -34,8 +34,11 @@ test('territorium: wat je tekent, is precies wat het bord bewaart (ook snel en l
   await anna.mouse.move(box.x + 5, box.y + 5);
   await anna.mouse.down();
   for (let i = 0; i < 40; i++) await anna.mouse.move(box.x + (i % 2 ? box.width - 5 : 5), box.y + (box.height * (i + 1)) / 42, { steps: 2 });
-  const voorbeeld = await tel(anna, '[data-tekenveld]', '#e6194b');
   await anna.mouse.up();
+  const voorbeeld = await tel(anna, '[data-tekenveld]', '#e6194b');
+  // Het penseel kan niet sneller dan SNELHEID: lang niet het hele veld.
+  expect(voorbeeld).toBeGreaterThan(20);
+  expect(voorbeeld).toBeLessThan(200);
   await expect(anna.getByText(/Hoeveel is/)).toBeVisible({ timeout: 8000 });
   await expect.poll(() => tel(page, 'canvas[aria-label="Speelveld"]', '#e6194b')).toBe(voorbeeld);
 });

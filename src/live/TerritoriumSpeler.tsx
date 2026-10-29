@@ -3,13 +3,13 @@ import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { isActie, vraagIndex, volgendeActieNr } from './codekraker';
 import { Beantwoord, foutTekst } from './Invoer';
-import { BREEDTE, codeerLijnen, HOOGTE, KLEUREN, leesVeld, territoriumToestand, veldVan } from './territorium';
+import { aantalVakjes, codeerLijnen, gekleurd, KLEUREN, leesVeld, maskerVan, territoriumToestand, veldVan } from './territorium';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
 import { VeldBeeld, VeldTekenen } from './Veld';
 
-const procent = (vakjes: number) => `${Math.round((vakjes / (BREEDTE * HOOGTE)) * 1000) / 10} %`;
+const procent = (vakjes: number, totaal: number) => `${Math.round((vakjes / totaal) * 1000) / 10} %`;
 
-/** Territorium voor de leerling: vragen beantwoorden en na een juist antwoord 3 seconden tekenen. */
+/** Territorium voor de leerling: vragen beantwoorden en na een juist antwoord even tekenen (tegen elkaar of samen). */
 export function TerritoriumSpeler({
   be,
   sessie,
@@ -31,6 +31,9 @@ export function TerritoriumSpeler({
   const seconden = sessie.territorium?.seconden ?? 3;
   const veldTekst = veldVan(sessie);
   const veld = useMemo(() => leesVeld(veldTekst), [veldTekst]);
+  const masker = useMemo(() => maskerVan(sessie.territorium?.kleurplaat), [sessie.territorium?.kleurplaat]);
+  const totaal = aantalVakjes(masker);
+  const samen = procent(gekleurd(veld), totaal);
 
   useEffect(() => {
     const id = window.setInterval(() => setNu(Date.now()), 500);
@@ -63,9 +66,9 @@ export function TerritoriumSpeler({
     <div className="flex flex-wrap items-center gap-3">
       <span className="inline-flex items-center gap-2 rounded-2xl bg-surface px-4 py-2 text-2xl font-bold shadow-sm">
         <span className="inline-block h-7 w-7 rounded-md border border-black/10" style={{ background: KLEUREN[kleur % KLEUREN.length] }} aria-hidden />
-        {procent(rij?.punten ?? 0)}
+        {procent(rij?.punten ?? 0, totaal)}
       </span>
-      {plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
+      {masker ? <span className="text-lg text-slate-600">🤝 samen {samen}</span> : plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
       {p.reeks >= 2 && <span className="rounded-full bg-orange-100 px-3 py-1 font-semibold text-orange-800">🔥 {p.reeks} na elkaar: groter penseel!</span>}
       <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
         ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
@@ -80,12 +83,12 @@ export function TerritoriumSpeler({
           <div className="text-5xl">🖌️</div>
           <h1 className="mt-2 text-3xl font-bold">{sessie.status === 'einde' ? 'Het spel is gedaan!' : 'De tijd is om!'}</h1>
           <p className="mt-2 text-xl text-slate-600">
-            Jouw gebied: {procent(rij?.punten ?? 0)}
-            {plaats > 0 && ` · plaats ${plaats}`}
+            {masker ? `Samen ingekleurd: ${samen} · jouw bijdrage: ${procent(rij?.punten ?? 0, totaal)}` : `Jouw gebied: ${procent(rij?.punten ?? 0, totaal)}`}
+            {!masker && plaats > 0 && ` · plaats ${plaats}`}
           </p>
           {sessie.status === 'einde' && nieuwSpel}
         </div>
-        <VeldBeeld veld={veld} />
+        <VeldBeeld veld={veld} masker={masker} />
       </div>
     );
   }
@@ -110,13 +113,14 @@ export function TerritoriumSpeler({
       <div className="breed space-y-3">
         {kop}
         {fout && <p className="rounded-lg bg-red-50 px-4 py-2 text-red-700">{fout}</p>}
-        <VeldBeeld veld={veld} />
+        <VeldBeeld veld={veld} masker={masker} />
         <VeldTekenen
           key={`${beurt.vraag}-${poging}`}
           veld={veld}
           kleur={kleur}
           straal={beurt.penseel}
           seconden={seconden}
+          masker={masker}
           onKlaar={(lijnen) => tekening(codeerLijnen(lijnen))}
           onOverslaan={() => tekening('')}
         />
@@ -150,8 +154,10 @@ export function TerritoriumSpeler({
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {inhoud}
         <div>
-          <VeldBeeld veld={veld} />
-          <p className="mt-1 text-sm text-slate-500">Juist antwoord = {seconden} seconden tekenen. Meerdere juist na elkaar = een groter penseel.</p>
+          <VeldBeeld veld={veld} masker={masker} />
+          <p className="mt-1 text-sm text-slate-500">
+            {masker ? 'Kleur samen de tekening in. ' : ''}Juist antwoord = {seconden} seconden tekenen. Meerdere juist na elkaar = een groter penseel.
+          </p>
         </div>
       </div>
     </div>

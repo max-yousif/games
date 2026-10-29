@@ -4,7 +4,7 @@ import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
 import { STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
-import { STANDAARD_SECONDEN, TEKENTIJDEN } from '../live/territorium';
+import { KLEURPLATEN, STANDAARD_SECONDEN, TEKENTIJDEN, type TerritoriumModus } from '../live/territorium';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
@@ -29,7 +29,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Crypto Hack', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
-  { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = 3 seconden tekenen in je eigen kleur op een gedeeld veld. Wie bakent het meeste gebied af?' },
+  { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
   { type: 'cluedo', icoon: '🔎', naam: 'Cluedo', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
@@ -84,6 +84,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const cluedoFouten = spel === 'cluedo' ? themaProblemen(cluedoThema) : [];
   const [hacken, setHacken] = useState(true);
   const [tekenSeconden, setTekenSeconden] = useState(STANDAARD_SECONDEN);
+  const [territoriumModus, setTerritoriumModus] = useState<TerritoriumModus>('strijd');
+  /** Samen inkleuren: de gekozen tekening ('' = willekeurig). */
+  const [kleurplaatKeuze, setKleurplaatKeuze] = useState('');
   const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
   // Op het scherm enkel voornamen (met initiaal bij dezelfde voornaam).
@@ -159,6 +162,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const codekraker = spel === 'codekraker';
       const cluedo = spel === 'cluedo';
       const territorium = spel === 'territorium';
+      const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
@@ -178,7 +182,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? cluedoThema : undefined,
-        territorium: territorium ? { versie: 1, seconden: tekenSeconden } : undefined,
+        territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
       });
       const basis = nieuweSessie({
         spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : escape ? 'escape' : 'live',
@@ -203,7 +207,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           afgesloten: false,
           escapeCode,
           ...(codekraker ? { hacken } : {}),
-          ...(territorium ? { tekenSeconden } : {}),
+          ...(territorium ? { tekenSeconden, ...(kleurplaat ? { kleurplaat } : {}) } : {}),
           ...(metNamen ? { namen } : {}),
         },
       } as const;
@@ -413,16 +417,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   </div>
                 </button>
               ))}
-            <button
-              type="button"
-              aria-label="Zonder klas"
-              onClick={() => kiesKlas('')}
-              className={`rounded-xl border-2 border-dashed p-4 text-left transition hover:shadow-md ${klasId === '' ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-300 bg-surface'}`}
-            >
-              <div className="text-lg font-semibold">Zonder klas</div>
-              <div className="text-sm text-slate-500">{isLive ? 'leerlingen typen zelf hun naam' : 'enkel teams, geen namen'}</div>
-            </button>
           </div>
+          <button
+            type="button"
+            aria-label="Zonder klas"
+            onClick={() => kiesKlas('')}
+            className={`mt-3 text-sm underline-offset-2 hover:underline ${klasId === '' ? 'font-semibold text-[var(--accent-tekst)]' : 'text-slate-500'}`}
+          >
+            of zonder klas spelen
+          </button>
           {store.klassen.length === 0 && (
             <p className="mt-3 text-sm text-slate-500">
               Tip: maak een <a className="underline" href={href({ pagina: 'klassen' })}>klas</a> aan om namen van leerlingen te zien en resultaten per leerling bij te houden.
@@ -551,11 +554,42 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         {isLive && (
           <div className="mb-4 space-y-2 text-sm">
             {spel === 'territorium' ? (
-              <p className="text-slate-600">
-                Elke leerling krijgt een eigen kleur. Bij een juist antwoord mag de leerling enkele seconden tekenen op het gedeelde veld (hoe sneller, hoe meer gebied), ook over het gebied van
-                een ander. Wie meerdere vragen na elkaar juist heeft, krijgt een steeds groter penseel. Na de speeltijd wint wie het meeste gebied heeft. De vragen komen
-                steeds opnieuw.
-              </p>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Modus">
+                  {(
+                    [
+                      ['strijd', '⚔️ 1 tegen allen', 'Meeste gebied wint; je mag over anderen kleuren.'],
+                      ['samen', '🤝 Samen inkleuren', 'Samen één tekening inkleuren, elk in de eigen kleur.'],
+                    ] as const
+                  ).map(([m, naam, uitleg]) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={territoriumModus === m}
+                      onClick={() => setTerritoriumModus(m)}
+                      className={`rounded-xl border-2 px-4 py-2 text-left transition ${territoriumModus === m ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+                    >
+                      <div className="font-semibold">{naam}</div>
+                      <div className="text-sm text-slate-500">{uitleg}</div>
+                    </button>
+                  ))}
+                </div>
+                {territoriumModus === 'samen' && (
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Tekening">
+                    {[{ id: '', naam: 'Willekeurig', icoon: '🎲' }, ...KLEURPLATEN].map((k) => (
+                      <button
+                        key={k.id}
+                        type="button"
+                        aria-pressed={kleurplaatKeuze === k.id}
+                        onClick={() => setKleurplaatKeuze(k.id)}
+                        className={`rounded-full border px-3 py-1 text-sm font-medium transition ${kleurplaatKeuze === k.id ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {k.icoon} {k.naam}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : spel === 'cluedo' ? (
               <>
                 <p className="text-slate-600">
@@ -655,7 +689,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 .
               </Notice>
             )}
-            {!klas && <p className="text-slate-500">Zonder klas typen leerlingen zelf hun naam.</p>}
           </div>
         )}
 

@@ -33,8 +33,7 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
   await kiesSpel(page, 'Codekraker test (test)', 'Territorium');
   await page.locator('label:text-is("Wachten na fout antwoord") + select').selectOption('0');
-  await expect(page.getByLabel('Tekentijd per beurt')).toHaveValue('5');
-  await page.getByLabel('Tekentijd per beurt').selectOption('3');
+  await expect(page.getByLabel('Tekentijd per beurt')).toHaveValue('3');
   const code = await startLive(page);
 
   const anna = await leerling(page, code, 'Anna');

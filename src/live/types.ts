@@ -1,6 +1,7 @@
 import type { CluedoThema, VraagType } from '../lib/types';
 import type { CodekrakerInstellingen } from './codekraker';
 import type { PubliekRaadsel } from './whodunit';
+import type { TerritoriumModus } from './territorium';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -71,7 +72,7 @@ export interface LiveSessie {
   /** Cluedo (escape-modus): het thema, zonder oplossing. */
   cluedo?: CluedoThema | null;
   /** Territorium (escape-modus): ingesteld = dit spel. */
-  territorium?: { versie: 1; seconden?: number } | null;
+  territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string } | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -204,7 +205,7 @@ export interface LiveBackend {
     raadsel?: PubliekRaadsel;
     codekraker?: CodekrakerInstellingen;
     cluedo?: CluedoThema;
-    territorium?: { versie: 1; seconden?: number };
+    territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string };
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;

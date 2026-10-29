@@ -16,9 +16,19 @@ import type { Beoordeling, LiveAntwoord, LiveSessie, LiveSpeler, Oplossing, Stan
 
 export const BREEDTE = 80;
 export const HOOGTE = 50;
-/** Keuzes voor de tekentijd per beurt (seconden); spellen van vroeger hadden 3 seconden. */
-export const TEKENTIJDEN = [3, 5, 8, 10];
-export const STANDAARD_SECONDEN = 5;
+/** Keuzes voor de tekentijd per beurt (seconden). */
+export const TEKENTIJDEN = [2, 3, 5, 8];
+export const STANDAARD_SECONDEN = 3;
+/**
+ * Hoe snel het penseel mag bewegen (vakjes per seconde): wie sneller sleept, ziet het penseel
+ * achterna komen. Zo kan niemand in één beurt het halve veld inkleuren.
+ */
+export const SNELHEID = 25;
+/** De langste lijn die het bord aanvaardt voor een beurt van `seconden` (met wat marge). */
+export const maxLengte = (seconden: number) => SNELHEID * seconden * 1.3 + 3;
+
+/** Iedereen tegen iedereen (meeste gebied wint) of samen één tekening inkleuren. */
+export type TerritoriumModus = 'strijd' | 'samen';
 /** Maximale lengte van een gecodeerde tekening (het hele antwoord mag hoogstens 2000 tekens zijn). */
 export const MAX_TEKENS = 1900;
 
@@ -160,10 +170,11 @@ export const alsOplossing = (veld: string) => ({ veld }) as unknown as Oplossing
 
 /**
  * Kleurt de lijnen in op het veld met kleur `waarde` en penseelstraal `straal`, tot een totale
- * lijnlengte van `maxLengte` vakjes. Geeft het aantal geverfde vakjes terug.
+ * lijnlengte van `lengte` vakjes. Met een `masker` (samen inkleuren) enkel lege vakjes binnen de
+ * tekening. Geeft het aantal geverfde vakjes terug.
  */
-export function schilder(veld: Uint8Array, lijnen: [number, number][][], straal: number, waarde: number, maxLengte = Infinity): number {
-  let inkt = maxLengte;
+export function schilder(veld: Uint8Array, lijnen: [number, number][][], straal: number, waarde: number, lengte = Infinity, masker: Uint8Array | null = null): number {
+  let inkt = lengte;
   let geverfd = 0;
   const r2 = straal * straal + 0.25;
   const stempel = (cx: number, cy: number) => {
@@ -175,8 +186,9 @@ export function schilder(veld: Uint8Array, lijnen: [number, number][][], straal:
       for (let x = x0; x <= x1; x++) {
         const dx = x + 0.5 - cx;
         const dy = y + 0.5 - cy;
-        if (dx * dx + dy * dy <= r2 && veld[y * BREEDTE + x] !== waarde) {
-          veld[y * BREEDTE + x] = waarde;
+        const i = y * BREEDTE + x;
+        if (dx * dx + dy * dy <= r2 && veld[i] !== waarde && (!masker || (masker[i] && veld[i] === 0))) {
+          veld[i] = waarde;
           geverfd++;
         }
       }
@@ -215,6 +227,13 @@ export interface TerritoriumSpeler {
   vakjes: number;
 }
 
+export interface TerritoriumOpties {
+  /** Tekentijd per beurt: bepaalt de langste lijn (zonder: geen grens, zoals vroeger). */
+  seconden?: number;
+  /** Samen inkleuren: de vakjes van de tekening. */
+  masker?: Uint8Array | null;
+}
+
 export interface TerritoriumToestand {
   veld: Uint8Array;
   spelers: Map<string, TerritoriumSpeler>;
@@ -225,6 +244,7 @@ export function territoriumToestand(
   spelers: readonly LiveSpeler[],
   antwoorden: readonly LiveAntwoord[],
   kleuren: Record<string, number>,
+  opties: TerritoriumOpties = {},
 ): TerritoriumToestand {
   const t: TerritoriumToestand = {
     veld: new Uint8Array(BREEDTE * HOOGTE),
@@ -251,7 +271,7 @@ export function territoriumToestand(
     const beurt = teken && p.beurten.find((b) => b.vraag === teken.vraag);
     if (!teken || !beurt) continue;
     p.beurten = p.beurten.filter((b) => b !== beurt);
-    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1);
+    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1, opties.seconden ? maxLengte(opties.seconden) : Infinity, opties.masker);
   }
   const tel = new Map<number, number>();
   for (const v of t.veld) if (v) tel.set(v, (tel.get(v) ?? 0) + 1);
@@ -320,3 +340,114 @@ export function kenKleurenToe(spelers: readonly LiveSpeler[], kleuren: Record<st
   }
   return uit;
 }
+
+// ---------- Kleurplaten (samen inkleuren) ----------
+
+type Punt = [number, number];
+
+function inVeelhoek(x: number, y: number, punten: readonly Punt[]): boolean {
+  let binnen = false;
+  for (let i = 0, j = punten.length - 1; i < punten.length; j = i++) {
+    const [xi, yi] = punten[i];
+    const [xj, yj] = punten[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) binnen = !binnen;
+  }
+  return binnen;
+}
+const inCirkel = (x: number, y: number, cx: number, cy: number, r: number) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+const inRechthoek = (x: number, y: number, x0: number, y0: number, x1: number, y1: number) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+const ster = (cx: number, cy: number, R: number, r: number): Punt[] =>
+  Array.from({ length: 10 }, (_, i) => {
+    const hoek = -Math.PI / 2 + (i * Math.PI) / 5;
+    const straal = i % 2 ? r : R;
+    return [cx + straal * Math.cos(hoek), cy + straal * Math.sin(hoek)];
+  });
+const STER = ster(40, 27, 25, 12);
+
+export interface Kleurplaat {
+  id: string;
+  naam: string;
+  icoon: string;
+  /** Ligt het midden van een vakje (x, y in vakjes) in de tekening? */
+  binnen: (x: number, y: number) => boolean;
+}
+
+export const KLEURPLATEN: Kleurplaat[] = [
+  {
+    id: 'hart',
+    naam: 'Hart',
+    icoon: '❤️',
+    binnen: (x, y) => {
+      const a = (x - 40) / 21;
+      const b = (26 - y) / 19;
+      return (a * a + b * b - 1) ** 3 - a * a * b ** 3 <= 0;
+    },
+  },
+  { id: 'ster', naam: 'Ster', icoon: '⭐', binnen: (x, y) => inVeelhoek(x, y, STER) },
+  {
+    id: 'huis',
+    naam: 'Huis',
+    icoon: '🏠',
+    binnen: (x, y) =>
+      (inVeelhoek(x, y, [[15, 22], [40, 4], [65, 22]]) || inRechthoek(x, y, 21, 22, 59, 46) || inRechthoek(x, y, 50, 7, 55, 16)) &&
+      !inRechthoek(x, y, 26, 27, 33, 34) &&
+      !inRechthoek(x, y, 47, 27, 54, 34),
+  },
+  {
+    id: 'vis',
+    naam: 'Vis',
+    icoon: '🐟',
+    binnen: (x, y) =>
+      (((x - 34) / 23) ** 2 + ((y - 25) / 15) ** 2 <= 1 || inVeelhoek(x, y, [[53, 25], [72, 9], [66, 25], [72, 41]])) && !inCirkel(x, y, 22, 21, 2.5),
+  },
+  {
+    id: 'raket',
+    naam: 'Raket',
+    icoon: '🚀',
+    binnen: (x, y) =>
+      (inRechthoek(x, y, 30, 13, 50, 41) ||
+        inVeelhoek(x, y, [[30, 13], [40, 2], [50, 13]]) ||
+        inVeelhoek(x, y, [[30, 26], [20, 44], [30, 40]]) ||
+        inVeelhoek(x, y, [[50, 26], [60, 44], [50, 40]]) ||
+        inVeelhoek(x, y, [[34, 41], [40, 48], [46, 41]])) &&
+      !inCirkel(x, y, 40, 21, 4),
+  },
+  {
+    id: 'smiley',
+    naam: 'Smiley',
+    icoon: '🙂',
+    binnen: (x, y) => {
+      if (!inCirkel(x, y, 40, 25, 23)) return false;
+      if (inCirkel(x, y, 32, 18, 3) || inCirkel(x, y, 48, 18, 3)) return false;
+      const d = Math.hypot(x - 40, y - 23);
+      return !(y > 27 && d >= 11 && d <= 14.5);
+    },
+  },
+  {
+    id: 'boom',
+    naam: 'Boom',
+    icoon: '🌲',
+    binnen: (x, y) =>
+      inVeelhoek(x, y, [[40, 2], [25, 17], [55, 17]]) ||
+      inVeelhoek(x, y, [[40, 9], [21, 28], [59, 28]]) ||
+      inVeelhoek(x, y, [[40, 17], [16, 39], [64, 39]]) ||
+      inRechthoek(x, y, 36, 39, 44, 47),
+  },
+];
+
+export const kleurplaatVan = (id: string | null | undefined): Kleurplaat | null => KLEURPLATEN.find((k) => k.id === id) ?? null;
+
+/** De vakjes van een kleurplaat (1 = in de tekening). */
+export function maskerVan(id: string | null | undefined): Uint8Array | null {
+  const k = kleurplaatVan(id);
+  if (!k) return null;
+  const m = new Uint8Array(BREEDTE * HOOGTE);
+  for (let y = 0; y < HOOGTE; y++) for (let x = 0; x < BREEDTE; x++) if (k.binnen(x + 0.5, y + 0.5)) m[y * BREEDTE + x] = 1;
+  return m;
+}
+
+/** Hoeveel vakjes er te kleuren zijn: de tekening, of het hele veld. */
+export const aantalVakjes = (masker: Uint8Array | null | undefined) => (masker ? masker.reduce((n, v) => n + v, 0) : BREEDTE * HOOGTE);
+
+/** Ingekleurde vakjes (van wie ook). */
+export const gekleurd = (veld: Uint8Array) => veld.reduce((n, v) => n + (v ? 1 : 0), 0);
