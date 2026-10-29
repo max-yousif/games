@@ -33,6 +33,8 @@ describe('live: beoordelen', () => {
     expect(normaliseer('$x = 7$')).toBe('x=7');
     expect(normaliseer('0,15')).toBe(normaliseer('$0{,}15$'));
     expect(normaliseer('$\\dfrac{1}{9}$')).toBe(normaliseer('\\frac{1}{9}'));
+    // Spaties en hoofdletters tellen nooit, ook niet uit het wiskundeveld.
+    for (const a of ['new york', 'NEWYORK', ' New  York ', 'New\u00a0York', '\\text{New York}', '\\mathrm{New}\\ \\mathrm{York}', 'New~York']) expect(normaliseer(a)).toBe('newyork');
   });
 
   it('herkent juiste open antwoorden, ook zonder "x ="', () => {

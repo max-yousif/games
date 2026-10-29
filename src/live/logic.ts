@@ -70,6 +70,9 @@ export function antwoordWeergave(v: PubliekeVraag, antwoord: string): string {
  */
 export function normaliseer(antwoord: string): string {
   let t = antwoord
+    // Tekst uit het wiskundeveld: \text{New York}, \mathrm{x}, ~ als spatie.
+    .replace(/\\(text|textrm|textit|textbf|mathrm|mathit|mathbf|mathsf)(?![a-z])/g, '')
+    .replace(/~|\\quad|\\qquad/g, ' ')
     .replace(/\\[,;!: ]/g, '')
     .replace(/[$`]/g, '')
     .replace(/\\left|\\right/g, '')
