@@ -12,6 +12,7 @@ import { VakKeuze } from '../components/VakKeuze';
 import { JaarKeuze } from '../components/JaarKeuze';
 import { jaarTekst, jarenVanSet } from './SetsPage';
 import { nieuwRaadsel } from '../live/whodunit';
+import { kaartenUitVragen, STANDAARD_THEMA } from '../live/cluedo';
 import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vraag, VraagType, Vragenset } from '../lib/types';
@@ -123,7 +124,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
       </div>
       <p className="mt-3 text-sm text-slate-500">Wijzigingen worden automatisch bewaard.</p>
 
-      {/* Het raadsel verschijnt enkel als de set er een heeft (toevoegen via Spelen → Whodunit). */}
+      {/* Het raadsel verschijnt enkel als de set er een heeft (toevoegen onderaan of via Spelen → Whodunit). */}
       {set.raadsel && (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
           <h2 className="text-lg font-semibold">🕵️ Whodunit-raadsel</h2>
@@ -138,7 +139,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         </section>
       )}
 
-      {/* Het Cluedo-thema verschijnt enkel als de set een eigen thema heeft (bewaren via Spelen → Cluedo). */}
+      {/* Het Cluedo-thema verschijnt enkel als de set een eigen thema heeft (toevoegen onderaan of via Spelen → Cluedo). */}
       {set.cluedo && (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
@@ -157,10 +158,25 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         </section>
       )}
 
-      <div className="mt-10 border-t border-slate-200 pt-4">
+      <div className="mt-10 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+        {/* Extra's die bij deze set horen (zelden nodig): een whodunit-verhaal of eigen Cluedo-kaarten. */}
+        {!set.raadsel && (
+          <Button variant="ghost" className="text-slate-500" onClick={() => update((s) => ({ ...s, raadsel: nieuwRaadsel() }))}>
+            + Whodunit-verhaal
+          </Button>
+        )}
+        {!set.cluedo && (
+          <Button
+            variant="ghost"
+            className="text-slate-500"
+            onClick={() => update((s) => ({ ...s, cluedo: kaartenUitVragen(s.titel, s.vragen) ?? { ...STANDAARD_THEMA, titel: s.titel || STANDAARD_THEMA.titel } }))}
+          >
+            + Cluedo-kaarten
+          </Button>
+        )}
         <Button
           variant="ghost"
-          className="text-red-600 hover:bg-red-50"
+          className="ml-auto text-red-600 hover:bg-red-50"
           onClick={() => {
             if (!confirm(`Vragenset "${set.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`)) return;
             store.setSets((all) => all.filter((x) => x.id !== set.id));
