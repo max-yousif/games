@@ -1,0 +1,46 @@
+{
+  "soort": "games-vragenset",
+  "versie": 1,
+  "set": {
+    "id": "orden-test",
+    "titel": "Ordenen test",
+    "beschrijving": "",
+    "vak": "wiskunde",
+    "leerjaar": "test",
+    "vragen": [
+      {
+        "id": "o1",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "ordenen",
+        "tekst": "Van klein naar groot",
+        "antwoord": "",
+        "opties": [
+          "een",
+          "twee",
+          "drie",
+          "vier",
+          "vijf"
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      },
+      {
+        "id": "o2",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "1+1?",
+        "antwoord": "2",
+        "opties": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "juisteOptie": 0,
+        "uitleg": ""
+      }
+    ]
+  }
+}
