@@ -108,11 +108,18 @@ export interface CluedoThema {
   opgaven?: Record<'verdachten' | 'locaties' | 'wapens', KaartOpgave[]>;
   /** Enkel op de server: de uitkomst bij elke kaart, om op het detectiveblad te tonen (zonder opgaven). */
   uitkomsten?: Record<'verdachten' | 'locaties' | 'wapens', string[]>;
+  /** Enkel op de server: met opgaven per kaart (de leerling kiest zelf een opgave). */
+  metOpgaven?: boolean;
 }
 
 export interface KaartOpgave {
   opgave: string;
   uitkomst: string;
+  /**
+   * Een (meerkeuze)vraag uit de vragenset in plaats van een eigen opgave. Het juiste antwoord streept
+   * deze kaart weg; een fout antwoord stil een andere kaart.
+   */
+  vraagId?: string;
 }
 
 export interface CluedoOplossing {

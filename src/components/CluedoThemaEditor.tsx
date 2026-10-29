@@ -1,17 +1,32 @@
 import { useState } from 'react';
-import { KAART_SOORTEN, lijstUitTekst, metOpgaven, opgaveVan, SOORT_NAMEN, themaProblemen, type KaartSoort } from '../live/cluedo';
+import { KAART_SOORTEN, kaartenUitVragen, lijstUitTekst, metOpgaven, opgaveVan, SOORT_NAMEN, themaProblemen, type KaartSoort } from '../live/cluedo';
+import { keuzeOpties } from '../lib/vraagtypes';
 import { RichText } from './RichText';
-import type { CluedoThema } from '../lib/types';
+import type { CluedoThema, Vraag } from '../lib/types';
 import { inputClass, labelClass, Notice } from './ui';
 
 /**
  * Verdachten, locaties en wapens van een Cluedo-spel: één naam per regel. Geef een andere `key` om
  * de tekstvakken opnieuw te vullen (bv. na "standaardthema").
  */
-export function CluedoThemaEditor({ thema, onChange }: { thema: CluedoThema; onChange: (t: CluedoThema) => void }) {
+export function CluedoThemaEditor({
+  thema,
+  vragen = [],
+  setTitel,
+  onChange,
+}: {
+  thema: CluedoThema;
+  vragen?: readonly Vraag[];
+  /** Titel van de vragenset: de titel van de zaak als de kaarten uit de set komen. */
+  setTitel?: string;
+  onChange: (t: CluedoThema) => void;
+}) {
   // De tekst zelf bijhouden: anders verdwijnt een lege regel terwijl je typt.
   const [tekst, setTekst] = useState(() => Object.fromEntries(KAART_SOORTEN.map((s) => [s, thema[s].join('\n')])) as Record<(typeof KAART_SOORTEN)[number], string>);
   const problemen = themaProblemen(thema);
+  // Kaarten uit de vragenset: in de uitleg van een vraag staat "Wie? Naam", "Hoe? ..." of "Waar? ...".
+  const uitSet = kaartenUitVragen(setTitel || thema.titel, vragen);
+  const foutAntwoorden = [...new Set(vragen.flatMap((v) => keuzeOpties(v).filter((_, i) => i !== v.juisteOptie && v.type === 'meerkeuze')).map((o) => o.replace(/\$/g, '').trim()))];
   const [perKaart, setPerKaart] = useState(() => metOpgaven(thema));
   /** Opgaven per kaart: de lijsten even lang als de namen. */
   const opgaven = Object.fromEntries(KAART_SOORTEN.map((s) => [s, thema[s].map((_, i) => opgaveVan(thema, s, i))])) as NonNullable<CluedoThema['opgaven']>;
@@ -29,6 +44,23 @@ export function CluedoThemaEditor({ thema, onChange }: { thema: CluedoThema; onC
         </label>
         <input id="cluedo-titel" className={inputClass} value={thema.titel} onChange={(e) => onChange({ ...thema, titel: e.target.value })} />
       </div>
+      {uitSet && (
+        <button
+          type="button"
+          className="rounded-lg border border-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]"
+          onClick={() => {
+            setPerKaart(true);
+            onChange(uitSet);
+          }}
+        >
+          📥 Kaarten maken uit de vragenset ({KAART_SOORTEN.map((s) => uitSet[s].length - 1).reduce((a, b) => a + b, 0)} vragen met “Wie?/Hoe?/Waar?” in de uitleg)
+        </button>
+      )}
+      <datalist id="cluedo-fout-antwoorden">
+        {foutAntwoorden.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -62,6 +94,12 @@ export function CluedoThemaEditor({ thema, onChange }: { thema: CluedoThema; onC
                   return (
                     <div key={i} data-kaart className="grid items-start gap-2 rounded-xl border border-slate-200 p-2 lg:grid-cols-[12rem_1fr_1fr_auto]">
                       <input className={inputClass} aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: naam`} placeholder="Naam" value={naam} onChange={(e) => zetKaart(s, i, 'naam', e.target.value)} />
+                      {op.vraagId ? (
+                        <div className="text-sm">
+                          <span className="text-xs font-semibold text-slate-500">Vraag uit de set:</span>
+                          <RichText text={vragen.find((v) => v.id === op.vraagId)?.tekst ?? '(vraag niet meer in de set)'} className="mt-1" />
+                        </div>
+                      ) : (
                       <div>
                         <input
                           className={`${inputClass} font-mono text-sm`}
@@ -72,11 +110,13 @@ export function CluedoThemaEditor({ thema, onChange }: { thema: CluedoThema; onC
                         />
                         {op.opgave.trim() ? <RichText text={op.opgave} className="mt-1 text-sm" /> : <span className="mt-1 inline-block rounded bg-amber-100 px-2 text-xs font-semibold text-amber-800">geen opgave: de oplossing</span>}
                       </div>
+                      )}
                       <div>
                         <input
                           className={`${inputClass} font-mono text-sm`}
                           aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: uitkomst`}
-                          placeholder="Uitkomst in LaTeX, bv. \ln|\ln x|+C"
+                          placeholder={op.vraagId ? 'Uitkomst (het juiste antwoord)' : 'Uitkomst in LaTeX, bv. \\ln|\\ln x|+C'}
+                          list="cluedo-fout-antwoorden"
                           value={op.uitkomst}
                           onChange={(e) => zetKaart(s, i, 'uitkomst', e.target.value)}
                         />

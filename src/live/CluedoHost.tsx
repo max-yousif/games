@@ -1,3 +1,4 @@
+import { isKeuzeVraag } from '../lib/vraagtypes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AfsluitKnoppen } from '../components/AfsluitKnoppen';
 import { Button, Notice } from '../components/ui';
@@ -22,12 +23,25 @@ export function CluedoHost(props: Props) {
 }
 
 /** Antwoorden op vragen als beurten van de lokale sessie (beschuldigingen tellen niet als beurt). */
-function alsBeurten(antwoorden: readonly LiveAntwoord[], aantal: number): LiveAntwoord[] {
-  return antwoorden.flatMap((a) => {
-    if (!isActie(a.vraagNr)) return [{ ...a, vraagNr: vraagIndex(a.spelerId, a.vraagNr, aantal) }];
-    // Cluedo met opgaven: elk antwoord op een opgave is een beurt voor die opgave.
+function alsBeurten(antwoorden: readonly LiveAntwoord[], vragen: readonly Vraag[]): LiveAntwoord[] {
+  const laatste = new Map<string, LiveAntwoord>();
+  for (const a of [...antwoorden].sort((x, y) => x.tijdMs - y.tijdMs)) {
     const op = leesOpgaveAntwoord(a.antwoord);
-    return op ? [{ ...a, vraagNr: op.nr }] : [];
+    if (op && a.juist !== null && vragen[op.nr] && isKeuzeVraag(vragen[op.nr])) laatste.set(`${a.spelerId}:${op.nr}`, a);
+  }
+  return antwoorden.flatMap((a) => {
+    if (!isActie(a.vraagNr)) return [{ ...a, vraagNr: vraagIndex(a.spelerId, a.vraagNr, vragen.length) }];
+    // Cluedo met opgaven: elk antwoord op een opgave is een beurt voor die opgave. Bij meerkeuze
+    // telt enkel de laatste keuze, en of die echt juist was (de leerling zag het niet).
+    const op = leesOpgaveAntwoord(a.antwoord);
+    if (!op) return [];
+    const v = vragen[op.nr];
+    if (v && isKeuzeVraag(v)) {
+      if (laatste.get(`${a.spelerId}:${op.nr}`) !== a) return [];
+      const juist = Number(op.antwoord) === v.juisteOptie;
+      return [{ ...a, vraagNr: op.nr, juist, punten: juist ? v.punten : 0 }];
+    }
+    return [{ ...a, vraagNr: op.nr }];
   });
 }
 
@@ -110,7 +124,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   sessieRef.current = sessie;
   useEffect(() => {
     const huidig = sessieRef.current;
-    const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, vragen.length), huidig.vraagVolgorde);
+    const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, vragen), huidig.vraagVolgorde);
     const ontsnapt = opgelostPerNaam(huidig, toestand);
     if (
       JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
@@ -148,7 +162,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
 
   async function einde() {
     await be.wijzigSessie(live.sessieId, { status: 'einde', stand });
-    const s = synchroniseer(sessie, spelers, alsBeurten(antwoorden, vragen.length), sessie.vraagVolgorde);
+    const s = synchroniseer(sessie, spelers, alsBeurten(antwoorden, vragen), sessie.vraagVolgorde);
     onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: opgelostPerNaam(sessie, toestand) } }));
   }
 

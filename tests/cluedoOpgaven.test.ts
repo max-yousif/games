@@ -66,3 +66,62 @@ describe('cluedo met opgaven per kaart', () => {
     expect([p.juist, p.fout]).toEqual([2, 1]);
   });
 });
+
+describe('cluedo met meerkeuzevragen uit de set', () => {
+  const mk = (id: string, antwoord: string, fout: string[]) =>
+    ({ id, categorie: '', punten: 100, type: 'meerkeuze', tekst: `vraag ${id}`, antwoord: '', opties: [antwoord, ...fout], juisteOptie: 0, uitleg: '' }) as const;
+  const setVragen = [mk('q1', '$\\ln|x|+C$', ['$x$', '$-\\frac{\\pi}{4}$']), mk('q2', '$x^2+C$', ['$2x$', '$x^3$']), mk('q3', '$e^x+C$', ['$1$', '$2$'])].map((v) => ({ ...v, opties: [...v.opties] }));
+  const t: CluedoThema = {
+    titel: 'MK',
+    verdachten: ['Ann', 'Bob'],
+    locaties: ['Keuken', 'Tuin'],
+    wapens: ['Mes', 'Touw'],
+    opgaven: {
+      verdachten: [{ opgave: '', uitkomst: '\\ln|x|+C', vraagId: 'q1' }, { opgave: '', uitkomst: '-\\frac{\\pi}{4}' }],
+      locaties: [{ opgave: '', uitkomst: 'x^2+C', vraagId: 'q2' }, { opgave: '', uitkomst: '' }],
+      wapens: [{ opgave: '', uitkomst: 'e^x+C', vraagId: 'q3' }, { opgave: '', uitkomst: '' }],
+    },
+  };
+
+  it('de vragen uit de set worden de opgaven; het blad krijgt geen uitkomsten', () => {
+    expect(themaProblemen(t)).toEqual([]);
+    const o = trekOplossing(t);
+    expect(o).toEqual({ verdachte: 'Bob', locatie: 'Tuin', wapen: 'Touw' });
+    const vragen = opgaveVragen(t, o, setVragen);
+    expect(vragen.map((v) => [v.type, kaartVanOpgave(t, v.id)?.naam])).toEqual([
+      ['meerkeuze', 'Ann'],
+      ['meerkeuze', 'Keuken'],
+      ['meerkeuze', 'Mes'],
+    ]);
+    const p = publiekThema(t);
+    expect(p.metOpgaven).toBe(true);
+    expect(p.uitkomsten).toBeUndefined();
+  });
+
+  it('elke keuze streept stil een kaart weg; de laatste keuze telt', () => {
+    const o = trekOplossing(t);
+    const vragen = opgaveVragen(t, o, setVragen);
+    // Juist: Ann weg. Fout met de uitkomst van een andere kaart (-π/4 = Bob, de dader!): Bob weg. Ander fout antwoord: een vaste andere kaart.
+    let alle = [ant({ soort: 'opgave', nr: 0, antwoord: '2' }, 1000), ant({ soort: 'opgave', nr: 1, antwoord: '0' }, 2000), ant({ soort: 'opgave', nr: 2, antwoord: '1' }, 3000)];
+    const speel = () => {
+      const b = cluedoBeoordelingen(vragen, t, o, spelers, alle);
+      alle = alle.map((a) => {
+        const x = b.find((y) => y.id === a.id);
+        return x ? { ...a, juist: x.juist, beloning: x.beloning ?? null } : a;
+      });
+    };
+    speel();
+    expect(alle.every((a) => a.juist)).toBe(true);
+    let p = cluedoToestand(spelers, alle).spelers.get('A')!;
+    const weg = p.weg.map((k) => k.naam);
+    expect(weg.slice(0, 2)).toEqual(['Bob', 'Keuken']);
+    expect(weg[2]).not.toBe('Mes');
+    // Antwoord op vraag 1 verbeteren: Bob komt terug, Ann verdwijnt.
+    alle.push(ant({ soort: 'opgave', nr: 0, antwoord: '0' }, 4000));
+    speel();
+    p = cluedoToestand(spelers, alle).spelers.get('A')!;
+    expect(p.weg.map((k) => k.naam)).toContain('Ann');
+    expect(p.weg.map((k) => k.naam)).not.toContain('Bob');
+    expect(p.juist).toBe(3);
+  });
+});

@@ -1,0 +1,61 @@
+{
+  "soort": "games-vragenset",
+  "versie": 1,
+  "set": {
+    "id": "cluedo-mk",
+    "titel": "Cluedo meerkeuze",
+    "beschrijving": "",
+    "vak": "wiskunde",
+    "leerjaar": "test",
+    "vragen": [
+      {
+        "id": "m1",
+        "categorie": "Substitutie",
+        "punten": 100,
+        "type": "meerkeuze",
+        "tekst": "$\\int \\frac{1}{x}\\,dx$",
+        "antwoord": "",
+        "opties": [
+          "$\\ln|x|+C$",
+          "$x+C$",
+          "$-\\frac{\\pi}{4}$",
+          "$\\frac{1}{x^2}+C$"
+        ],
+        "juisteOptie": 0,
+        "uitleg": "Wie? Ann"
+      },
+      {
+        "id": "m2",
+        "categorie": "Substitutie",
+        "punten": 100,
+        "type": "meerkeuze",
+        "tekst": "$\\int 2x\\,dx$",
+        "antwoord": "",
+        "opties": [
+          "$x^2+C$",
+          "$2+C$",
+          "$x+C$",
+          "$2x^2+C$"
+        ],
+        "juisteOptie": 0,
+        "uitleg": "Waar? Keuken"
+      },
+      {
+        "id": "m3",
+        "categorie": "Substitutie",
+        "punten": 100,
+        "type": "meerkeuze",
+        "tekst": "$\\int e^x\\,dx$",
+        "antwoord": "",
+        "opties": [
+          "$e^x+C$",
+          "$xe^x+C$",
+          "$\\ln x+C$",
+          "$1$"
+        ],
+        "juisteOptie": 0,
+        "uitleg": "Hoe? Mes"
+      }
+    ]
+  }
+}

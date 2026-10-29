@@ -58,7 +58,7 @@ export function CluedoSpeler({
 
   const blad = <Detectiveblad thema={thema} weg={p.weg} />;
   // Cluedo met opgaven per kaart: de leerling kiest zelf welke opgave (geen vragen na elkaar).
-  const metOpgaven = !!thema.uitkomsten;
+  const metOpgaven = !!thema.metOpgaven || !!thema.uitkomsten;
 
   if (p.opgelostMs !== null) {
     return (
@@ -158,7 +158,7 @@ export function CluedoSpeler({
     <div className="breed space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-2xl font-bold">🔎 {thema.titel}</span>
-        <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">{p.juist} juist</span>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">{p.juist} {metOpgaven && !thema.uitkomsten ? 'beantwoord' : 'juist'}</span>
         {plaats > 0 && <span className="text-lg text-slate-600">plaats {plaats}</span>}
         <span className={`ml-auto rounded-full px-4 py-1 font-mono text-2xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
           ⏱ {tijdTekst(resterend !== null ? resterend : verstreken)}
@@ -312,9 +312,44 @@ function Opgaven({
     <Kaart titel={`✏️ Opgaven (${aantal} / ${vragen.length})`}>
       <ol className="grid items-start gap-2 md:grid-cols-2">
         {volgorde.map((nr, plaats) => {
+          const v = vragen[nr];
+          const laatste = pogingen(nr).at(-1);
+          // Meerkeuze: elk antwoord streept stil een kaart weg (de laatste keuze telt); wijzigen mag.
+          if (v.type === 'meerkeuze' || v.type === 'waaronwaar') {
+            const gekozen = laatste?.juist ? laatste : undefined;
+            const weg = gekozen ? leesBeloning<VraagBeloning>(gekozen.beloning)?.kaart : null;
+            const optie = gekozen ? v.opties[Number(leesOpgaveAntwoord(gekozen.antwoord)?.antwoord)] : undefined;
+            return (
+              <li key={nr} data-opgave className={`rounded-xl border-2 ${open === nr ? 'border-[var(--accent)]' : gekozen ? 'border-sky-300 bg-sky-50' : 'border-slate-200'}`}>
+                <button type="button" onClick={() => setOpen(open === nr ? null : nr)} className="flex w-full items-start gap-3 p-3 text-left">
+                  <span className="w-7 shrink-0 font-bold text-slate-400">{plaats + 1}.</span>
+                  <RichText text={v.tekst} className="min-w-0 flex-1 text-lg" />
+                  {weg && <span className="shrink-0 text-sm font-semibold text-sky-800">✗ {weg.naam}</span>}
+                </button>
+                {open === nr && (
+                  <div className="border-t border-slate-100 p-3">
+                    {optie !== undefined && (
+                      <p className="mb-2 text-sm text-slate-600">
+                        Jouw antwoord: <RichText text={optie} className="inline font-semibold" />
+                        {weg && ` → ${weg.naam} is weggestreept.`} Kies opnieuw om te wijzigen.
+                      </p>
+                    )}
+                    <Beantwoord
+                      key={pogingen(nr).length}
+                      vraag={v}
+                      zaad={`${spelerId}:${nr}`}
+                      onVerstuur={async (a) => {
+                        await onVerstuur(nr, a);
+                        setOpen(null);
+                      }}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          }
           const juist = opgelost(nr);
           const kaart = juist ? leesBeloning<VraagBeloning>(juist.beloning)?.kaart : null;
-          const laatste = pogingen(nr).at(-1);
           return (
             <li key={nr} data-opgave className={`rounded-xl border-2 ${juist ? 'border-emerald-300 bg-emerald-50' : open === nr ? 'border-[var(--accent)]' : 'border-slate-200'}`}>
               <button type="button" onClick={() => setOpen(open === nr ? null : nr)} className="flex w-full items-start gap-3 p-3 text-left">

@@ -103,6 +103,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
   const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA);
   const [cluedoSleutel, setCluedoSleutel] = useState(0);
+  // Het Cluedo-thema open bij een set met een eigen thema; daarna beslist de leerkracht (niet vanzelf dichtklappen).
+  const [themaOpen, setThemaOpen] = useState(() => Boolean(store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo));
   const laadCluedo = (t: CluedoThema) => {
     setCluedoThema(t);
     setCluedoSleutel((k) => k + 1);
@@ -195,7 +197,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const cluedoOplossing = cluedo ? trekOplossing(cluedoThema) : undefined;
       const metKaartOpgaven = cluedo && metOpgaven(cluedoThema);
       const gekozen = metKaartOpgaven
-        ? shuffle(opgaveVragen(cluedoThema, cluedoOplossing!))
+        ? shuffle(opgaveVragen(cluedoThema, cluedoOplossing!, set.vragen))
         : spel === 'escape'
           ? aantalSloten > 0 && aantalSloten < escapeVragen.length
             ? shuffle(escapeVragen).slice(0, aantalSloten)
@@ -281,6 +283,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     setGekozenSet(id);
     setUit(leesVraagKeuze(id, klasId ?? ''));
     laadCluedo(store.sets.find((s) => s.id === id)?.cluedo ?? STANDAARD_THEMA);
+    setThemaOpen(Boolean(store.sets.find((s) => s.id === id)?.cluedo));
     setStap(4);
   }
 
@@ -404,7 +407,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             {sets.map((s) => {
               const n = speelbareVragen(s).length;
               // Cluedo met opgaven per kaart heeft geen gewone vragen nodig.
-              const opgaven = spel === 'cluedo' && s.cluedo && metOpgaven(s.cluedo) ? opgaveVragen(s.cluedo, trekOplossing(s.cluedo, () => 0)).length : 0;
+              const opgaven = spel === 'cluedo' && s.cluedo && metOpgaven(s.cluedo) ? opgaveVragen(s.cluedo, trekOplossing(s.cluedo, () => 0), s.vragen).length : 0;
               const gekozen = s.id === gekozenSet;
               return (
                 <button
@@ -482,7 +485,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <strong>
                 {spelInfo?.icoon} {spelInfo?.naam}
               </strong>{' '}
-              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0)).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set.vragen).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
             </div>
             <div className="flex flex-col items-end gap-1">
               <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
@@ -657,12 +660,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
                   fout = straftijd. Wie het snelst oplost, wint; de anderen spelen verder.
                 </p>
-                <details className="rounded-xl border border-slate-200 p-3" open={Boolean(set?.cluedo) || cluedoFouten.length > 0}>
+                <details className="rounded-xl border border-slate-200 p-3" open={themaOpen} onToggle={(e) => setThemaOpen(e.currentTarget.open)}>
                   <summary className="cursor-pointer font-semibold">
                     🔎 Verdachten, locaties en wapens voor dit spel: “{cluedoThema.titel}” ({cluedoThema.verdachten.length} + {cluedoThema.locaties.length} + {cluedoThema.wapens.length})
                   </summary>
                   <div className="mt-3">
-                    <CluedoThemaEditor key={cluedoSleutel} thema={cluedoThema} onChange={setCluedoThema} />
+                    <CluedoThemaEditor key={cluedoSleutel} thema={cluedoThema} vragen={set?.vragen ?? []} setTitel={set?.titel} onChange={setCluedoThema} />
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
                         disabled={!set || cluedoFouten.length > 0}

@@ -152,7 +152,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
             </button>
           </div>
           <div className="mt-4">
-            <CluedoThemaEditor thema={set.cluedo} onChange={(cluedo) => update((s) => ({ ...s, cluedo }))} />
+            <CluedoThemaEditor thema={set.cluedo} vragen={set.vragen} setTitel={set.titel} onChange={(cluedo) => update((s) => ({ ...s, cluedo }))} />
           </div>
         </section>
       )}
