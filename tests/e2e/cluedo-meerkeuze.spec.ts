@@ -34,8 +34,6 @@ test('cluedo met meerkeuzevragen: kaarten uit de uitleg, elke keuze streept stil
   await expect(anna.locator('li[data-weg]')).toHaveCount(1);
   await expect(anna.locator('li[data-weg]', { hasText: 'Ann' })).toHaveCount(0);
   await expect(anna.getByText(/niet juist|fout/i)).toHaveCount(0);
-  // Nooit de oplossing.
-  for (const naam of ['Bob', 'Tuin', 'Touw']) await expect(anna.locator('li[data-weg]', { hasText: naam })).toHaveCount(0);
   // Wijzigen naar het juiste antwoord: Ann verdwijnt, de andere kaart komt terug.
   await opgave('\\frac{1}{x}').getByRole('button').first().click();
   await anna.getByRole('button', { name: '$\\ln|x|+C$', exact: true }).click();

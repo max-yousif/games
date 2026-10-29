@@ -1,4 +1,3 @@
-import { uitdrukkingGelijk } from '../lib/wiskunde';
 import { isKeuzeVraag, keuzeOpties } from '../lib/vraagtypes';
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { CluedoOplossing, CluedoThema, KaartOpgave, Vraag } from '../lib/types';
@@ -216,10 +215,6 @@ export function publiekThema(t: CluedoThema): CluedoThema {
   return { ...rest, metOpgaven: true, uitkomsten: Object.fromEntries(KAART_SOORTEN.map((s) => [s, t[s].map((_, i) => opgaveVan(t, s, i).uitkomst)])) as CluedoThema['uitkomsten'] };
 }
 
-const zonderDollars = (t: string) => t.replace(/\$/g, '').trim();
-const zelfdeUitkomst = (a: string, b: string) =>
-  zonderDollars(a).replace(/\s+/g, '') === zonderDollars(b).replace(/\s+/g, '') || uitdrukkingGelijk(zonderDollars(a), zonderDollars(b)) === true;
-
 /** Een goed spreidende hash (FNV-1a met een eindmenging): gelijkaardige teksten geven heel andere getallen. */
 function hash(tekst: string): number {
   let h = 2166136261;
@@ -232,34 +227,59 @@ function hash(tekst: string): number {
 
 const zelfdeKaart = (a: Kaart, b: Kaart) => a.soort === b.soort && a.naam === b.naam;
 
+/** Eenvoudige willekeurige getallen met een zaad (mulberry32): elke keer dezelfde reeks. */
+function zaadGenerator(zaad: string): () => number {
+  let a = hash(zaad);
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /**
- * Welke kaart een keuze bij een meerkeuzevraag wegstreept: het juiste antwoord die van de vraag. Een
- * fout antwoord streept een andere gewone kaart weg die bij deze leerling nog niet weg is (`bezet`:
- * door andere vragen weggestreept): liefst de kaart waarvan het foute antwoord de uitkomst is, anders
- * een (per leerling verschillende) andere. Nooit de oplossing: die zou anders opvallen. Wie fouten
- * maakt, houdt op het einde gewoon meer kaarten over en beschuldigt verkeerd.
+ * Welke kaart elke foute keuze wegstreept, per leerling vast bij de start (sleutel "vraagId:keuze").
+ * Evenwichtig verdeeld: elke kaart kan ongeveer even vaak getroffen worden. Een gewone kaart door
+ * het juiste antwoord van haar vraag en enkele foute keuzes, een kaart van de oplossing door evenveel
+ * foute keuzes. Zo valt de oplossing niet op, ook niet wie gokt en kijkt wat overblijft.
  */
-export function kaartVoorKeuze(
-  t: CluedoThema,
-  v: Vraag,
-  keuze: number,
-  bezet: readonly Kaart[] = [],
-  zaad = '',
-  oplossing: CluedoOplossing | null = null,
-): Kaart | null {
-  const eigen = kaartVanOpgave(t, v.id);
-  if (keuze === v.juisteOptie) return eigen;
-  const gekozen = keuzeOpties(v)[keuze] ?? '';
-  const vrij = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !bezet.some((b) => zelfdeKaart(b, k)) && !(oplossing && inOplossing(k, oplossing)));
-  const zelfde = vrij.find((k) => {
-    const u = opgaveVan(t, k.soort, t[k.soort].indexOf(k.naam)).uitkomst;
-    return u.trim() && zelfdeUitkomst(u, gekozen);
-  });
-  if (zelfde) return zelfde;
-  if (vrij.length) return vrij[hash(`${zaad}:${v.id}:${keuze}`) % vrij.length];
-  // Alles is al weg: een andere gewone kaart dan die van de vraag (die dan dubbel staat).
-  const anderen = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !(oplossing && inOplossing(k, oplossing)));
-  return anderen.length ? anderen[hash(`${zaad}:${v.id}:${keuze}`) % anderen.length] : null;
+export function foutKaarten(t: CluedoThema, vragen: readonly Vraag[], zaad: string): Map<string, Kaart> {
+  const r = zaadGenerator(zaad);
+  const kaarten = alleKaarten(t);
+  const sleutel = (k: Kaart) => `${k.soort}:${k.naam}`;
+  const last = new Map(kaarten.map((k) => [sleutel(k), 0]));
+  const fout: { sleutel: string; eigen: Kaart | null }[] = [];
+  for (const v of vragen) {
+    if (!isKeuzeVraag(v)) continue;
+    const eigen = kaartVanOpgave(t, v.id);
+    if (eigen) last.set(sleutel(eigen), (last.get(sleutel(eigen)) ?? 0) + 1);
+    keuzeOpties(v).forEach((o, i) => {
+      if (i !== v.juisteOptie && o.trim()) fout.push({ sleutel: `${v.id}:${i}`, eigen });
+    });
+  }
+  // In willekeurige volgorde telkens naar een kaart met de minste treffers (niet die van de vraag zelf).
+  for (let i = fout.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [fout[i], fout[j]] = [fout[j], fout[i]];
+  }
+  const uit = new Map<string, Kaart>();
+  for (const f of fout) {
+    const kandidaten = kaarten.filter((k) => !(f.eigen && zelfdeKaart(k, f.eigen)));
+    const minst = Math.min(...kandidaten.map((k) => last.get(sleutel(k))!));
+    const keuze = kandidaten.filter((k) => last.get(sleutel(k)) === minst);
+    const k = keuze[Math.floor(r() * keuze.length)];
+    last.set(sleutel(k), minst + 1);
+    uit.set(f.sleutel, k);
+  }
+  return uit;
+}
+
+/** Welke kaart een keuze bij een meerkeuzevraag wegstreept: juist = die van de vraag, fout = volgens `fout`. */
+export function kaartVoorKeuze(t: CluedoThema, v: Vraag, keuze: number, fout: ReadonlyMap<string, Kaart>): Kaart | null {
+  if (keuze === v.juisteOptie) return kaartVanOpgave(t, v.id);
+  return fout.get(`${v.id}:${keuze}`) ?? null;
 }
 
 /** Een antwoord op een opgave (Cluedo met opgaven): nr = plaats in de lijst opgaven. */
@@ -395,6 +415,7 @@ export function cluedoBeoordelingen(
   const bekend = new Set(spelers.map((s) => s.id));
   const open = antwoorden.filter((a) => a.juist === null && bekend.has(a.spelerId)).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
   const uit: Beoordeling[] = [];
+  const foutPer = new Map<string, Map<string, Kaart>>();
   for (const a of open) {
     const p = cluedoToestand(spelers, lijst).spelers.get(a.spelerId);
     let b: Beoordeling;
@@ -415,14 +436,9 @@ export function cluedoBeoordelingen(
         // Meerkeuze: elk antwoord wordt aanvaard en streept een kaart weg; de leerling ziet niet of het juist was.
         const keuze = Number(op.antwoord);
         const geldig = !teVroeg && p.opgelostMs === null && Number.isInteger(keuze) && keuze >= 0 && keuze < keuzeOpties(v).length;
-        // Kaarten die al weg zijn door de andere vragen (niet door een vorig antwoord op deze vraag).
-        const vorig = lijst
-          .filter((x) => x.spelerId === a.spelerId && x.juist && leesOpgaveAntwoord(x.antwoord)?.nr === op.nr)
-          .sort((x, y) => x.tijdMs - y.tijdMs)
-          .at(-1);
-        const vorigeKaart = vorig ? leesBeloning<VraagBeloning>(vorig.beloning)?.kaart : null;
-        const bezet = p.weg.filter((k) => !(vorigeKaart && zelfdeKaart(k, vorigeKaart)));
-        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze, bezet, a.spelerId, oplossing) } satisfies VraagBeloning) : null);
+        // Per leerling vast bij de start (met de oplossing in het zaad: de leerling kan het niet nabootsen).
+        if (!foutPer.has(a.spelerId)) foutPer.set(a.spelerId, foutKaarten(thema, vragen, `${a.spelerId}:${oplossing.verdachte}:${oplossing.locatie}:${oplossing.wapen}`));
+        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze, foutPer.get(a.spelerId)!) } satisfies VraagBeloning) : null);
       } else {
         const juist = !!v && !teVroeg && p.opgelostMs === null && automatischJuist(v, op.antwoord);
         b = beoordeeld(a, juist, juist ? ({ kaart: kaartVanOpgave(thema, v.id) } satisfies VraagBeloning) : null);

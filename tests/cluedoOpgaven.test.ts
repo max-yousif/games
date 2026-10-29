@@ -3,6 +3,7 @@ import { ACTIE_BASIS } from '../src/live/codekraker';
 import {
   cluedoBeoordelingen,
   cluedoToestand,
+  foutKaarten,
   kaartVanOpgave,
   koppelVragen,
   metOpgaven,
@@ -103,7 +104,7 @@ describe('cluedo met meerkeuzevragen uit de set', () => {
   it('elke keuze streept stil een kaart weg; de laatste keuze telt', () => {
     const o = trekOplossing(t);
     const vragen = opgaveVragen(t, o, setVragen);
-    // Juist: Keuken weg. Fout antwoord: een andere gewone kaart, nooit de oplossing (Bob, Tuin, Touw).
+    // Juist: Keuken weg. Fout antwoord: stil een andere kaart (vast per leerling), zonder melding.
     let alle = [ant({ soort: 'opgave', nr: 0, antwoord: '2' }, 1000), ant({ soort: 'opgave', nr: 1, antwoord: '0' }, 2000), ant({ soort: 'opgave', nr: 2, antwoord: '1' }, 3000)];
     const speel = () => {
       const b = cluedoBeoordelingen(vragen, t, o, spelers, alle);
@@ -117,13 +118,12 @@ describe('cluedo met meerkeuzevragen uit de set', () => {
     let p = cluedoToestand(spelers, alle).spelers.get('A')!;
     const weg = p.weg.map((k) => k.naam);
     expect(weg).toContain('Keuken');
-    expect(weg.some((n) => ['Bob', 'Tuin', 'Touw'].includes(n))).toBe(false);
+    expect(weg).not.toContain('Ann');
     // Antwoord op vraag 1 verbeteren: Ann verdwijnt.
     alle.push(ant({ soort: 'opgave', nr: 0, antwoord: '0' }, 4000));
     speel();
     p = cluedoToestand(spelers, alle).spelers.get('A')!;
     expect(p.weg.map((k) => k.naam)).toContain('Ann');
-    expect(p.weg.map((k) => k.naam)).not.toContain('Bob');
     expect(p.juist).toBe(3);
   });
 });
@@ -173,26 +173,36 @@ describe('cluedo: kaarten en oplossing aanduiden, vragen automatisch koppelen', 
 });
 
 describe('cluedo: foute antwoorden verraden de oplossing niet', () => {
-  it('foute keuzes strepen telkens een andere, nog niet weggestreepte kaart weg', () => {
-    const namen = (p: string) => Array.from({ length: 6 }, (_, i) => `${p}${i}`);
-    const t: CluedoThema = { titel: 'T', verdachten: namen('V'), locaties: namen('L'), wapens: namen('W'), metVragen: true, oplossing: { verdachte: 'V0', locatie: 'L0', wapen: 'W0' } };
-    const setVragen = Array.from({ length: 15 }, (_, i) => ({ id: `q${i}`, categorie: '', punten: 100, type: 'meerkeuze' as const, tekst: `q${i}`, antwoord: '', opties: ['a', 'b', 'c', 'd'], juisteOptie: 0, uitleg: '' }));
-    const k = koppelVragen(t, setVragen, () => 0);
-    if ('fout' in k) throw new Error(k.fout);
-    const vragen = opgaveVragen(k.thema, k.oplossing, setVragen);
-    // Alle vragen fout beantwoord: nooit twee keer dezelfde kaart, de oplossing hoogstens één keer per soort.
-    let alle: LiveAntwoord[] = [];
-    for (const [nr] of vragen.entries()) {
-      alle.push(ant({ soort: 'opgave', nr, antwoord: String(1 + (nr % 3)) }, 1000 * (nr + 1)));
-      const b = cluedoBeoordelingen(vragen, k.thema, k.oplossing, spelers, alle);
-      alle = alle.map((a) => {
-        const x = b.find((y) => y.id === a.id);
-        return x ? { ...a, juist: x.juist, beloning: x.beloning ?? null } : a;
-      });
+  const namen = (p: string) => Array.from({ length: 6 }, (_, i) => `${p}${i}`);
+  const t: CluedoThema = { titel: 'T', verdachten: namen('V'), locaties: namen('L'), wapens: namen('W'), metVragen: true, oplossing: { verdachte: 'V0', locatie: 'L0', wapen: 'W0' } };
+  const setVragen = Array.from({ length: 15 }, (_, i) => ({ id: `q${i}`, categorie: '', punten: 100, type: 'meerkeuze' as const, tekst: `q${i}`, antwoord: '', opties: ['a', 'b', 'c', 'd'], juisteOptie: 0, uitleg: '' }));
+  const k = koppelVragen(t, setVragen, () => 0);
+  if ('fout' in k) throw new Error(k.fout);
+  const vragen = opgaveVragen(k.thema, k.oplossing, setVragen);
+
+  it('elke kaart kan ongeveer even vaak getroffen worden, ook die van de oplossing', () => {
+    const fout = foutKaarten(k.thema, vragen, 'speler1');
+    expect(fout.size).toBe(45);
+    const treffers = new Map<string, number>();
+    for (const v of vragen) {
+      const eigen = kaartVanOpgave(k.thema, v.id)!;
+      treffers.set(eigen.naam, (treffers.get(eigen.naam) ?? 0) + 1);
+      for (const i of [1, 2, 3]) {
+        const kaart = fout.get(`${v.id}:${i}`)!;
+        // Nooit de kaart van de vraag zelf.
+        expect(kaart.naam).not.toBe(eigen.naam);
+        treffers.set(kaart.naam, (treffers.get(kaart.naam) ?? 0) + 1);
+      }
     }
-    const kaarten = alle.map((a) => (JSON.parse(a.beloning!) as { kaart: { naam: string } }).kaart.naam);
-    expect(kaarten.some((n) => ['V0', 'L0', 'W0'].includes(n))).toBe(false);
-    // Zolang er vrije kaarten zijn, nooit dubbel.
-    expect(new Set(kaarten.slice(0, 8)).size).toBe(8);
+    const aantallen = [...treffers.values()];
+    expect(treffers.size).toBe(18);
+    expect(Math.max(...aantallen) - Math.min(...aantallen)).toBeLessThanOrEqual(1);
+    for (const opl of ['V0', 'L0', 'W0']) expect(treffers.get(opl)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('vast per leerling (wijzigen helpt niet om iets uit te zoeken), anders bij een andere leerling', () => {
+    const a = [...foutKaarten(k.thema, vragen, 'speler1')].map(([s, x]) => `${s}=${x.naam}`);
+    expect([...foutKaarten(k.thema, vragen, 'speler1')].map(([s, x]) => `${s}=${x.naam}`)).toEqual(a);
+    expect([...foutKaarten(k.thema, vragen, 'speler2')].map(([s, x]) => `${s}=${x.naam}`)).not.toEqual(a);
   });
 });
