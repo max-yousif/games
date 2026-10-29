@@ -56,6 +56,8 @@ export interface Vragenset {
   vak: Vak;
   /** Eén of meer vakken. Ontbreekt bij oudere sets: dan enkel `vak`. */
   vakken?: Vak[];
+  /** Leerjaren (1-6). Ontbreekt bij oudere sets: dan afgeleid uit de tekst `leerjaar`. */
+  jaren?: number[];
   leerjaar: string;
   vragen: Vraag[];
   /** Id van een voorbeeldset, zodat die niet dubbel toegevoegd wordt. */

@@ -19,6 +19,8 @@ import type { Store } from '../lib/store';
 import { aiOpdracht, lijktTabel, TEKST_VOORBEELD, tekstNaarVragen } from '../lib/tekstImport';
 import type { Vak } from '../lib/types';
 import { VakKeuze } from '../components/VakKeuze';
+import { JaarKeuze } from '../components/JaarKeuze';
+import { jaarTekst } from './SetsPage';
 import { tekstMetGaten, VRAAG_TYPES } from '../lib/vraagtypes';
 
 type Bron = { soort: 'tekst'; tekst: string } | { soort: 'bestand'; naam: string; rijen: string[][] };
@@ -45,7 +47,7 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
   const [doel, setDoel] = useState<string>(bestaand?.id ?? 'nieuw');
   const [titel, setTitel] = useState('');
   const [vakken, setVakken] = useState<Vak[]>(['wiskunde']);
-  const [leerjaar, setLeerjaar] = useState('');
+  const [jaren, setJaren] = useState<number[]>([]);
   const [onderwerp, setOnderwerp] = useState('');
   const [gekopieerd, setGekopieerd] = useState(false);
 
@@ -95,7 +97,7 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
   function importeer() {
     if (vragen.length === 0) return;
     if (doel === 'nieuw') {
-      const s = { ...nieuweSet(), titel: titel.trim() || 'Geïmporteerde vragen', vak: vakken[0], vakken, leerjaar: leerjaar.trim(), vragen };
+      const s = { ...nieuweSet(), titel: titel.trim() || 'Geïmporteerde vragen', vak: vakken[0], vakken, jaren, leerjaar: jaarTekst(jaren), vragen };
       store.setSets((all) => [...all, s]);
       ga({ pagina: 'set', id: s.id });
     } else {
@@ -376,10 +378,8 @@ export function ImporterenPage({ store, setId }: { store: Store; setId?: string 
                   <VakKeuze vakken={vakken} onChange={setVakken} />
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="nieuw-leerjaar">
-                    Leerjaar / klas
-                  </label>
-                  <input id="nieuw-leerjaar" className={inputClass} placeholder="bv. 3e jaar (5 u)" value={leerjaar} onChange={(e) => setLeerjaar(e.target.value)} />
+                  <span className={labelClass}>Leerjaar</span>
+                  <JaarKeuze jaren={jaren} onChange={setJaren} />
                 </div>
               </div>
             )}

@@ -9,6 +9,8 @@ import { juistAntwoord, kopieVraag, nieuweVraag, speelbareVragen, vakkenVan, vra
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { RaadselEditor } from '../components/RaadselEditor';
 import { VakKeuze } from '../components/VakKeuze';
+import { JaarKeuze } from '../components/JaarKeuze';
+import { jaarTekst, jarenVanSet } from './SetsPage';
 import { nieuwRaadsel } from '../live/whodunit';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
@@ -59,8 +61,8 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           <VakKeuze vakken={vakkenVan(set)} onChange={(vakken) => update((s) => ({ ...s, vak: vakken[0], vakken }))} />
         </div>
         <div>
-          <label className={labelClass}>Leerjaar / klas</label>
-          <input className={inputClass} value={set.leerjaar} placeholder="bv. 3e jaar (5 u)" onChange={(e) => update((s) => ({ ...s, leerjaar: e.target.value }))} />
+          <span className={labelClass}>Leerjaar (één of meer)</span>
+          <JaarKeuze jaren={jarenVanSet(set)} onChange={(jaren) => update((s) => ({ ...s, jaren, leerjaar: jaarTekst(jaren) }))} />
         </div>
         <div className="md:col-span-2">
           <label className={labelClass}>Beschrijving (optioneel)</label>

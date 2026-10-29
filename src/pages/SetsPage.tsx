@@ -19,6 +19,17 @@ export function jarenVan(leerjaar: string): number[] {
   return [...jaren].sort();
 }
 
+/** De leerjaren van een vragenset: aangeduid, of (oudere sets) uit de tekst. */
+export const jarenVanSet = (s: Pick<Vragenset, 'jaren' | 'leerjaar'>): number[] => s.jaren ?? jarenVan(s.leerjaar);
+
+/** Tekst bij de aangeduide jaren: "3e jaar", "5e–6e jaar", "3e, 5e jaar". */
+export function jaarTekst(jaren: readonly number[]): string {
+  const j = [...jaren].sort((a, b) => a - b);
+  if (j.length === 0) return '';
+  const opeenvolgend = j.every((x, i) => i === 0 || x === j[i - 1] + 1);
+  return j.length > 1 && opeenvolgend ? `${j[0]}e–${j.at(-1)}e jaar` : `${j.map((x) => `${x}e`).join(', ')} jaar`;
+}
+
 type Sortering = 'gewijzigd' | 'titel' | 'gespeeld';
 const FILTER_SLEUTEL = 'games.v1.setfilter';
 
@@ -46,7 +57,7 @@ export function SetsPage({ store }: { store: Store }) {
   }, [filter]);
   const zet = (f: Partial<typeof filter>) => setFilter((x) => ({ ...x, ...f }));
   const zoekterm = zoek.trim().toLowerCase();
-  const jarenPerSet = new Map(store.sets.map((s) => [s.id, jarenVan(s.leerjaar)]));
+  const jarenPerSet = new Map(store.sets.map((s) => [s.id, jarenVanSet(s)]));
   const sets = store.sets
     .filter((s) => {
       const jaren = jarenPerSet.get(s.id)!;

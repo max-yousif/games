@@ -34,3 +34,16 @@ describe('leerjaar zelf gekozen', () => {
     expect(klasJaar({ naam: '3A', jaar: 0 })).toBeNull();
   });
 });
+
+describe('jaren van een vragenset', () => {
+  it('aangeduide jaren winnen van de tekst; tekst bij de jaren', async () => {
+    const { jarenVanSet, jaarTekst } = await import('../src/pages/SetsPage');
+    expect(jarenVanSet({ leerjaar: '3e jaar (5 u)' })).toEqual([3]);
+    expect(jarenVanSet({ leerjaar: '3e jaar', jaren: [5, 6] })).toEqual([5, 6]);
+    expect(jarenVanSet({ leerjaar: '3e jaar', jaren: [] })).toEqual([]);
+    expect(jaarTekst([4])).toBe('4e jaar');
+    expect(jaarTekst([6, 5])).toBe('5e–6e jaar');
+    expect(jaarTekst([3, 5])).toBe('3e, 5e jaar');
+    expect(jaarTekst([])).toBe('');
+  });
+});

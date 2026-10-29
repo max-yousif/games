@@ -18,7 +18,7 @@ import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
 import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
-import { jarenVan, VAK_LABELS } from './SetsPage';
+import { jarenVanSet, VAK_LABELS } from './SetsPage';
 import { klasJaar } from './KlassenPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
@@ -258,7 +258,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const zoekterm = zoek.trim().toLowerCase();
   const sets = [...store.sets]
     // Sets zonder jaar passen bij elke klas.
-    .filter((s) => !jaar || jarenVan(s.leerjaar).length === 0 || jarenVan(s.leerjaar).includes(jaar))
+    .filter((s) => !jaar || jarenVanSet(s).length === 0 || jarenVanSet(s).includes(jaar))
     .filter((s) => !zoekterm || `${s.titel} ${s.leerjaar} ${vakkenVan(s).map((v) => VAK_LABELS[v]).join(' ')} ${s.beschrijving}`.toLowerCase().includes(zoekterm))
     .sort((a, b) => b.gewijzigd.localeCompare(a.gewijzigd));
 
