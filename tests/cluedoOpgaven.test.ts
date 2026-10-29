@@ -171,3 +171,26 @@ describe('cluedo: kaarten en oplossing aanduiden, vragen automatisch koppelen', 
     expect(n.oplossing).toEqual({ verdachte: 'Bob', locatie: 'Keuken', wapen: 'Touw' });
   });
 });
+
+describe('cluedo: foute antwoorden verraden de oplossing niet', () => {
+  it('foute keuzes strepen telkens een andere, nog niet weggestreepte kaart weg', () => {
+    const namen = (p: string) => Array.from({ length: 6 }, (_, i) => `${p}${i}`);
+    const t: CluedoThema = { titel: 'T', verdachten: namen('V'), locaties: namen('L'), wapens: namen('W'), metVragen: true, oplossing: { verdachte: 'V0', locatie: 'L0', wapen: 'W0' } };
+    const setVragen = Array.from({ length: 15 }, (_, i) => ({ id: `q${i}`, categorie: '', punten: 100, type: 'meerkeuze' as const, tekst: `q${i}`, antwoord: '', opties: ['a', 'b', 'c', 'd'], juisteOptie: 0, uitleg: '' }));
+    const k = koppelVragen(t, setVragen, () => 0);
+    if ('fout' in k) throw new Error(k.fout);
+    const vragen = opgaveVragen(k.thema, k.oplossing, setVragen);
+    // Alle vragen fout beantwoord: nooit twee keer dezelfde kaart, de oplossing hoogstens één keer per soort.
+    let alle: LiveAntwoord[] = [];
+    for (const [nr] of vragen.entries()) {
+      alle.push(ant({ soort: 'opgave', nr, antwoord: String(1 + (nr % 3)) }, 1000 * (nr + 1)));
+      const b = cluedoBeoordelingen(vragen, k.thema, k.oplossing, spelers, alle);
+      alle = alle.map((a) => {
+        const x = b.find((y) => y.id === a.id);
+        return x ? { ...a, juist: x.juist, beloning: x.beloning ?? null } : a;
+      });
+    }
+    const kaarten = alle.map((a) => (JSON.parse(a.beloning!) as { kaart: { naam: string } }).kaart.naam);
+    expect(new Set(kaarten).size).toBe(kaarten.length);
+  });
+});

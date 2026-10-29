@@ -220,24 +220,39 @@ const zonderDollars = (t: string) => t.replace(/\$/g, '').trim();
 const zelfdeUitkomst = (a: string, b: string) =>
   zonderDollars(a).replace(/\s+/g, '') === zonderDollars(b).replace(/\s+/g, '') || uitdrukkingGelijk(zonderDollars(a), zonderDollars(b)) === true;
 
+/** Een goed spreidende hash (FNV-1a met een eindmenging): gelijkaardige teksten geven heel andere getallen. */
+function hash(tekst: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < tekst.length; i++) h = Math.imul(h ^ tekst.charCodeAt(i), 16777619);
+  h ^= h >>> 16;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return h >>> 0;
+}
+
+const zelfdeKaart = (a: Kaart, b: Kaart) => a.soort === b.soort && a.naam === b.naam;
+
 /**
  * Welke kaart een keuze bij een meerkeuzevraag wegstreept: het juiste antwoord die van de vraag. Een
- * fout antwoord dat de uitkomst van een andere kaart is, streept die kaart weg (ook als het de
- * oplossing is!); elk ander fout antwoord een vaste andere kaart. Zo merkt de leerling niets.
+ * fout antwoord streept een kaart weg die bij deze leerling nog niet weg is (`bezet`: door andere
+ * vragen weggestreept), zodat geen kaart twee keer opduikt: liefst de kaart waarvan het foute
+ * antwoord de uitkomst is, anders een (per leerling verschillende) andere. Dat kan ook de oplossing
+ * zijn: de leerling merkt het pas bij een foute beschuldiging.
  */
-export function kaartVoorKeuze(t: CluedoThema, v: Vraag, keuze: number): Kaart | null {
+export function kaartVoorKeuze(t: CluedoThema, v: Vraag, keuze: number, bezet: readonly Kaart[] = [], zaad = ''): Kaart | null {
   const eigen = kaartVanOpgave(t, v.id);
   if (keuze === v.juisteOptie) return eigen;
   const gekozen = keuzeOpties(v)[keuze] ?? '';
-  const anderen = alleKaarten(t).filter((k) => !eigen || k.soort !== eigen.soort || k.naam !== eigen.naam);
-  const zelfde = anderen.find((k) => {
+  const vrij = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !bezet.some((b) => zelfdeKaart(b, k)));
+  const zelfde = vrij.find((k) => {
     const u = opgaveVan(t, k.soort, t[k.soort].indexOf(k.naam)).uitkomst;
     return u.trim() && zelfdeUitkomst(u, gekozen);
   });
   if (zelfde) return zelfde;
-  let h = 0;
-  for (const c of `${v.id}:${keuze}`) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return anderen.length ? anderen[h % anderen.length] : null;
+  if (vrij.length) return vrij[hash(`${zaad}:${v.id}:${keuze}`) % vrij.length];
+  // Alles is al weg: een andere kaart dan die van de vraag.
+  const anderen = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)));
+  return anderen.length ? anderen[hash(`${zaad}:${v.id}:${keuze}`) % anderen.length] : null;
 }
 
 /** Een antwoord op een opgave (Cluedo met opgaven): nr = plaats in de lijst opgaven. */
@@ -393,7 +408,14 @@ export function cluedoBeoordelingen(
         // Meerkeuze: elk antwoord wordt aanvaard en streept een kaart weg; de leerling ziet niet of het juist was.
         const keuze = Number(op.antwoord);
         const geldig = !teVroeg && p.opgelostMs === null && Number.isInteger(keuze) && keuze >= 0 && keuze < keuzeOpties(v).length;
-        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze) } satisfies VraagBeloning) : null);
+        // Kaarten die al weg zijn door de andere vragen (niet door een vorig antwoord op deze vraag).
+        const vorig = lijst
+          .filter((x) => x.spelerId === a.spelerId && x.juist && leesOpgaveAntwoord(x.antwoord)?.nr === op.nr)
+          .sort((x, y) => x.tijdMs - y.tijdMs)
+          .at(-1);
+        const vorigeKaart = vorig ? leesBeloning<VraagBeloning>(vorig.beloning)?.kaart : null;
+        const bezet = p.weg.filter((k) => !(vorigeKaart && zelfdeKaart(k, vorigeKaart)));
+        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze, bezet, a.spelerId) } satisfies VraagBeloning) : null);
       } else {
         const juist = !!v && !teVroeg && p.opgelostMs === null && automatischJuist(v, op.antwoord);
         b = beoordeeld(a, juist, juist ? ({ kaart: kaartVanOpgave(thema, v.id) } satisfies VraagBeloning) : null);
