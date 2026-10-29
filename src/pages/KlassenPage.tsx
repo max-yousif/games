@@ -4,11 +4,22 @@ import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
-import { inkorten, isIngekort, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
+import { isBewaard } from '../lib/session';
+import { datumTekst } from '../lib/exportResults';
+import { inkorten, isIngekort, korteNamen, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
 import type { Klas, NaamVolgorde } from '../lib/types';
 
+/** Het leerjaar uit de naam van een klas: "3A" en "3 LAT" = 3, "6HW" = 6; anders null. */
+export function jaarVanKlas(naam: string): number | null {
+  const m = naam.trim().match(/^([1-7])(?!\d)/);
+  return m ? Number(m[1]) : null;
+}
+
 export function KlassenPage({ store }: { store: Store }) {
-  const [gekozen, setGekozen] = useState<string | null>(store.klassen[0]?.id ?? null);
+  // Overzicht van alle klassen, of één klas open.
+  const [gekozen, setGekozen] = useState<string | null>(null);
+  const [zoek, setZoek] = useState('');
+  const [jaar, setJaar] = useState<number | 0>(0);
   const klas = store.klassen.find((k) => k.id === gekozen) ?? null;
 
   function nieuweKlas() {
@@ -16,6 +27,50 @@ export function KlassenPage({ store }: { store: Store }) {
     store.setKlassen((all) => [...all, k]);
     setGekozen(k.id);
   }
+
+  // Bewaarde spellen per klas (op naam).
+  const spellen = useMemo(() => {
+    const m = new Map<string, { aantal: number; laatst: string }>();
+    for (const s of store.sessies.filter(isBewaard)) {
+      const oud = m.get(s.klasNaam);
+      m.set(s.klasNaam, { aantal: (oud?.aantal ?? 0) + 1, laatst: !oud || s.gestart > oud.laatst ? s.gestart : oud.laatst });
+    }
+    return m;
+  }, [store.sessies]);
+
+  if (klas) {
+    return (
+      <div>
+        <button type="button" className="mb-3 text-sm font-medium text-[var(--accent-tekst)] hover:underline" onClick={() => setGekozen(null)}>
+          ← Alle klassen
+        </button>
+        <KlasEditor
+          key={klas.id}
+          klas={klas}
+          spellen={spellen.get(klas.naam)}
+          onChange={(f) => store.setKlassen((all) => all.map((k) => (k.id === klas.id ? f(k) : k)))}
+          onDelete={() => {
+            if (confirm(`Klas "${klas.naam}" verwijderen? Gespeelde resultaten blijven bewaard.`)) {
+              store.setKlassen((all) => all.filter((k) => k.id !== klas.id));
+              setGekozen(null);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  const term = zoek.trim().toLowerCase();
+  const gefilterd = store.klassen
+    .filter((k) => !jaar || jaarVanKlas(k.naam) === jaar)
+    .filter((k) => !term || k.naam.toLowerCase().includes(term) || k.leerlingen.some((l) => l.naam.toLowerCase().includes(term)))
+    .sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric: true }));
+  const jaren = [...new Set(store.klassen.map((k) => jaarVanKlas(k.naam)))].sort((a, b) => (a ?? 99) - (b ?? 99));
+  const groepen = jaren
+    .map((j) => ({ jaar: j, klassen: gefilterd.filter((k) => jaarVanKlas(k.naam) === j) }))
+    .filter((g) => g.klassen.length > 0);
+  const chip = (actief: boolean) =>
+    `rounded-full border px-3 py-1 text-sm font-medium transition ${actief ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`;
 
   return (
     <div>
@@ -25,51 +80,96 @@ export function KlassenPage({ store }: { store: Store }) {
         </Button>
       </PageHeader>
 
-      <CloudKaart store={store} />
+      {store.klassen.length === 0 ? (
+        <Notice>Nog geen klassen. Klik op “+ Nieuwe klas” en plak de namen van je leerlingen (bv. uit Smartschool of Excel).</Notice>
+      ) : (
+        <>
+          <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-surface p-3 shadow-sm">
+            <input
+              type="search"
+              className={`${inputClass} max-w-xs`}
+              placeholder="🔍 Zoek een klas of leerling…"
+              value={zoek}
+              onChange={(e) => setZoek(e.target.value)}
+              aria-label="Zoek een klas of leerling"
+            />
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Leerjaar">
+              <button type="button" className={chip(jaar === 0)} aria-pressed={jaar === 0} onClick={() => setJaar(0)}>
+                Alle ({store.klassen.length})
+              </button>
+              {jaren
+                .filter((j): j is number => j !== null)
+                .map((j) => (
+                  <button key={j} type="button" className={chip(jaar === j)} aria-pressed={jaar === j} onClick={() => setJaar(j)}>
+                    {j}e jaar
+                  </button>
+                ))}
+            </div>
+          </div>
 
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        <nav className="space-y-1">
-          {store.klassen.map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              onClick={() => setGekozen(k.id)}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium ${
-                k.id === gekozen ? 'bg-[var(--accent-soft)] text-[var(--accent-tekst)]' : 'hover:bg-slate-100'
-              }`}
-            >
-              <span>{k.naam || 'Naamloze klas'}</span>
-              <span className="text-xs text-slate-500">{k.leerlingen.length}</span>
-            </button>
-          ))}
-          {store.klassen.length === 0 && <p className="px-3 text-sm text-slate-500">Nog geen klassen.</p>}
-        </nav>
+          <div className="space-y-6">
+            {groepen.map((g) => (
+              <section key={g.jaar ?? 'x'}>
+                <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">{g.jaar ? `${g.jaar}e jaar` : 'Andere klassen'}</h2>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {g.klassen.map((k) => {
+                    const sp = spellen.get(k.naam);
+                    const namen = k.leerlingen.map((l) => l.naam);
+                    const voornamen = korteNamen(namen, naamVolgordeVan(namen, k.naamVolgorde));
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        aria-label={`${k.naam} ${k.leerlingen.length}`}
+                        onClick={() => setGekozen(k.id)}
+                        className="flex flex-col rounded-2xl border-2 border-slate-200 bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md"
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-2xl font-bold">{k.naam || 'Naamloze klas'}</span>
+                          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-sm font-semibold text-[var(--accent-tekst)]">
+                            👥 {k.leerlingen.length}
+                          </span>
+                        </div>
+                        <div className="mt-2 line-clamp-2 text-sm text-slate-600">
+                          {voornamen.length ? voornamen.slice(0, 12).join(', ') + (voornamen.length > 12 ? ', …' : '') : 'Nog geen leerlingen'}
+                        </div>
+                        <div className="mt-auto pt-3 text-xs text-slate-500">
+                          {sp ? `${sp.aantal} bewaarde ${sp.aantal === 1 ? 'spel' : 'spellen'} · laatst ${datumTekst(sp.laatst)}` : 'nog geen bewaarde spellen'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+            {groepen.length === 0 && <p className="text-slate-500">Geen klassen gevonden.</p>}
+          </div>
+        </>
+      )}
 
-        {klas ? (
-          <KlasEditor
-            key={klas.id}
-            klas={klas}
-            onChange={(f) => store.setKlassen((all) => all.map((k) => (k.id === klas.id ? f(k) : k)))}
-            onDelete={() => {
-              if (confirm(`Klas "${klas.naam}" verwijderen? Gespeelde resultaten blijven bewaard.`)) {
-                store.setKlassen((all) => all.filter((k) => k.id !== klas.id));
-                setGekozen(null);
-              }
-            }}
-          />
-        ) : (
-          <Notice>Maak een klas aan en plak de namen van je leerlingen.</Notice>
-        )}
+      <div className="mt-10">
+        <CloudKaart store={store} />
       </div>
-
-      <p className="mt-8 text-sm text-slate-500">
+      <p className="mt-4 text-sm text-slate-500">
         Zonder aanmelden blijven de namen enkel in deze browser (en in je back-upbestand). Aangemeld staan ze in je account in Supabase: enkel jij kan ze lezen.
       </p>
     </div>
   );
 }
 
-function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k: Klas) => Klas) => void; onDelete: () => void }) {
+function KlasEditor({
+  klas,
+  spellen,
+  onChange,
+  onDelete,
+}: {
+  klas: Klas;
+  spellen?: { aantal: number; laatst: string };
+  onChange: (f: (k: Klas) => Klas) => void;
+  onDelete: () => void;
+}) {
+  // Leerlingen toevoegen: open bij een lege klas, anders op vraag.
+  const [toevoegen, setToevoegen] = useState(klas.leerlingen.length === 0);
   const [plak, setPlak] = useState('');
   const [bestand, setBestand] = useState<{ naam: string; rijen: string[][] } | null>(null);
   const [fout, setFout] = useState<string | null>(null);
@@ -79,6 +179,7 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
     onChange((k) => ({ ...k, naamVolgorde: 'voornaam', leerlingen: sorteerOpNaam([...k.leerlingen, ...naarLeerlingen(namen)]) }));
     setPlak('');
     setBestand(null);
+    setToevoegen(false);
   }
 
   async function importeer(file: File) {
@@ -99,11 +200,17 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
   );
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
         <div className="w-60">
-          <label className={labelClass}>Naam van de klas</label>
-          <input className={inputClass} value={klas.naam} onChange={(e) => onChange((k) => ({ ...k, naam: e.target.value }))} />
+          <label className={labelClass} htmlFor="klasnaam">
+            Naam van de klas
+          </label>
+          <input id="klasnaam" className={`${inputClass} text-xl font-bold`} value={klas.naam} onChange={(e) => onChange((k) => ({ ...k, naam: e.target.value }))} />
+        </div>
+        <div className="pb-2 text-sm text-slate-500">
+          👥 {klas.leerlingen.length} leerlingen
+          {spellen && ` · ${spellen.aantal} bewaarde ${spellen.aantal === 1 ? 'spel' : 'spellen'}`}
         </div>
         {!klas.leerlingen.every((l) => isIngekort(l.naam)) && (
           <>
@@ -143,80 +250,101 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
         </Button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div>
-          {bestand ? (
-            <div className="flex items-center gap-3 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 text-sm">
-              <span className="text-2xl">📄</span>
-              <span>
-                <strong>{bestand.naam}</strong> · {bestand.rijen.length} rijen
-              </span>
-              <Button className="ml-auto" onClick={() => setBestand(null)}>
-                ✕
-              </Button>
-            </div>
-          ) : (
-            <>
-              <label className={labelClass} htmlFor="namen-plakken">
-                Namen plakken (bv. uit Excel, Smartschool of Word)
-              </label>
-              <textarea
-                id="namen-plakken"
-                className={`${inputClass} h-40`}
-                value={plak}
-                onChange={(e) => setPlak(e.target.value)}
-                placeholder={'Peeters Anna\nClaes Bert\n…\n\nTitels en klasnummers mogen mee: je kiest straks wie je toevoegt.'}
-              />
-            </>
+      <div className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold">Leerlingen ({klas.leerlingen.length})</h2>
+          {!toevoegen && (
+            <Button variant="primary" onClick={() => setToevoegen(true)}>
+              + Leerlingen toevoegen
+            </Button>
           )}
-          <div className="mt-2 flex flex-wrap gap-2">
-            <FileButton accept=".xlsx,.csv" onFile={importeer}>
-              Importeren uit Excel…
-            </FileButton>
-          </div>
-          {fout && (
-            <div className="mt-2">
-              <Notice tone="warn">{fout}</Notice>
-            </div>
-          )}
-          {rijen && (
-            <KlaslijstVoorbeeld
-              key={bestand?.naam ?? 'plak'}
-              rijen={rijen}
-              bestaand={klas.leerlingen.map((l) => l.naam)}
-              onToevoegen={voegToe}
-              onAnnuleren={() => {
-                setPlak('');
-                setBestand(null);
-              }}
-            />
+          {klas.leerlingen.length > 0 && (
+            <button
+              type="button"
+              className="ml-auto text-xs text-red-600 hover:underline"
+              onClick={() => confirm('Alle leerlingen uit deze klas verwijderen?') && onChange((k) => ({ ...k, leerlingen: [] }))}
+            >
+              alles wissen
+            </button>
           )}
         </div>
 
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <span className={labelClass}>Leerlingen ({klas.leerlingen.length})</span>
-            {klas.leerlingen.length > 0 && (
-              <button
-                type="button"
-                className="text-xs text-red-600 hover:underline"
-                onClick={() => confirm('Alle leerlingen uit deze klas verwijderen?') && onChange((k) => ({ ...k, leerlingen: [] }))}
-              >
-                alles wissen
-              </button>
+        {toevoegen && (
+          <div className="mb-5 rounded-xl border-2 border-dashed border-[var(--accent)] bg-[var(--accent-soft)]/40 p-4">
+            {bestand ? (
+              <div className="flex items-center gap-3 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 text-sm">
+                <span className="text-2xl">📄</span>
+                <span>
+                  <strong>{bestand.naam}</strong> · {bestand.rijen.length} rijen
+                </span>
+                <Button className="ml-auto" onClick={() => setBestand(null)}>
+                  ✕
+                </Button>
+              </div>
+            ) : (
+              <>
+                <label className={labelClass} htmlFor="namen-plakken">
+                  Namen plakken (bv. uit Excel, Smartschool of Word)
+                </label>
+                <textarea
+                  id="namen-plakken"
+                  className={`${inputClass} h-40`}
+                  value={plak}
+                  onChange={(e) => setPlak(e.target.value)}
+                  placeholder={'Peeters Anna\nClaes Bert\n…\n\nTitels en klasnummers mogen mee: je kiest straks wie je toevoegt.'}
+                />
+              </>
+            )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <FileButton accept=".xlsx,.csv" onFile={importeer}>
+                Importeren uit Excel…
+              </FileButton>
+              {klas.leerlingen.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setToevoegen(false);
+                    setPlak('');
+                    setBestand(null);
+                  }}
+                >
+                  Annuleren
+                </Button>
+              )}
+            </div>
+            {fout && (
+              <div className="mt-2">
+                <Notice tone="warn">{fout}</Notice>
+              </div>
+            )}
+            {rijen && (
+              <KlaslijstVoorbeeld
+                key={bestand?.naam ?? 'plak'}
+                rijen={rijen}
+                bestaand={klas.leerlingen.map((l) => l.naam)}
+                onToevoegen={voegToe}
+                onAnnuleren={() => {
+                  setPlak('');
+                  setBestand(null);
+                }}
+              />
             )}
           </div>
-          <ul className="max-h-96 space-y-1 overflow-y-auto pr-1">
-            {klas.leerlingen.map((l) => (
-              <li key={l.id} className="flex items-center gap-2">
+        )}
+
+        {klas.leerlingen.length > 0 ? (
+          <ol className="grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+            {klas.leerlingen.map((l, i) => (
+              <li key={l.id} className="group flex items-center gap-2 rounded-lg px-1 hover:bg-slate-50">
+                <span className="w-6 shrink-0 text-right text-xs text-slate-400">{i + 1}</span>
                 <input
-                  className={`${inputClass} py-1`}
+                  className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 hover:border-slate-200 focus:border-[var(--accent)] focus:bg-surface focus:outline-none"
                   value={l.naam}
+                  aria-label={`Naam van leerling ${i + 1}`}
                   onChange={(e) => onChange((k) => ({ ...k, leerlingen: k.leerlingen.map((x) => (x.id === l.id ? { ...x, naam: e.target.value } : x)) }))}
                 />
                 <button
                   type="button"
-                  className="rounded px-2 py-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  className="rounded px-2 py-1 text-slate-300 group-hover:text-slate-400 hover:bg-red-50 hover:!text-red-600"
                   aria-label={`${l.naam} verwijderen`}
                   onClick={() => onChange((k) => ({ ...k, leerlingen: k.leerlingen.filter((x) => x.id !== l.id) }))}
                 >
@@ -224,8 +352,10 @@ function KlasEditor({ klas, onChange, onDelete }: { klas: Klas; onChange: (f: (k
                 </button>
               </li>
             ))}
-          </ul>
-        </div>
+          </ol>
+        ) : (
+          !toevoegen && <p className="text-slate-500">Nog geen leerlingen.</p>
+        )}
       </div>
     </div>
   );

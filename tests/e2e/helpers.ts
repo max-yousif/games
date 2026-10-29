@@ -4,10 +4,13 @@ import { expect, type Page } from '@playwright/test';
 export async function maakKlas(page: Page, naam: string, leerlingen: string[]) {
   await page.goto('#/klassen');
   await page.getByRole('button', { name: '+ Nieuwe klas' }).click();
-  await page.locator('input[value^="Klas "]').fill(naam);
+  await page.getByLabel('Naam van de klas').fill(naam);
   await page.getByPlaceholder(/Peeters Anna/).fill(leerlingen.join('\n'));
   await page.getByRole('button', { name: `✓ ${leerlingen.length} leerlingen toevoegen` }).click();
-  await expect(page.getByRole('button', { name: new RegExp(`${naam}\\s*${leerlingen.length}`) })).toBeVisible();
+  await expect(page.getByRole('heading', { name: `Leerlingen (${leerlingen.length})` })).toBeVisible();
+  // Terug naar het overzicht: de klas staat er met het aantal leerlingen.
+  await page.getByRole('button', { name: '← Alle klassen' }).click();
+  await expect(page.getByRole('button', { name: `${naam} ${leerlingen.length}` })).toBeVisible();
 }
 
 /** Kiest een speltype op de pagina Spelen (met de eerste klas) en zet de demo-modus aan voor live spellen. */

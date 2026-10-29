@@ -13,3 +13,14 @@ describe('leerjaar herkennen', () => {
     expect(jarenVan('algemeen')).toEqual([]);
   });
 });
+
+describe('leerjaar van een klas', () => {
+  it('uit de klasnaam', async () => {
+    const { jaarVanKlas } = await import('../src/pages/KlassenPage');
+    expect(jaarVanKlas('3A')).toBe(3);
+    expect(jaarVanKlas('5 WeWi')).toBe(5);
+    expect(jaarVanKlas('6HW')).toBe(6);
+    expect(jaarVanKlas('Klas 1')).toBeNull();
+    expect(jaarVanKlas('12B')).toBeNull();
+  });
+});
