@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { KAART_SOORTEN, kaartenUitVragen, lijstUitTekst, metOpgaven, opgaveVan, SOORT_NAMEN, themaProblemen, type KaartSoort } from '../live/cluedo';
-import { keuzeOpties } from '../lib/vraagtypes';
-import { RichText } from './RichText';
-import type { CluedoThema, Vraag } from '../lib/types';
+import { KAART_SOORTEN, kaartenUitVragen, nodigeVragen, SOORT_NAMEN, themaProblemen, type KaartSoort } from '../live/cluedo';
+import type { CluedoOplossing, CluedoThema, Vraag } from '../lib/types';
 import { inputClass, labelClass, Notice } from './ui';
 
+const OPLOSSING_VELD: Record<KaartSoort, keyof CluedoOplossing> = { verdachten: 'verdachte', locaties: 'locatie', wapens: 'wapen' };
+const ENKELVOUD: Record<KaartSoort, string> = { verdachten: 'verdachte', locaties: 'locatie', wapens: 'wapen' };
+
 /**
- * Verdachten, locaties en wapens van een Cluedo-spel: één naam per regel. Geef een andere `key` om
- * de tekstvakken opnieuw te vullen (bv. na "standaardthema").
+ * De kaarten van een Cluedo-spel: per soort de namen, en welke de oplossing is (anders kiest de
+ * laptop). Met "elke kaart een vraag" krijgt bij de start elke kaart behalve de oplossing een eigen
+ * vraag uit de set.
  */
 export function CluedoThemaEditor({
   thema,
@@ -21,150 +22,127 @@ export function CluedoThemaEditor({
   setTitel?: string;
   onChange: (t: CluedoThema) => void;
 }) {
-  // De tekst zelf bijhouden: anders verdwijnt een lege regel terwijl je typt.
-  const [tekst, setTekst] = useState(() => Object.fromEntries(KAART_SOORTEN.map((s) => [s, thema[s].join('\n')])) as Record<(typeof KAART_SOORTEN)[number], string>);
   const problemen = themaProblemen(thema);
-  // Kaarten uit de vragenset: in de uitleg van een vraag staat "Wie? Naam", "Hoe? ..." of "Waar? ...".
+  const metVragen = !!thema.metVragen;
+  // Namen uit de vragenset: in de uitleg van een vraag staat "Wie? Naam", "Hoe? ..." of "Waar? ...".
   const uitSet = kaartenUitVragen(setTitel || thema.titel, vragen);
-  const foutAntwoorden = [...new Set(vragen.flatMap((v) => keuzeOpties(v).filter((_, i) => i !== v.juisteOptie && v.type === 'meerkeuze')).map((o) => o.replace(/\$/g, '').trim()))];
-  const [perKaart, setPerKaart] = useState(() => metOpgaven(thema));
-  /** Opgaven per kaart: de lijsten even lang als de namen. */
-  const opgaven = Object.fromEntries(KAART_SOORTEN.map((s) => [s, thema[s].map((_, i) => opgaveVan(thema, s, i))])) as NonNullable<CluedoThema['opgaven']>;
-  const zetKaart = (s: KaartSoort, i: number, veld: 'naam' | 'opgave' | 'uitkomst', waarde: string) =>
-    onChange(
-      veld === 'naam'
-        ? { ...thema, [s]: thema[s].map((n, j) => (j === i ? waarde : n)), opgaven }
-        : { ...thema, opgaven: { ...opgaven, [s]: opgaven[s].map((o, j) => (j === i ? { ...o, [veld]: waarde } : o)) } },
-    );
+  const nodig = nodigeVragen(thema);
+  const oplossingVan = (s: KaartSoort) => thema.oplossing?.[OPLOSSING_VELD[s]];
+  /** Nieuwe namen voor een soort; de aanduiding als oplossing volgt de naam. */
+  const zet = (s: KaartSoort, namen: string[], hernoemd?: [string, string]) => {
+    const opl = oplossingVan(s);
+    const nieuweOpl = hernoemd && opl === hernoemd[0] ? hernoemd[1] : opl && namen.includes(opl) ? opl : undefined;
+    onChange({ ...thema, [s]: namen, oplossing: { ...thema.oplossing, [OPLOSSING_VELD[s]]: nieuweOpl } });
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="max-w-md">
-        <label className={labelClass} htmlFor="cluedo-titel">
-          Titel van de zaak
-        </label>
-        <input id="cluedo-titel" className={inputClass} value={thema.titel} onChange={(e) => onChange({ ...thema, titel: e.target.value })} />
-      </div>
-      {uitSet && (
-        <button
-          type="button"
-          className="rounded-lg border border-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]"
-          onClick={() => {
-            setPerKaart(true);
-            onChange(uitSet);
-          }}
-        >
-          📥 Kaarten maken uit de vragenset ({KAART_SOORTEN.map((s) => uitSet[s].length - 1).reduce((a, b) => a + b, 0)} vragen met “Wie?/Hoe?/Waar?” in de uitleg)
-        </button>
-      )}
-      <datalist id="cluedo-fout-antwoorden">
-        {foutAntwoorden.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={perKaart}
-          onChange={(e) => {
-            setPerKaart(e.target.checked);
-            onChange(e.target.checked ? { ...thema, opgaven } : { ...thema, opgaven: undefined });
-          }}
-        />
-        Met een eigen opgave per kaart (bv. integralen): wie de uitkomst vindt, streept die kaart weg
-      </label>
-      {perKaart ? (
-        <div className="space-y-5">
-          {KAART_SOORTEN.map((s) => (
-            <div key={s}>
-              <div className="mb-1 flex items-center gap-3">
-                <h4 className="font-semibold">
-                  {SOORT_NAMEN[s].icoon} {SOORT_NAMEN[s].titel} ({thema[s].length})
-                </h4>
-                <button
-                  type="button"
-                  className="text-sm text-[var(--accent-tekst)] underline"
-                  onClick={() => onChange({ ...thema, [s]: [...thema[s], ''], opgaven: { ...opgaven, [s]: [...opgaven[s], { opgave: '', uitkomst: '' }] } })}
-                >
-                  + kaart
-                </button>
-              </div>
-              <div className="space-y-2">
-                {thema[s].map((naam, i) => {
-                  const op = opgaven[s][i];
-                  return (
-                    <div key={i} data-kaart className="grid items-start gap-2 rounded-xl border border-slate-200 p-2 lg:grid-cols-[12rem_1fr_1fr_auto]">
-                      <input className={inputClass} aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: naam`} placeholder="Naam" value={naam} onChange={(e) => zetKaart(s, i, 'naam', e.target.value)} />
-                      {op.vraagId ? (
-                        <div className="text-sm">
-                          <span className="text-xs font-semibold text-slate-500">Vraag uit de set:</span>
-                          <RichText text={vragen.find((v) => v.id === op.vraagId)?.tekst ?? '(vraag niet meer in de set)'} className="mt-1" />
-                        </div>
-                      ) : (
-                      <div>
-                        <input
-                          className={`${inputClass} font-mono text-sm`}
-                          aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: opgave`}
-                          placeholder="Opgave, bv. $\int \frac{1}{x \ln x}\,dx$ (leeg = de oplossing)"
-                          value={op.opgave}
-                          onChange={(e) => zetKaart(s, i, 'opgave', e.target.value)}
-                        />
-                        {op.opgave.trim() ? <RichText text={op.opgave} className="mt-1 text-sm" /> : <span className="mt-1 inline-block rounded bg-amber-100 px-2 text-xs font-semibold text-amber-800">geen opgave: de oplossing</span>}
-                      </div>
-                      )}
-                      <div>
-                        <input
-                          className={`${inputClass} font-mono text-sm`}
-                          aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: uitkomst`}
-                          placeholder={op.vraagId ? 'Uitkomst (het juiste antwoord)' : 'Uitkomst in LaTeX, bv. \\ln|\\ln x|+C'}
-                          list="cluedo-fout-antwoorden"
-                          value={op.uitkomst}
-                          onChange={(e) => zetKaart(s, i, 'uitkomst', e.target.value)}
-                        />
-                        {op.uitkomst.trim() && <RichText text={`$${op.uitkomst}$`} className="mt-1 text-sm" />}
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded px-2 py-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                        aria-label={`${SOORT_NAMEN[s].titel} ${i + 1} verwijderen`}
-                        onClick={() => onChange({ ...thema, [s]: thema[s].filter((_, j) => j !== i), opgaven: { ...opgaven, [s]: opgaven[s].filter((_, j) => j !== i) } })}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          <p className="text-sm text-slate-500">
-            Elke gelijkwaardige uitkomst is juist (de constante mag verschillen). Een kaart zonder opgave is de oplossing; heeft elke kaart een opgave, dan kiest de laptop bij elk spel
-            zelf een oplossing.
-          </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="max-w-md flex-1">
+          <label className={labelClass} htmlFor="cluedo-titel">
+            Titel van de zaak
+          </label>
+          <input id="cluedo-titel" className={inputClass} value={thema.titel} onChange={(e) => onChange({ ...thema, titel: e.target.value })} />
         </div>
-      ) : (
-      <div className="grid gap-3 sm:grid-cols-3">
+        {uitSet && (
+          <button
+            type="button"
+            className="rounded-lg border border-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]"
+            onClick={() =>
+              onChange({ ...thema, titel: uitSet.titel, verdachten: uitSet.verdachten.filter(Boolean), locaties: uitSet.locaties.filter(Boolean), wapens: uitSet.wapens.filter(Boolean), metVragen: true, opgaven: undefined })
+            }
+          >
+            📥 Namen uit de vragenset (uitleg “Wie?/Hoe?/Waar? …”)
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
         {KAART_SOORTEN.map((s) => (
           <div key={s}>
-            <label className={labelClass} htmlFor={`cluedo-${s}`}>
+            <div className="mb-1 font-semibold">
               {SOORT_NAMEN[s].icoon} {SOORT_NAMEN[s].titel} ({thema[s].length})
-            </label>
-            <textarea
-              id={`cluedo-${s}`}
-              className={`${inputClass} h-48 font-normal`}
-              value={tekst[s]}
-              onChange={(e) => {
-                setTekst((t) => ({ ...t, [s]: e.target.value }));
-                onChange({ ...thema, [s]: lijstUitTekst(e.target.value) });
-              }}
-            />
+            </div>
+            <div className="space-y-1.5">
+              {thema[s].map((naam, i) => {
+                const isOplossing = !!naam && oplossingVan(s) === naam;
+                return (
+                  <div key={i} data-kaart className={`flex items-center gap-1.5 rounded-lg p-0.5 ${isOplossing ? 'bg-amber-100 ring-2 ring-amber-400' : ''}`}>
+                    <input
+                      type="radio"
+                      name={`oplossing-${s}`}
+                      className="ml-1"
+                      checked={isOplossing}
+                      disabled={!naam.trim()}
+                      title="Dit is de oplossing"
+                      aria-label={`${naam || `${SOORT_NAMEN[s].titel} ${i + 1}`} is de oplossing`}
+                      onChange={() => onChange({ ...thema, oplossing: { ...thema.oplossing, [OPLOSSING_VELD[s]]: naam } })}
+                    />
+                    <input
+                      className={`${inputClass} py-1.5`}
+                      aria-label={`${SOORT_NAMEN[s].titel} ${i + 1}: naam`}
+                      placeholder="Naam"
+                      value={naam}
+                      onChange={(e) =>
+                        zet(
+                          s,
+                          thema[s].map((n, j) => (j === i ? e.target.value : n)),
+                          [naam, e.target.value],
+                        )
+                      }
+                      onPaste={(e) => {
+                        // Een lijst plakken (bv. uit Excel): elke regel een kaart.
+                        const regels = e.clipboardData
+                          .getData('text')
+                          .split(/\r?\n/)
+                          .map((x) => x.trim())
+                          .filter(Boolean);
+                        if (regels.length < 2) return;
+                        e.preventDefault();
+                        zet(s, [...thema[s].slice(0, i), ...regels, ...thema[s].slice(i + 1)]);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="rounded px-2 py-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label={`${naam || `${SOORT_NAMEN[s].titel} ${i + 1}`} verwijderen`}
+                      onClick={() =>
+                        zet(
+                          s,
+                          thema[s].filter((_, j) => j !== i),
+                        )
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button type="button" className="mt-1.5 text-sm text-[var(--accent-tekst)] underline" onClick={() => zet(s, [...thema[s], ''])}>
+              + {ENKELVOUD[s]}
+            </button>
+            {oplossingVan(s) && (
+              <button type="button" className="mt-1.5 ml-3 text-sm text-slate-500 underline" onClick={() => zet(s, thema[s], [oplossingVan(s)!, ''])}>
+                laptop kiest de oplossing
+              </button>
+            )}
           </div>
         ))}
       </div>
-      )}
-      {!perKaart && <p className="text-sm text-slate-500">
-        Eén naam per regel, 2 tot 12 per kolom. Elk juist antwoord streept één kaart weg: met {thema.verdachten.length + thema.locaties.length + thema.wapens.length} kaarten zijn er{' '}
-        {Math.max(0, thema.verdachten.length + thema.locaties.length + thema.wapens.length - 3)} juiste antwoorden nodig om alles weg te strepen.
-      </p>}
+      <p className="text-sm text-slate-500">Duid per soort de oplossing aan met het rondje; zonder aanduiding kiest de laptop bij elk spel zelf. Je kan ook een lijst plakken.</p>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-0.5" checked={metVragen} onChange={(e) => onChange({ ...thema, metVragen: e.target.checked || undefined, opgaven: undefined })} />
+        <span>
+          Elke kaart krijgt een eigen vraag uit de set (behalve de oplossing): het juiste antwoord streept die kaart weg, een fout antwoord stil een andere.
+          {metVragen && (
+            <span className={`block ${vragen.length >= nodig ? 'text-slate-500' : 'font-semibold text-red-600'}`}>
+              Nodig: {nodig} vragen, de set heeft er {vragen.length}. Een vraag met “Wie? Naam” in de uitleg hoort bij die kaart; de andere worden willekeurig verdeeld.
+            </span>
+          )}
+        </span>
+      </label>
       {problemen.length > 0 && <Notice tone="warn">{problemen.join(' ')}</Notice>}
     </div>
   );

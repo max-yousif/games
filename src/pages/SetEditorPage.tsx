@@ -12,7 +12,7 @@ import { VakKeuze } from '../components/VakKeuze';
 import { JaarKeuze } from '../components/JaarKeuze';
 import { jaarTekst, jarenVanSet } from './SetsPage';
 import { nieuwRaadsel } from '../live/whodunit';
-import { kaartenUitVragen, STANDAARD_THEMA } from '../live/cluedo';
+import { kaartenUitVragen, moderniseer, STANDAARD_THEMA } from '../live/cluedo';
 import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vraag, VraagType, Vragenset } from '../lib/types';
@@ -153,7 +153,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
             </button>
           </div>
           <div className="mt-4">
-            <CluedoThemaEditor thema={set.cluedo} vragen={set.vragen} setTitel={set.titel} onChange={(cluedo) => update((s) => ({ ...s, cluedo }))} />
+            <CluedoThemaEditor thema={moderniseer(set.cluedo)} vragen={set.vragen} setTitel={set.titel} onChange={(cluedo) => update((s) => ({ ...s, cluedo }))} />
           </div>
         </section>
       )}
@@ -169,7 +169,16 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           <Button
             variant="ghost"
             className="text-slate-500"
-            onClick={() => update((s) => ({ ...s, cluedo: kaartenUitVragen(s.titel, s.vragen) ?? { ...STANDAARD_THEMA, titel: s.titel || STANDAARD_THEMA.titel } }))}
+            onClick={() =>
+              update((s) => {
+                // Staan de kaarten in de uitleg van de vragen ("Wie? Naam"): die namen, met een vraag per kaart.
+                const uit = kaartenUitVragen(s.titel, s.vragen);
+                const cluedo = uit
+                  ? { titel: uit.titel, verdachten: uit.verdachten.filter(Boolean), locaties: uit.locaties.filter(Boolean), wapens: uit.wapens.filter(Boolean), metVragen: true }
+                  : { ...STANDAARD_THEMA, titel: s.titel || STANDAARD_THEMA.titel };
+                return { ...s, cluedo };
+              })
+            }
           >
             + Cluedo-kaarten
           </Button>

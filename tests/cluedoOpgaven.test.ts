@@ -4,7 +4,9 @@ import {
   cluedoBeoordelingen,
   cluedoToestand,
   kaartVanOpgave,
+  koppelVragen,
   metOpgaven,
+  moderniseer,
   opgaveVragen,
   publiekThema,
   themaProblemen,
@@ -123,5 +125,49 @@ describe('cluedo met meerkeuzevragen uit de set', () => {
     expect(p.weg.map((k) => k.naam)).toContain('Ann');
     expect(p.weg.map((k) => k.naam)).not.toContain('Bob');
     expect(p.juist).toBe(3);
+  });
+});
+
+describe('cluedo: kaarten en oplossing aanduiden, vragen automatisch koppelen', () => {
+  const vr = (id: string, uitleg = '') => ({ id, categorie: '', punten: 100, type: 'meerkeuze' as const, tekst: id, antwoord: '', opties: [`juist ${id}`, `fout ${id}`], juisteOptie: 0, uitleg });
+  const t: CluedoThema = { titel: 'K', verdachten: ['Ann', 'Bob', 'Cas'], locaties: ['Keuken', 'Tuin'], wapens: ['Mes', 'Touw'], metVragen: true, oplossing: { verdachte: 'Bob', locatie: 'Tuin', wapen: 'Touw' } };
+
+  it('de aangeduide oplossing; elke andere kaart een vraag (uitleg eerst, de rest willekeurig)', () => {
+    const vragen = [vr('a'), vr('b', 'Waar? keuken'), vr('c'), vr('d'), vr('e')];
+    const k = koppelVragen(t, vragen, () => 0);
+    if ('fout' in k) throw new Error(k.fout);
+    expect(k.oplossing.verdachte).toBe('Bob');
+    expect(k.oplossing.wapen).toBe('Touw');
+    const opgaven = opgaveVragen(k.thema, k.oplossing, vragen);
+    // 7 kaarten - 3 = 4 vragen, elk bij een andere kaart; de Keuken-vraag bij de Keuken.
+    expect(opgaven).toHaveLength(4);
+    const kaarten = opgaven.map((v) => kaartVanOpgave(k.thema, v.id)!.naam);
+    expect(new Set(kaarten).size).toBe(4);
+    expect(kaarten).not.toContain('Bob');
+    expect(opgaven[kaarten.indexOf('Keuken')].tekst).toBe('b');
+    expect(publiekThema(k.thema).uitkomsten).toBeUndefined();
+  });
+
+  it('te weinig vragen: een duidelijke melding', () => {
+    const k = koppelVragen(t, [vr('a')]);
+    expect('fout' in k && k.fout).toMatch(/4 vragen, de set heeft er 1/);
+  });
+
+  it('kaarten van vroeger (vraag per kaart) worden omgezet: de kaart zonder vraag is de aangeduide oplossing', () => {
+    const oud: CluedoThema = {
+      titel: 'Oud',
+      verdachten: ['Ann', 'Bob'],
+      locaties: ['Keuken', 'Tuin'],
+      wapens: ['Mes', 'Touw'],
+      opgaven: {
+        verdachten: [{ opgave: '', uitkomst: 'x', vraagId: 'q1' }, { opgave: '', uitkomst: '' }],
+        locaties: [{ opgave: '', uitkomst: '' }, { opgave: '', uitkomst: 'y', vraagId: 'q2' }],
+        wapens: [{ opgave: '', uitkomst: 'z', vraagId: 'q3' }, { opgave: '', uitkomst: '' }],
+      },
+    };
+    const n = moderniseer(oud);
+    expect(n.metVragen).toBe(true);
+    expect(n.opgaven).toBeUndefined();
+    expect(n.oplossing).toEqual({ verdachte: 'Bob', locatie: 'Keuken', wapen: 'Touw' });
   });
 });

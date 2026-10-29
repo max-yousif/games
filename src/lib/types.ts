@@ -110,6 +110,13 @@ export interface CluedoThema {
   uitkomsten?: Record<'verdachten' | 'locaties' | 'wapens', string[]>;
   /** Enkel op de server: met opgaven per kaart (de leerling kiest zelf een opgave). */
   metOpgaven?: boolean;
+  /** De oplossing, door de leerkracht aangeduid (per soort; wat ontbreekt, kiest de laptop). */
+  oplossing?: Partial<CluedoOplossing>;
+  /**
+   * Elke kaart (behalve de oplossing) krijgt bij de start een eigen vraag uit de set: een vraag met
+   * "Wie? Naam" in de uitleg die kaart, de andere willekeurig.
+   */
+  metVragen?: boolean;
 }
 
 export interface KaartOpgave {

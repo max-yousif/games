@@ -9,9 +9,6 @@ test('cluedo met opgaven per kaart: een gelijkwaardige uitkomst streept die kaar
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/cluedo-integralen.json');
   await kiesSpel(page, 'Integralen Cluedo (test)', 'Cluedo');
-  // De editor toont per kaart de opgave en de uitkomst; kaarten zonder opgave zijn de oplossing.
-  await expect(page.getByLabel('Met een eigen opgave per kaart', { exact: false })).toBeChecked();
-  await expect(page.getByText('geen opgave: de oplossing')).toHaveCount(3);
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-editor.png'), fullPage: true });
   const code = await startLive(page);
   const anna = await leerling(page, code, 'Anna');

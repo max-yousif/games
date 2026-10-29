@@ -56,7 +56,9 @@ export function CluedoSpeler({
     }
   }
 
-  const blad = <Detectiveblad thema={thema} weg={p.weg} />;
+  // Bij elke leerling staan de kaarten in een andere volgorde: afkijken bij de buur helpt niet.
+  const mijnThema = geschud(thema, spelerId ?? '');
+  const blad = <Detectiveblad thema={mijnThema} weg={p.weg} />;
   // Cluedo met opgaven per kaart: de leerling kiest zelf welke opgave (geen vragen na elkaar).
   const metOpgaven = !!thema.metOpgaven || !!thema.uitkomsten;
 
@@ -120,7 +122,7 @@ export function CluedoSpeler({
       </Kaart>
     );
   } else if (beschuldigen) {
-    inhoud = <BeschuldigFormulier thema={thema} weg={p.weg} bezig={bezig} strafSeconden={strafMsVan(sessie.wachttijd) / 1000} onAnnuleer={() => setBeschuldigen(false)} onBeschuldig={(x) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'beschuldig', ...x })).then(() => setBeschuldigen(false))} />;
+    inhoud = <BeschuldigFormulier thema={mijnThema} weg={p.weg} bezig={bezig} strafSeconden={strafMsVan(sessie.wachttijd) / 1000} onAnnuleer={() => setBeschuldigen(false)} onBeschuldig={(x) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'beschuldig', ...x })).then(() => setBeschuldigen(false))} />;
   } else if (metOpgaven) {
     inhoud = <Opgaven vragen={vragen} eigen={eigen} spelerId={spelerId ?? ''} onVerstuur={(nr, antwoord) => stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'opgave', nr, antwoord }))} />;
   } else if (nieuweKaart !== undefined && laatsteVraag) {
@@ -192,11 +194,51 @@ function Kaart({ titel, children }: { titel: string; children: ReactNode }) {
 }
 
 /** Het detectiveblad: alle kaarten, de weggestreepte doorstreept (de laatste even gemarkeerd). */
-function Detectiveblad({ thema, weg }: { thema: NonNullable<LiveSessie['cluedo']>; weg: Kaart[] }) {
+type Thema = NonNullable<LiveSessie['cluedo']>;
+
+/** Het thema met de kaarten (en hun uitkomsten) in een vaste, eigen volgorde per leerling. */
+function geschud(thema: Thema, spelerId: string): Thema {
+  const uit: Thema = { ...thema };
+  const uitkomsten = thema.uitkomsten ? { ...thema.uitkomsten } : undefined;
+  for (const soort of KAART_SOORTEN) {
+    const volgorde = vastGeschud(
+      thema[soort].map((_, i) => i),
+      `${spelerId}:${soort}`,
+    );
+    uit[soort] = volgorde.map((i) => thema[soort][i]);
+    if (uitkomsten) uitkomsten[soort] = volgorde.map((i) => thema.uitkomsten![soort][i] ?? '');
+  }
+  return { ...uit, uitkomsten };
+}
+
+const BEDEKT = 'games.v1.cluedo-bedekt';
+
+function Detectiveblad({ thema, weg }: { thema: Thema; weg: Kaart[] }) {
   const laatste = weg.at(-1);
+  // Bedekken tegen spieken: dan zie je een kaart enkel als je erop wijst (onthouden op deze laptop).
+  const [bedekt, setBedekt] = useState(() => {
+    try {
+      return localStorage.getItem(BEDEKT) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const wissel = () => {
+    setBedekt(!bedekt);
+    try {
+      localStorage.setItem(BEDEKT, bedekt ? '0' : '1');
+    } catch {
+      // Niet kunnen onthouden is geen probleem.
+    }
+  };
   return (
-    <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-slate-900 shadow-sm" aria-label="Detectiveblad">
-      <div className="mb-2 text-sm font-semibold tracking-wide text-amber-800 uppercase">Detectiveblad</div>
+    <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-slate-900 shadow-sm" aria-label="Detectiveblad" data-bedekt={bedekt || undefined}>
+      <div className="mb-2 flex items-center gap-3">
+        <span className="text-sm font-semibold tracking-wide text-amber-800 uppercase">Detectiveblad</span>
+        <button type="button" onClick={wissel} className="ml-auto rounded-lg px-2 py-0.5 text-sm text-amber-900 hover:bg-amber-100">
+          {bedekt ? '👁 Tonen' : '🙈 Bedekken'}
+        </button>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         {KAART_SOORTEN.map((soort) => {
           const over = thema[soort].filter((naam) => !weg.some((k) => zelfde(k, { soort, naam })));
@@ -211,7 +253,11 @@ function Detectiveblad({ thema, weg }: { thema: NonNullable<LiveSessie['cluedo']
                   const isWeg = weg.some((k) => zelfde(k, { soort, naam }));
                   const nieuw = laatste && zelfde(laatste, { soort, naam });
                   return (
-                    <li key={naam} className={`rounded px-1 ${isWeg ? 'text-slate-400 line-through' : 'font-medium'} ${nieuw ? 'pop bg-amber-200' : ''}`} data-weg={isWeg || undefined}>
+                    <li
+                      key={naam}
+                      className={`rounded px-1 transition ${isWeg ? 'text-slate-400 line-through' : 'font-medium'} ${nieuw ? 'pop bg-amber-200' : ''} ${bedekt ? 'blur-sm select-none hover:blur-none' : ''}`}
+                      data-weg={isWeg || undefined}
+                    >
                       {isWeg ? '✗ ' : '◻ '}
                       {naam}
                       {thema.uitkomsten && (
@@ -237,7 +283,7 @@ function BeschuldigFormulier({
   onAnnuleer,
   onBeschuldig,
 }: {
-  thema: NonNullable<LiveSessie['cluedo']>;
+  thema: Thema;
   weg: Kaart[];
   bezig: boolean;
   strafSeconden: number;

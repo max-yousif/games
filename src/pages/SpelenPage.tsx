@@ -3,7 +3,7 @@ import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
-import { metOpgaven, opgaveVragen, publiekThema, STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
+import { koppelVragen, metOpgaven, moderniseer, nodigeVragen, opgaveVragen, publiekThema, STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
 import { KLEURPLATEN, STANDAARD_SECONDEN, TEKENTIJDEN, type TerritoriumModus } from '../live/territorium';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
@@ -101,15 +101,21 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
   const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
   // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
-  const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA);
+  const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => moderniseer(store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA));
   const [cluedoSleutel, setCluedoSleutel] = useState(0);
   // Het Cluedo-thema open bij een set met een eigen thema; daarna beslist de leerkracht (niet vanzelf dichtklappen).
   const [themaOpen, setThemaOpen] = useState(() => Boolean(store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo));
   const laadCluedo = (t: CluedoThema) => {
-    setCluedoThema(t);
+    setCluedoThema(moderniseer(t));
     setCluedoSleutel((k) => k + 1);
   };
-  const cluedoFouten = spel === 'cluedo' ? themaProblemen(cluedoThema) : [];
+  const cluedoFouten =
+    spel === 'cluedo'
+      ? [
+          ...themaProblemen(cluedoThema),
+          ...(cluedoThema.metVragen && vragen.length < nodigeVragen(cluedoThema) ? [`Elke kaart behalve de oplossing heeft een vraag nodig: ${nodigeVragen(cluedoThema)} vragen, er zijn er ${vragen.length} gekozen.`] : []),
+        ]
+      : [];
   const [hacken, setHacken] = useState(true);
   const [tekenSeconden, setTekenSeconden] = useState(STANDAARD_SECONDEN);
   const [territoriumModus, setTerritoriumModus] = useState<TerritoriumModus>('strijd');
@@ -193,11 +199,18 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const territorium = spel === 'territorium';
       const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
-      // Cluedo met opgaven per kaart: de oplossing nu al trekken; de opgaven (zonder de oplossing) zijn de vragen.
-      const cluedoOplossing = cluedo ? trekOplossing(cluedoThema) : undefined;
-      const metKaartOpgaven = cluedo && metOpgaven(cluedoThema);
+      // Cluedo: de oplossing nu al trekken. Met een vraag per kaart krijgt nu elke kaart (behalve de
+      // oplossing) een vraag uit de gekozen vragen; die opgaven zijn de vragen van het spel.
+      const koppeling = cluedo && cluedoThema.metVragen ? koppelVragen(cluedoThema, vragen) : null;
+      if (koppeling && 'fout' in koppeling) {
+        setFout(koppeling.fout);
+        return;
+      }
+      const spelThema = koppeling ? koppeling.thema : cluedoThema;
+      const cluedoOplossing = cluedo ? (koppeling ? koppeling.oplossing : trekOplossing(cluedoThema)) : undefined;
+      const metKaartOpgaven = cluedo && metOpgaven(spelThema);
       const gekozen = metKaartOpgaven
-        ? shuffle(opgaveVragen(cluedoThema, cluedoOplossing!, set.vragen))
+        ? shuffle(opgaveVragen(spelThema, cluedoOplossing!, set.vragen))
         : spel === 'escape'
           ? aantalSloten > 0 && aantalSloten < escapeVragen.length
             ? shuffle(escapeVragen).slice(0, aantalSloten)
@@ -219,7 +232,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         wachttijd: spel === 'escape' || spel === 'cluedo' ? strafTijd : escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
-        cluedo: cluedo ? publiekThema(cluedoThema) : undefined,
+        cluedo: cluedo ? publiekThema(spelThema) : undefined,
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
       });
       const basis = nieuweSessie({
@@ -235,7 +248,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         ...basis,
         ...(whodunit && set.raadsel ? { raadsel: set.raadsel } : {}),
         // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
-        ...(cluedo ? { cluedo: { thema: cluedoThema, oplossing: cluedoOplossing! } } : {}),
+        ...(cluedo ? { cluedo: { thema: spelThema, oplossing: cluedoOplossing! } } : {}),
         vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
@@ -485,7 +498,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <strong>
                 {spelInfo?.icoon} {spelInfo?.naam}
               </strong>{' '}
-              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set.vragen).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && cluedoThema.metVragen ? `${nodigeVragen(cluedoThema)} opgaven` : spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set.vragen).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
             </div>
             <div className="flex flex-col items-end gap-1">
               <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
@@ -650,12 +663,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </div>
             ) : spel === 'cluedo' ? (
               <>
-                {metOpgaven(cluedoThema) && (
+                {(metOpgaven(cluedoThema) || cluedoThema.metVragen) && (
                   <p className="text-slate-600">
                     Elke opgave hoort bij één kaart: wie de juiste uitkomst vindt, streept die kaart weg. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = straftijd.
                   </p>
                 )}
-                <p className={`text-slate-600 ${metOpgaven(cluedoThema) ? 'hidden' : ''}`}>
+                <p className={`text-slate-600 ${metOpgaven(cluedoThema) || cluedoThema.metVragen ? 'hidden' : ''}`}>
                   De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds
                   opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
                   fout = straftijd. Wie het snelst oplost, wint; de anderen spelen verder.
@@ -668,7 +681,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     <CluedoThemaEditor key={cluedoSleutel} thema={cluedoThema} vragen={set?.vragen ?? []} setTitel={set?.titel} onChange={setCluedoThema} />
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
-                        disabled={!set || cluedoFouten.length > 0}
+                        disabled={!set || themaProblemen(cluedoThema).length > 0}
                         onClick={() => set && store.setSets((all) => all.map((s) => (s.id === set.id ? { ...s, cluedo: cluedoThema } : s)))}
                       >
                         💾 Bewaar als thema van deze vragenset

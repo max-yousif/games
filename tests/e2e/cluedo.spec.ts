@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { STANDAARD_THEMA, type KaartSoort } from '../../src/live/cluedo';
 import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist en bekijkt welke kaart wegvalt. */
@@ -8,6 +9,17 @@ async function juist(p: Page) {
   await p.getByRole('button', { name: 'Versturen' }).click();
   await expect(p.getByText(/is niet (de dader|de plaats|het wapen)!|Alle andere kaarten zijn al weg/)).toBeVisible();
   await p.getByRole('button', { name: 'Volgende vraag ▶' }).click();
+}
+
+const TITEL: Record<KaartSoort, [string, string]> = { verdachten: ['Verdachten', 'verdachte'], locaties: ['Locaties', 'locatie'], wapens: ['Wapens', 'wapen'] };
+
+/** De kaarten van een soort vervangen: de standaardkaarten weg, de nieuwe erbij. */
+async function kaarten(page: Page, soort: KaartSoort, namen: string[]) {
+  for (const naam of STANDAARD_THEMA[soort]) await page.getByRole('button', { name: `${naam} verwijderen`, exact: true }).click();
+  for (const [i, naam] of namen.entries()) {
+    await page.getByRole('button', { name: `+ ${TITEL[soort][1]}`, exact: true }).click();
+    await page.getByLabel(`${TITEL[soort][0]} ${i + 1}: naam`).fill(naam);
+  }
 }
 
 test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oplossing', async ({ page }) => {
@@ -24,10 +36,9 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   // Een klein thema voor dit spel: 2 + 2 + 2 kaarten, dus 3 juiste antwoorden om alles weg te strepen.
   await page.getByText(/Verdachten, locaties en wapens voor dit spel/).click();
   await page.getByLabel('Titel van de zaak').fill('Diefstal in het labo');
-  await page.getByLabel(/Verdachten \(/).fill('Ann\nBob');
-  await page.getByLabel(/Locaties \(/).fill('Keuken\nTuin');
-  await page.getByLabel(/Wapens \(/).fill('Mes\nTouw');
-  await expect(page.getByText('3 juiste antwoorden nodig')).toBeVisible();
+  await kaarten(page, 'verdachten', ['Ann', 'Bob']);
+  await kaarten(page, 'locaties', ['Keuken', 'Tuin']);
+  await kaarten(page, 'wapens', ['Mes', 'Touw']);
   const code = await startLive(page);
 
   const anna = await leerling(page, code, 'Anna');

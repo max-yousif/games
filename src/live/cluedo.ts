@@ -67,6 +67,8 @@ export function themaProblemen(t: CluedoThema): string[] {
     const naam = SOORT_NAMEN[s].titel.toLowerCase();
     if (lijst.length < 2) uit.push(`Geef minstens 2 ${naam}.`);
     if (lijst.some((x) => !x.trim())) uit.push(`Geef elke kaart bij de ${naam} een naam.`);
+    const opl = t.oplossing?.[OPLOSSING_VELD[s]];
+    if (opl && !lijst.includes(opl)) uit.push(`De oplossing bij de ${naam} staat niet meer in de lijst.`);
     if (lijst.length > 12) uit.push(`Maximaal 12 ${naam}.`);
     if (new Set(lijst.map((x) => x.toLowerCase())).size !== lijst.length) uit.push(`Elke naam bij de ${naam} mag maar één keer voorkomen.`);
   }
@@ -82,9 +84,13 @@ export const lijstUitTekst = (tekst: string) =>
 
 export const alleKaarten = (t: CluedoThema): Kaart[] => KAART_SOORTEN.flatMap((soort) => t[soort].map((naam) => ({ soort, naam })));
 
+const OPLOSSING_VELD: Record<KaartSoort, keyof CluedoOplossing> = { verdachten: 'verdachte', locaties: 'locatie', wapens: 'wapen' };
+
 export function trekOplossing(t: CluedoThema, rand: RandomInt = defaultRandomInt): CluedoOplossing {
-  // Met opgaven: de kaart zonder opgave is de oplossing (anders een willekeurige).
+  // Aangeduid door de leerkracht; met opgaven de kaart zonder opgave; anders een willekeurige.
   const kies = (s: KaartSoort) => {
+    const gekozen = t.oplossing?.[OPLOSSING_VELD[s]];
+    if (gekozen && t[s].includes(gekozen)) return gekozen;
     const zonder = metOpgaven(t) ? t[s].filter((_, i) => !heeftOpgave(opgaveVan(t, s, i))) : [];
     return zonder.length === 1 ? zonder[0] : t[s][rand(t[s].length)];
   };
@@ -118,6 +124,63 @@ export function kaartVanOpgave(t: CluedoThema, vraagId: string): Kaart | null {
 }
 
 const UITLEG_SOORT: Record<string, KaartSoort> = { wie: 'verdachten', hoe: 'wapens', waar: 'locaties' };
+const uitlegKaart = (v: Vraag): Kaart | null => {
+  const m = /^\s*(wie|hoe|waar)\s*\?\s*(.+?)\s*$/i.exec(v.uitleg ?? '');
+  return m ? { soort: UITLEG_SOORT[m[1].toLowerCase()], naam: m[2] } : null;
+};
+
+/**
+ * Kaarten van vroeger (met een vraag per kaart, de kaart zonder vraag = de oplossing) naar het
+ * eenvoudige formaat: aangeduide oplossing en "elke kaart een vraag" (gekoppeld via de uitleg).
+ */
+export function moderniseer(t: CluedoThema): CluedoThema {
+  if (t.metVragen || !KAART_SOORTEN.some((s) => t.opgaven?.[s]?.some((o) => o?.vraagId))) return t;
+  const zonder = (s: KaartSoort) => t[s].filter((_, i) => !heeftOpgave(opgaveVan(t, s, i)));
+  const een = (s: KaartSoort) => (zonder(s).length === 1 ? zonder(s)[0] : undefined);
+  return { ...t, opgaven: undefined, metVragen: true, oplossing: { verdachte: een('verdachten'), locatie: een('locaties'), wapen: een('wapens') } };
+}
+
+/** Hoeveel vragen nodig zijn als elke kaart een vraag krijgt: alle kaarten behalve de oplossing. */
+export const nodigeVragen = (t: CluedoThema) => Math.max(0, alleKaarten(t).length - 3);
+
+/**
+ * Bij de start: de oplossing kiezen en elke andere kaart een vraag uit `vragen` geven. Een vraag met
+ * "Wie? Naam" (Hoe?, Waar?) in de uitleg hoort bij die kaart; de rest wordt willekeurig verdeeld.
+ * Het resultaat is een thema met opgaven per kaart (zoals opgaveVragen het gebruikt).
+ */
+export function koppelVragen(t: CluedoThema, vragen: readonly Vraag[], rand: RandomInt = defaultRandomInt): { thema: CluedoThema; oplossing: CluedoOplossing } | { fout: string } {
+  const oplossing = trekOplossing({ ...t, opgaven: undefined }, rand);
+  const kaarten = alleKaarten(t).filter((k) => !inOplossing(k, oplossing));
+  if (vragen.length < kaarten.length) return { fout: `Elke kaart behalve de oplossing heeft een vraag nodig: ${kaarten.length} vragen, de set heeft er ${vragen.length}.` };
+  const vrij = [...vragen];
+  const gekoppeld = new Map<string, Vraag>();
+  const sleutel = (k: Kaart) => `${k.soort}:${k.naam.toLocaleLowerCase('nl')}`;
+  // Eerst de vragen die in hun uitleg zeggen bij welke kaart ze horen.
+  for (const k of kaarten) {
+    const i = vrij.findIndex((v) => {
+      const u = uitlegKaart(v);
+      return u && u.soort === k.soort && u.naam.toLocaleLowerCase('nl') === k.naam.toLocaleLowerCase('nl');
+    });
+    if (i >= 0) gekoppeld.set(sleutel(k), vrij.splice(i, 1)[0]);
+  }
+  // Dan de andere vragen willekeurig over de overige kaarten.
+  for (let i = vrij.length - 1; i > 0; i--) {
+    const j = rand(i + 1);
+    [vrij[i], vrij[j]] = [vrij[j], vrij[i]];
+  }
+  for (const k of kaarten) if (!gekoppeld.has(sleutel(k))) gekoppeld.set(sleutel(k), vrij.shift()!);
+  const juist = (v: Vraag) => (isKeuzeVraag(v) ? (keuzeOpties(v)[v.juisteOptie] ?? '') : v.antwoord).replace(/\$/g, '').trim();
+  const opgaven = Object.fromEntries(
+    KAART_SOORTEN.map((s) => [
+      s,
+      t[s].map((naam) => {
+        const v = gekoppeld.get(sleutel({ soort: s, naam }));
+        return v ? { opgave: '', uitkomst: juist(v), vraagId: v.id } : { opgave: '', uitkomst: '' };
+      }),
+    ]),
+  ) as NonNullable<CluedoThema['opgaven']>;
+  return { thema: { ...t, opgaven }, oplossing };
+}
 
 /**
  * Een thema uit de vragenset: elke vraag met in de uitleg "Wie? Naam", "Hoe? Naam" of "Waar? Naam"
