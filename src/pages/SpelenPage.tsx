@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { isKeuzeVraag } from '../lib/vraagtypes';
 import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
@@ -40,6 +41,8 @@ const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: 
 
 const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
 const WACHTTIJDEN = [0, 10, 15, 30, 60];
+/** Escape room: straftijd na een foute code (seconden). */
+const STRAFTIJDEN = [30, 60, 120, 180];
 
 const TIMERS = [null, 30, 60, 90, 120, 180];
 
@@ -70,6 +73,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Vragen die niet meedoen in dit spel (de vragenset zelf blijft ongewijzigd).
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
+  // Escape room: enkel vragen met keuzes (elk antwoord geeft een cijfer).
+  const escapeVragen = vragen.filter(isKeuzeVraag);
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
   const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
@@ -103,6 +108,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [escapeMinuten, setEscapeMinuten] = useState<number | null>(20);
   const [wachttijd, setWachttijd] = useState(15);
   const [aantalSloten, setAantalSloten] = useState(0); // 0 = alle vragen
+  const [strafTijd, setStrafTijd] = useState(60);
 
   const [teams, setTeams] = useState<Team[]>(() => maakTeams(klas?.leerlingen ?? [], aantalTeams));
   const [afwezig, setAfwezig] = useState<Leerling[]>([]);
@@ -164,7 +170,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const territorium = spel === 'territorium';
       const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
-      const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
+      const gekozen = spel === 'escape' ? (aantalSloten > 0 && aantalSloten < escapeVragen.length ? shuffle(escapeVragen).slice(0, aantalSloten) : escapeVragen) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
       const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
       // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
@@ -174,11 +180,11 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
-        aantalVragen: codekraker || cluedo || territorium ? AANTAL_NUMMERS : gekozen.length,
+        aantalVragen: codekraker || cluedo || territorium || spel === 'escape' ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
-        wachttijd: escape ? wachttijd : 0,
+        wachttijd: spel === 'escape' ? strafTijd : escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? cluedoThema : undefined,
@@ -273,7 +279,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && set !== null && klasGekozen },
   ];
 
-  const kanStarten = spel !== null && set !== null && klasGekozen && vragen.length > 0 && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+  const kanStarten = spel !== null && set !== null && klasGekozen && vragen.length > 0 && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
     <div className="space-y-6">
@@ -479,8 +485,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 <div className="w-40">
                   <label className={labelClass}>Aantal sloten</label>
                   <select className={inputClass} value={aantalSloten} onChange={(e) => setAantalSloten(Number(e.target.value))}>
-                    <option value={0}>alle vragen ({vragen.length})</option>
-                    {[3, 4, 5, 6, 8, 10, 12].filter((n) => n < vragen.length).map((n) => (
+                    <option value={0}>alle ({escapeVragen.length})</option>
+                    {[3, 4, 5, 6, 8, 10, 12].filter((n) => n < escapeVragen.length).map((n) => (
                       <option key={n} value={n}>
                         {n} (willekeurig gekozen)
                       </option>
@@ -512,16 +518,31 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   </select>
                 </div>
               )}
-              <div className="w-48">
-                <label className={labelClass}>Wachten na fout antwoord</label>
-                <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
-                  {WACHTTIJDEN.map((w) => (
-                    <option key={w} value={w}>
-                      {w ? `${w} seconden` : 'niet wachten'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {spel === 'escape' ? (
+                <div className="w-48">
+                  <label className={labelClass} htmlFor="straftijd">
+                    Straftijd na foute code
+                  </label>
+                  <select id="straftijd" className={inputClass} value={strafTijd} onChange={(e) => setStrafTijd(Number(e.target.value))}>
+                    {STRAFTIJDEN.map((w) => (
+                      <option key={w} value={w}>
+                        {w < 60 ? `${w} seconden` : `${w / 60} minu${w === 60 ? 'ut' : 'ten'}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="w-48">
+                  <label className={labelClass}>Wachten na fout antwoord</label>
+                  <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
+                    {WACHTTIJDEN.map((w) => (
+                      <option key={w} value={w}>
+                        {w ? `${w} seconden` : 'niet wachten'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </>
           ) : spel === 'bom' ? (
             <>
@@ -659,8 +680,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </>
             ) : spel === 'escape' ? (
               <p className="text-slate-600">
-                Elk slot is een vraag. Een juist antwoord geeft één cijfer van de geheime code; met de volledige code ontsnapt de leerling. Leerlingen kiezen zelf de volgorde en
-                mogen na een fout antwoord opnieuw proberen. Alle vragen worden automatisch nagekeken.
+                Elk antwoord geeft een cijfer, juist of niet. Wie denkt de code te hebben, test ze; een foute code geeft straftijd. Enkel meerkeuze- en waar/onwaar-vragen
+                ({escapeVragen.length} van {vragen.length}).
               </p>
             ) : (
               <>

@@ -6,7 +6,7 @@ import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { Sessie, Vraag } from '../lib/types';
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
-import { escapeBeoordelingen, escapeStand, escapeVoortgang, slotVraag, type EscapeVoortgang } from './escape';
+import { escapeActieBeoordelingen, escapeAlsAntwoorden, escapeStaat, escapeStaatStand, escapeStand, escapeVoortgang, slotVraag, type EscapeStaat, type EscapeVoortgang } from './escape';
 import { whodunitBeoordelingen } from './whodunit';
 import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
@@ -25,7 +25,7 @@ export function EscapeHost({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie
 }
 
 /** Tijd tot ontsnappen per leerlingnaam (bij een groepje voor elke leerling), voor de resultaten en de Excel-export. */
-function ontsnaptPerNaam(sessie: Sessie, voortgang: readonly EscapeVoortgang[]): Record<string, number> {
+function ontsnaptPerNaam(sessie: Sessie, voortgang: readonly Pick<EscapeVoortgang, 'speler' | 'ontsnaptMs'>[]): Record<string, number> {
   return Object.fromEntries(voortgang.filter((v) => v.ontsnaptMs !== null).flatMap((v) => leerlingenVan(sessie, v.speler.naam).map((n) => [n, v.ontsnaptMs!])));
 }
 
@@ -48,13 +48,20 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
 
   const vragen = useMemo(() => sessie.vraagVolgorde.map((id) => sessie.vragen.find((v) => v.id === id)).filter((v): v is Vraag => !!v), [sessie]);
   const voortgang = useMemo(() => escapeVoortgang(spelers, antwoorden), [spelers, antwoorden]);
+  // Escape room: elk antwoord geeft een cijfer, de code testen geeft straftijd als ze fout is.
+  const wachttijd = server?.wachttijd ?? 0;
+  const staat = useMemo(() => escapeStaat(vragen, spelers, antwoorden, wachttijd), [vragen, spelers, antwoorden, wachttijd]);
+  const klaar = whodunit ? voortgang : staat;
+  // Resultaten per vraag: whodunit per poging, escape room de laatste keuze per slot.
+  const alsBeurten = (lijst: readonly LiveAntwoord[], st: readonly EscapeStaat[]) => (whodunit ? perVraag(lijst, vragen) : escapeAlsAntwoorden(vragen, st));
 
   // Nieuwe pogingen meteen nakijken (de leerling wacht op het resultaat).
   const nakijken = useRef(false);
   // Na elke ronde opnieuw kijken: pogingen die binnenkwamen tijdens het nakijken.
   const [ronde, setRonde] = useState(0);
   useEffect(() => {
-    const items = whodunit && sessie.raadsel ? whodunitBeoordelingen(vragen, sessie.raadsel, antwoorden) : escapeBeoordelingen(vragen, code, antwoorden);
+    if (!server) return;
+    const items = whodunit && sessie.raadsel ? whodunitBeoordelingen(vragen, sessie.raadsel, antwoorden) : escapeActieBeoordelingen(vragen, code, wachttijd, antwoorden);
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {
@@ -64,7 +71,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
           const i = items.find((x) => x.id === a.id);
           return i ? { ...a, juist: i.juist, punten: i.punten, beloning: i.beloning ?? null } : a;
         });
-        await be.wijzigSessie(live.sessieId, { stand: escapeStand(escapeVoortgang(spelers, bijgewerkt)) });
+        await be.wijzigSessie(live.sessieId, { stand: whodunit ? escapeStand(escapeVoortgang(spelers, bijgewerkt)) : escapeStaatStand(escapeStaat(vragen, spelers, bijgewerkt, wachttijd)) });
         setFout(null);
       } catch (e) {
         setFout(e instanceof LiveFout ? e.message : 'Nakijken mislukt; nieuwe poging binnen enkele seconden.');
@@ -74,15 +81,16 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
         setRonde((r) => r + 1);
       }
     })();
-  }, [antwoorden, vragen, code, be, live.sessieId, spelers, ronde, whodunit, sessie.raadsel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [antwoorden, vragen, code, be, live.sessieId, spelers, ronde, whodunit, sessie.raadsel, wachttijd, server === null || server === undefined]);
 
   // Resultaten bewaren in de lokale sessie.
   const sessieRef = useRef(sessie);
   sessieRef.current = sessie;
   useEffect(() => {
     const huidig = sessieRef.current;
-    const s = synchroniseer(huidig, spelers, perVraag(antwoorden, vragen), huidig.vraagVolgorde);
-    const ontsnapt = ontsnaptPerNaam(huidig, voortgang);
+    const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, staat), huidig.vraagVolgorde);
+    const ontsnapt = ontsnaptPerNaam(huidig, klaar);
     if (
       JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
@@ -91,7 +99,8 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
     ) {
       onUpdate({ ...s, live: { ...s.live!, ontsnapt } });
     }
-  }, [spelers, antwoorden, voortgang, onUpdate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spelers, antwoorden, voortgang, staat, onUpdate]);
 
   async function actie(f: () => Promise<void>) {
     setBezig(true);
@@ -106,9 +115,9 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
   }
 
   async function einde() {
-    await be.wijzigSessie(live.sessieId, { status: 'einde', stand: escapeStand(voortgang) });
-    const s = synchroniseer(sessie, spelers, perVraag(antwoorden, vragen), sessie.vraagVolgorde);
-    onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: ontsnaptPerNaam(sessie, voortgang) } }));
+    await be.wijzigSessie(live.sessieId, { status: 'einde', stand: whodunit ? escapeStand(voortgang) : escapeStaatStand(staat) });
+    const s = synchroniseer(sessie, spelers, alsBeurten(antwoorden, staat), sessie.vraagVolgorde);
+    onUpdate(beeindig({ ...s, live: { ...s.live!, ontsnapt: ontsnaptPerNaam(sessie, klaar) } }));
   }
 
   // Gegevens op de server wissen; de resultaten blijven in de lokale sessie.
@@ -120,7 +129,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
   // Muziek en geluid: wachtmuziek in de wachtruimte, spelmuziek tijdens het spel, een klank bij elke
   // leerling die ontsnapt of het raadsel oplost, fanfare op het einde.
   useMuziek(server?.status === 'lobby' ? 'wacht' : server?.status === 'bezig' ? 'spel' : null);
-  const klaarAantal = voortgang.filter((v) => v.ontsnaptMs !== null).length;
+  const klaarAantal = klaar.filter((v) => v.ontsnaptMs !== null).length;
   const vorigKlaar = useRef(klaarAantal);
   useEffect(() => {
     if (klaarAantal > vorigKlaar.current) speel('juist');
@@ -165,7 +174,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
     );
   }
 
-  const verbonden = voortgang.filter((v) => v.speler.verbonden);
+  const verbonden = klaar.filter((v) => v.speler.verbonden);
   const ontsnapt = verbonden.filter((v) => v.ontsnaptMs !== null).length;
 
   return (
@@ -209,16 +218,70 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
             </Button>
           </div>
           {whodunit && toonCode && sessie.raadsel && <OplossingTabel raadsel={sessie.raadsel} />}
-          <VoortgangTabel voortgang={voortgang} vragen={vragen} whodunit={whodunit} />
-          <p className="text-sm text-slate-500">
-            {whodunit
-              ? '🔒 nog niet opgelost · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ juist (hint verdiend). 🕵️ = tijd tot de tabel klopt. Nieuwe leerlingen kunnen nog aansluiten met de code. Beweeg over een oefening om de vraag te zien.'
-              : '🔒 nog dicht · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ open. Nieuwe leerlingen kunnen nog aansluiten met de code. Beweeg over een slotnummer om de vraag te zien.'}
-          </p>
+          {whodunit ? (
+            <>
+              <VoortgangTabel voortgang={voortgang} vragen={vragen} whodunit />
+              <p className="text-sm text-slate-500">🔒 nog niet opgelost · ⏳ wordt nagekeken · ✗ aantal foute pogingen · ✅ juist (hint verdiend). 🕵️ = tijd tot de tabel klopt.</p>
+            </>
+          ) : (
+            <EscapeTabel staat={staat} aantal={vragen.length} verstreken={verstreken} />
+          )}
         </div>
       )}
 
-      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={voortgang} onAfsluiten={afsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />}
+      {server.status === 'einde' && <EscapeEinde sessie={sessie} voortgang={whodunit ? voortgang : undefined} staat={whodunit ? undefined : staat} onAfsluiten={afsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />}
+    </div>
+  );
+}
+
+/**
+ * Escape room op het bord: per leerling welke sloten een cijfer hebben (niet of het juist is: het
+ * bord is voor iedereen zichtbaar), foute codes en straftijd.
+ */
+function EscapeTabel({ staat, aantal, verstreken }: { staat: EscapeStaat[]; aantal: number; verstreken: number }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl bg-surface shadow-sm">
+      <table className="w-full text-left">
+        <thead className="bg-slate-100 text-sm text-slate-600">
+          <tr>
+            <th className="px-4 py-2">#</th>
+            <th className="px-4 py-2">Leerling</th>
+            <th className="px-4 py-2">Sloten ingevuld</th>
+            <th className="px-4 py-2 text-center">Foute codes</th>
+            <th className="px-4 py-2 text-center">🚪</th>
+          </tr>
+        </thead>
+        <tbody>
+          {staat.map((s, i) => {
+            const straf = Math.ceil((s.strafTot - verstreken) / 1000);
+            return (
+              <tr key={s.speler.id} className={`border-t border-slate-100 text-lg ${s.speler.verbonden ? '' : 'opacity-40'}`}>
+                <td className="px-4 py-2 font-bold text-slate-400">{i + 1}</td>
+                <td className="px-4 py-2 font-medium">{schermNaam(s.speler)}</td>
+                <td className="px-4 py-2">
+                  <span className="flex gap-1" aria-label={`${s.cijfers.size} van ${aantal}`}>
+                    {Array.from({ length: aantal }, (_, nr) => (
+                      <span key={nr} className={`h-4 w-4 rounded-full ${s.cijfers.has(nr) ? 'bg-amber-400' : 'bg-slate-200'}`} />
+                    ))}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-center">
+                  {s.fout > 0 && <span className="rounded-full bg-red-100 px-2 py-0.5 text-sm font-semibold text-red-700">✗{s.fout}</span>}
+                  {straf > 0 && s.ontsnaptMs === null && <span className="ml-2 text-sm text-red-600">⛔ {straf}s</span>}
+                </td>
+                <td className="px-4 py-2 text-center font-mono font-bold">{s.ontsnaptMs !== null ? <span className="text-emerald-700">{tijdTekst(s.ontsnaptMs)}</span> : '—'}</td>
+              </tr>
+            );
+          })}
+          {staat.length === 0 && (
+            <tr>
+              <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                Nog niemand aangemeld.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -280,13 +343,26 @@ function VoortgangTabel({ voortgang, vragen, whodunit }: { voortgang: EscapeVoor
   );
 }
 
-function EscapeEinde({ sessie, voortgang, onAfsluiten, onBewaar, onVerwijder }: { sessie: Sessie; voortgang?: EscapeVoortgang[]; onAfsluiten?: () => Promise<void>; onBewaar: () => void; onVerwijder: () => void }) {
+function EscapeEinde({
+  sessie,
+  voortgang,
+  staat,
+  onAfsluiten,
+  onBewaar,
+  onVerwijder,
+}: {
+  sessie: Sessie;
+  voortgang?: EscapeVoortgang[];
+  staat?: EscapeStaat[];
+  onAfsluiten?: () => Promise<void>; onBewaar: () => void; onVerwijder: () => void }) {
   const ontsnapt = sessie.live?.ontsnapt ?? {};
   const aantalSloten = sessie.vraagVolgorde.length;
   const whodunit = sessie.spelType === 'whodunit';
   // Zonder server: rangschikking uit de bewaarde resultaten.
   const rijen = resultatenPerLeerling(sessie).filter((r) => r.naam !== '(hele team)');
-  const ranking = voortgang
+  const ranking = staat
+    ? staat.map((v) => ({ naam: schermNaam(v.speler), sloten: v.juist, tijd: v.ontsnaptMs }))
+    : voortgang
     ? voortgang.map((v) => ({ naam: schermNaam(v.speler), sloten: v.opgelost.size, tijd: v.ontsnaptMs }))
     : rijen
         .map((r) => ({ naam: sessie.live?.bijnamen?.[r.naam] ?? korteNaamVan(sessie)(r.naam), sloten: r.juist, tijd: ontsnapt[r.naam] ?? null }))
@@ -323,7 +399,7 @@ function EscapeEinde({ sessie, voortgang, onAfsluiten, onBewaar, onVerwijder }: 
           <tr>
             <th className="px-4 py-2">#</th>
             <th className="px-4 py-2">Leerling</th>
-            <th className="px-4 py-2 text-right">{whodunit ? 'Oefeningen juist' : 'Sloten open'}</th>
+            <th className="px-4 py-2 text-right">{whodunit ? 'Oefeningen juist' : 'Sloten juist'}</th>
             <th className="px-4 py-2 text-right">{whodunit ? 'Opgelost na' : 'Ontsnapt na'}</th>
           </tr>
         </thead>

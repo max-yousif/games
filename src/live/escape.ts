@@ -91,3 +91,161 @@ export function escapeVoortgang(spelers: readonly LiveSpeler[], antwoorden: read
 export function escapeStand(voortgang: readonly EscapeVoortgang[]): StandRij[] {
   return voortgang.map((v) => ({ id: v.speler.id, naam: schermNaam(v.speler), punten: v.opgelost.size, juist: v.opgelost.size, tijdMs: v.ontsnaptMs }));
 }
+
+// ---------- Escape room (versie 2): cijfers kiezen, de code testen ----------
+//
+// Elk antwoord op een slot geeft meteen een cijfer, ook een fout antwoord (dan een ander cijfer):
+// de leerling ziet dus niet of het juist was. Pas wie denkt alle cijfers te hebben, test de code.
+// Klopt die niet, dan volgt straftijd: vragen herbekijken mag, antwoorden niet.
+// Zoals bij Crypto Hack: elke actie heeft een nieuw nummer vanaf ACTIE_BASIS.
+
+export interface SlotKeuze {
+  soort: 'slot';
+  slot: number;
+  /** Index in keuzeOpties van de vraag (de leerling ziet ze geschud). */
+  keuze: number;
+}
+export interface CodePoging {
+  soort: 'code';
+  code: string;
+}
+export type EscapeActie = SlotKeuze | CodePoging;
+
+export function leesEscapeActie(tekst: string): EscapeActie | null {
+  try {
+    const a = JSON.parse(tekst) as EscapeActie;
+    if (a?.soort === 'slot' && Number.isInteger(a.slot) && Number.isInteger(a.keuze)) return a;
+    if (a?.soort === 'code' && typeof a.code === 'string') return a;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Beloning bij een slot: het cijfer. Bij een geweigerde actie (straftijd): 'straf'. */
+export const STRAF = 'straf';
+
+/** Aantal keuzes van een vraag (meerkeuze: de ingevulde opties, waar/onwaar: 2). */
+const aantalKeuzes = (v: Vraag) => (v.type === 'waaronwaar' ? 2 : v.opties.length);
+
+/**
+ * Het cijfer bij een keuze: het juiste antwoord geeft het cijfer van de code op dat slot, elk
+ * fout antwoord een ander (vast) cijfer, per leerling en slot anders.
+ */
+export function cijferVoor(code: string, spelerId: string, slot: number, vraag: Vraag, keuze: number): string {
+  const juist = code[slot] ?? '0';
+  if (keuze === vraag.juisteOptie) return juist;
+  const anderen = vastGeschud(
+    '0123456789'.split('').filter((c) => c !== juist),
+    `${code}:${spelerId}:${slot}`,
+  );
+  return anderen[(keuze < vraag.juisteOptie ? keuze : keuze - 1) % anderen.length];
+}
+
+export interface EscapeStaat {
+  speler: LiveSpeler;
+  /** Gekozen antwoord per slot (laatste keuze telt). */
+  keuzes: Map<number, number>;
+  /** Cijfer per slot (zoals de leerling het ziet). */
+  cijfers: Map<number, string>;
+  /** Juiste sloten: enkel voor de leerkracht, nooit op het bord of de server. */
+  juist: number;
+  /** Foute codes. */
+  fout: number;
+  ontsnaptMs: number | null;
+  /** Tot wanneer (ms sinds de start) de straftijd loopt. */
+  strafTot: number;
+  /** Er wacht nog een actie op nakijken. */
+  bezig: boolean;
+  laatsteMs: number;
+}
+
+/** Herberekent de toestand van elke leerling uit de nagekeken acties (in volgorde van binnenkomst). */
+export function escapeStaat(vragen: readonly { categorie: string; juisteOptie?: number }[], spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], wachttijd: number): EscapeStaat[] {
+  return spelers
+    .map((speler) => {
+      const st: EscapeStaat = { speler, keuzes: new Map(), cijfers: new Map(), juist: 0, fout: 0, ontsnaptMs: null, strafTot: 0, bezig: false, laatsteMs: 0 };
+      const eigen = antwoorden.filter((a) => a.spelerId === speler.id).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
+      for (const a of eigen) {
+        if (a.juist === null) {
+          st.bezig = true;
+          continue;
+        }
+        const actie = leesEscapeActie(a.antwoord);
+        if (!actie) continue;
+        if (actie.soort === 'slot' && a.juist) {
+          st.keuzes.set(actie.slot, actie.keuze);
+          if (a.beloning && a.beloning !== STRAF) st.cijfers.set(actie.slot, a.beloning);
+          st.laatsteMs = a.tijdMs;
+        } else if (actie.soort === 'code' && a.beloning !== STRAF) {
+          if (a.juist) st.ontsnaptMs = a.tijdMs;
+          else {
+            st.fout++;
+            st.strafTot = a.tijdMs + wachttijd * 1000;
+          }
+        }
+      }
+      st.juist = [...st.keuzes].filter(([slot, keuze]) => {
+        const v = vragen[slotVraag(speler.id, slot, vragen)];
+        return v && keuze === v.juisteOptie;
+      }).length;
+      return st;
+    })
+    .sort(
+      (a, b) =>
+        (a.ontsnaptMs ?? Infinity) - (b.ontsnaptMs ?? Infinity) ||
+        b.cijfers.size - a.cijfers.size ||
+        a.laatsteMs - b.laatsteMs ||
+        a.speler.naam.localeCompare(b.speler.naam, 'nl'),
+    );
+}
+
+/** Kijkt nieuwe acties na, per leerling in volgorde: keuzes geven een cijfer, een code klopt of geeft straftijd. */
+export function escapeActieBeoordelingen(vragen: readonly Vraag[], code: string, wachttijd: number, antwoorden: readonly LiveAntwoord[]): Beoordeling[] {
+  const uit: Beoordeling[] = [];
+  const perSpeler = new Map<string, LiveAntwoord[]>();
+  for (const a of antwoorden) perSpeler.set(a.spelerId, [...(perSpeler.get(a.spelerId) ?? []), a]);
+  for (const [spelerId, eigen] of perSpeler) {
+    let strafTot = 0;
+    let ontsnapt = false;
+    for (const a of [...eigen].sort((x, y) => x.tijdMs - y.tijdMs || x.vraagNr - y.vraagNr)) {
+      const actie = leesEscapeActie(a.antwoord);
+      let juist = a.juist;
+      let beloning = a.beloning;
+      if (juist === null) {
+        if (!actie || ontsnapt) [juist, beloning] = [false, null];
+        else if (a.tijdMs < strafTot) [juist, beloning] = [false, STRAF];
+        else if (actie.soort === 'slot') {
+          const v = vragen[slotVraag(spelerId, actie.slot, vragen)];
+          const geldig = !!v && actie.slot >= 0 && actie.slot < vragen.length && actie.keuze >= 0 && actie.keuze < aantalKeuzes(v);
+          [juist, beloning] = geldig ? [true, cijferVoor(code, spelerId, actie.slot, v, actie.keuze)] : [false, null];
+        } else [juist, beloning] = [zonderSpaties(actie.code) === code, null];
+        uit.push({ id: a.id, juist, punten: 0, beloning });
+      }
+      if (actie?.soort === 'code' && beloning !== STRAF) {
+        if (juist) ontsnapt = true;
+        else strafTot = a.tijdMs + wachttijd * 1000;
+      }
+    }
+  }
+  return uit;
+}
+
+/**
+ * Stand voor de server (de leerlingen zien die): ontsnapt (snelste eerst) en hoeveel sloten
+ * ingevuld zijn. Nooit hoeveel er juist zijn, anders verraadt de stand het antwoord.
+ */
+export function escapeStaatStand(staat: readonly EscapeStaat[]): StandRij[] {
+  return staat.map((s) => ({ id: s.speler.id, naam: schermNaam(s.speler), punten: s.cijfers.size, juist: s.cijfers.size, tijdMs: s.ontsnaptMs }));
+}
+
+/** De gekozen antwoorden als antwoorden per vraag (voor de resultaten): juist of fout per slot. */
+export function escapeAlsAntwoorden(vragen: readonly Vraag[], staat: readonly EscapeStaat[]): LiveAntwoord[] {
+  return staat.flatMap((s) =>
+    [...s.keuzes].map(([slot, keuze]) => {
+      const nr = slotVraag(s.speler.id, slot, vragen);
+      const juist = keuze === vragen[nr]?.juisteOptie;
+      return { id: `${s.speler.id}:${slot}`, spelerId: s.speler.id, vraagNr: nr, antwoord: String(keuze), tijdMs: s.laatsteMs, juist, punten: juist ? (vragen[nr]?.punten ?? 0) : 0, poging: 1, beloning: null };
+    }),
+  );
+}

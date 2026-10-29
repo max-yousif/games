@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
-import { EINDCODE, slotVraag } from './escape';
-import { Beantwoord, foutTekst } from './Invoer';
+import { volgendeActieNr } from './codekraker';
+import { escapeStaat, slotVraag, STRAF } from './escape';
+import { foutTekst } from './Invoer';
+import { vastGeschud } from '../lib/vraagtypes';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
 
 export interface Status {
@@ -18,7 +20,10 @@ export function laatstePoging(antwoorden: readonly LiveAntwoord[], nr: number): 
   return antwoorden.filter((a) => a.vraagNr === nr).sort((a, b) => b.poging - a.poging)[0];
 }
 
-/** Escape room voor de leerling: sloten openen, cijfers verzamelen en de code ingeven. */
+/**
+ * Escape room voor de leerling: elk antwoord geeft een cijfer (ook een fout antwoord, dan een
+ * ander cijfer). Wie denkt alle cijfers te hebben, test de code; een foute code geeft straftijd.
+ */
 export function EscapeSpeler({
   be,
   sessie,
@@ -37,65 +42,53 @@ export function EscapeSpeler({
   const [open, setOpen] = useState<number | null>(null);
   const terug = useCallback(() => setOpen(null), []);
   const [nu, setNu] = useState(() => Date.now());
-  // Wanneer deze laptop een fout antwoord voor het eerst zag (voor het aftellen van de wachttijd).
-  const foutGezien = useRef(new Map<string, number>());
+  const [fout, setFout] = useState<string | null>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => setNu(Date.now()), 500);
     return () => window.clearInterval(id);
   }, []);
 
-  for (const a of antwoorden) if (a.juist === false && !foutGezien.current.has(a.id)) foutGezien.current.set(a.id, Date.now());
-
-  const cijfers = vragen.map((_, nr) => antwoorden.find((a) => a.vraagNr === nr && a.juist)?.beloning ?? null);
-  const opgelost = cijfers.filter((c) => c !== null).length;
-  const ontsnapt = antwoorden.find((a) => a.vraagNr === EINDCODE && a.juist);
+  const eigen = antwoorden.filter((a) => a.spelerId === spelerId);
+  const ik = { id: spelerId ?? '', naam: '', bijnaam: null, verbonden: true };
+  const st = escapeStaat(vragen, [ik], eigen, sessie.wachttijd)[0];
+  const cijfers = vragen.map((_, nr) => st.cijfers.get(nr) ?? null);
+  const ingevuld = cijfers.filter((c) => c !== null).length;
   const verstreken = sessie.vraagStart ? Math.max(0, nu - new Date(sessie.vraagStart).getTime()) : 0;
   const resterend = sessie.timer ? sessie.timer * 1000 - verstreken : null;
+  const straf = Math.max(0, Math.ceil((st.strafTot - verstreken) / 1000));
+  // De laatste codepoging: nog niet nagekeken, of fout.
+  const codes = eigen.filter((a) => a.antwoord.includes('"code"')).sort((a, b) => a.tijdMs - b.tijdMs);
+  const laatsteCode = codes.at(-1);
+  const codeBezig = laatsteCode?.juist === null;
 
-  /** Status van een slot of de eindcode. */
-  function status(nr: number): Status {
-    const laatste = laatstePoging(antwoorden, nr);
-    if (!laatste) return { soort: 'open' };
-    if (laatste.juist) return { soort: 'klaar' };
-    if (laatste.juist === null) return { soort: 'nakijken' };
-    const rest = sessie.wachttijd * 1000 - (nu - (foutGezien.current.get(laatste.id) ?? nu));
-    return rest > 0 ? { soort: 'wachten', seconden: Math.ceil(rest / 1000), fout: true } : { soort: 'open', fout: true };
+  async function stuur(actie: object) {
+    setFout(null);
+    try {
+      await be.antwoord(sessie.id, volgendeActieNr(eigen), JSON.stringify(actie));
+    } catch (e) {
+      setFout(foutTekst(e));
+    }
   }
 
-  if (sessie.status === 'einde') {
+  if (sessie.status === 'einde' || (resterend !== null && resterend <= 0)) {
     const plaats = sessie.stand.findIndex((r) => r.id === spelerId) + 1;
     return (
       <div className="rounded-2xl bg-surface p-8 text-center shadow-sm">
-        <div className="text-6xl">{ontsnapt ? '🎉' : '🔒'}</div>
-        <h1 className="mt-3 text-3xl font-bold">{ontsnapt ? `Ontsnapt in ${tijdTekst(ontsnapt.tijdMs)}!` : 'De tijd is om!'}</h1>
-        <p className="mt-2 text-xl text-slate-600">
-          Je opende {opgelost} van de {vragen.length} sloten{plaats > 0 && ` · plaats ${plaats}`}.
-        </p>
-        {nieuwSpel}
+        <div className="text-6xl">{st.ontsnaptMs !== null ? '🎉' : '🔒'}</div>
+        <h1 className="mt-3 text-3xl font-bold">{st.ontsnaptMs !== null ? `Ontsnapt in ${tijdTekst(st.ontsnaptMs)}!` : 'De tijd is om!'}</h1>
+        {st.ontsnaptMs !== null && plaats > 0 && <p className="mt-2 text-xl text-slate-600">Plaats {plaats}</p>}
+        {sessie.status === 'einde' && nieuwSpel}
       </div>
     );
   }
 
-  if (ontsnapt) {
+  if (st.ontsnaptMs !== null) {
     return (
       <div className="pop rounded-2xl bg-emerald-600 p-10 text-center text-white shadow-sm">
         <div className="text-7xl">🎉</div>
         <h1 className="mt-3 text-4xl font-bold">Je bent ontsnapt!</h1>
-        <p className="mt-2 text-2xl">in {tijdTekst(ontsnapt.tijdMs)}</p>
-        <p className="mt-4 text-lg opacity-90">Wacht tot de leerkracht de escape room afsluit.</p>
-      </div>
-    );
-  }
-
-  if (resterend !== null && resterend <= 0) {
-    return (
-      <div className="rounded-2xl bg-surface p-8 text-center shadow-sm">
-        <div className="text-6xl">⏰</div>
-        <h1 className="mt-3 text-3xl font-bold">De tijd is om!</h1>
-        <p className="mt-2 text-xl text-slate-600">
-          Je opende {opgelost} van de {vragen.length} sloten.
-        </p>
+        <p className="mt-2 text-2xl">in {tijdTekst(st.ontsnaptMs)}</p>
       </div>
     );
   }
@@ -110,65 +103,111 @@ export function EscapeSpeler({
       </div>
 
       <div className="rounded-2xl bg-gray-800 p-5 text-white shadow-sm">
-        <div className="text-sm tracking-wide uppercase opacity-70">De geheime code</div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {cijfers.map((c, i) => (
-            <div key={i} className="flex flex-col items-center">
-              <div className={`flex h-16 w-14 items-center justify-center rounded-xl font-mono text-4xl font-bold ${c !== null ? 'pop bg-amber-400 text-slate-900' : 'bg-white/10 text-white/40'}`}>
-                {c ?? '?'}
-              </div>
-              <div className="mt-1 text-xs opacity-60">slot {i + 1}</div>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <div className="text-sm tracking-wide uppercase opacity-70">Jouw code</div>
+            <div className="mt-2 flex flex-wrap gap-2" data-code>
+              {cijfers.map((c, i) => (
+                <div key={i} className="flex flex-col items-center">
+                  <div className={`flex h-16 w-14 items-center justify-center rounded-xl font-mono text-4xl font-bold ${c !== null ? 'bg-amber-400 text-slate-900' : 'bg-white/10 text-white/40'}`}>
+                    {c ?? '?'}
+                  </div>
+                  <div className="mt-1 text-xs opacity-60">slot {i + 1}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          <div className="ml-auto text-right">
+            {straf > 0 ? (
+              <div className="rounded-xl bg-red-600 px-5 py-3 text-xl font-bold">⛔ Straftijd: nog {straf} s</div>
+            ) : codeBezig ? (
+              <div className="px-5 py-3 text-xl opacity-80">Code wordt getest…</div>
+            ) : (
+              <button
+                type="button"
+                disabled={ingevuld < vragen.length}
+                onClick={() => void stuur({ soort: 'code', code: cijfers.join('') })}
+                className="rounded-xl bg-amber-400 px-6 py-3 text-xl font-bold text-slate-900 hover:brightness-105 disabled:opacity-40"
+              >
+                🔓 Test de code
+              </button>
+            )}
+          </div>
         </div>
+        {laatsteCode?.juist === false && laatsteCode.beloning !== STRAF && !codeBezig && (
+          <p className="mt-3 rounded-lg bg-white/10 px-4 py-2 text-lg">❌ Er zit nog ergens een fout in de code{st.fout > 1 ? ` (${st.fout} pogingen)` : ''}. Zoek ze!</p>
+        )}
       </div>
+      {fout && <p className="rounded-lg bg-red-50 px-4 py-3 text-red-700">{fout}</p>}
 
       {open === null ? (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {vragen.map((_, nr) => {
-              const v = vragen[slotVraag(spelerId ?? '', nr, vragen)];
-              const st = status(nr);
-              return (
-                <button
-                  key={nr}
-                  type="button"
-                  disabled={st.soort === 'klaar'}
-                  onClick={() => setOpen(nr)}
-                  className={`rounded-2xl border-2 p-4 text-left transition ${
-                    st.soort === 'klaar' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-surface hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md'
-                  }`}
-                >
-                  <div className="text-3xl">{st.soort === 'klaar' ? '🔓' : '🔒'}</div>
-                  <div className="mt-1 text-lg font-semibold">Slot {nr + 1}</div>
-                  {v.categorie && <div className="text-sm text-slate-500">{v.categorie}</div>}
-                  <div className="mt-1 text-sm">
-                    {st.soort === 'klaar' && <span className="text-emerald-700">open: cijfer {cijfers[nr]}</span>}
-                    {st.soort === 'nakijken' && <span className="text-slate-500">wordt nagekeken…</span>}
-                    {st.soort === 'wachten' && <span className="text-red-600">opnieuw over {st.seconden}s</span>}
-                    {st.soort === 'open' && st.fout && <span className="text-red-600">fout, probeer opnieuw</span>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {opgelost === vragen.length && <Eindcode be={be} sessie={sessie} status={status(EINDCODE)} aantal={vragen.length} />}
-        </>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {vragen.map((_, nr) => {
+            const v = vragen[slotVraag(spelerId ?? '', nr, vragen)];
+            return (
+              <button
+                key={nr}
+                type="button"
+                onClick={() => setOpen(nr)}
+                className="rounded-2xl border-2 border-slate-200 bg-surface p-4 text-left transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold">Slot {nr + 1}</span>
+                  <span className={`rounded-lg px-3 py-1 font-mono text-2xl font-bold ${cijfers[nr] !== null ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-400'}`}>{cijfers[nr] ?? '?'}</span>
+                </div>
+                {v.categorie && <div className="text-sm text-slate-500">{v.categorie}</div>}
+              </button>
+            );
+          })}
+        </div>
       ) : (
-        <Slot key={open} nr={open} spelerId={spelerId ?? ''} be={be} sessie={sessie} status={status(open)} cijfer={cijfers[open]} onTerug={terug} />
+        <Slot
+          key={open}
+          nr={open}
+          spelerId={spelerId ?? ''}
+          sessie={sessie}
+          keuze={st.keuzes.get(open) ?? null}
+          bezig={st.bezig}
+          straf={straf}
+          onKies={(keuze) => void stuur({ soort: 'slot', slot: open, keuze })}
+          onTerug={terug}
+        />
       )}
     </div>
   );
 }
 
-function Slot({ nr, spelerId, be, sessie, status, cijfer, onTerug }: { nr: number; spelerId: string; be: LiveBackend; sessie: LiveSessie; status: Status; cijfer: string | null; onTerug: () => void }) {
+const OPTIE_KLEUREN = ['bg-red-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-purple-500', 'bg-cyan-500', 'bg-pink-500', 'bg-lime-600'];
+
+function Slot({
+  nr,
+  spelerId,
+  sessie,
+  keuze,
+  bezig,
+  straf,
+  onKies,
+  onTerug,
+}: {
+  nr: number;
+  spelerId: string;
+  sessie: LiveSessie;
+  keuze: number | null;
+  bezig: boolean;
+  straf: number;
+  onKies: (keuze: number) => void;
+  onTerug: () => void;
+}) {
   const v = sessie.vragen![slotVraag(spelerId, nr, sessie.vragen!)];
-  // Na een juist antwoord even het cijfer tonen en dan terug naar de sloten.
+  // Na een keuze even laten zien en dan terug naar de sloten.
+  const [gekozen, setGekozen] = useState(false);
   useEffect(() => {
-    if (status.soort !== 'klaar') return;
-    const id = window.setTimeout(onTerug, 2500);
+    if (!gekozen || bezig) return;
+    const id = window.setTimeout(onTerug, 1200);
     return () => window.clearTimeout(id);
-  }, [status.soort, onTerug]);
+  }, [gekozen, bezig, onTerug]);
+  // Elke leerling ziet de antwoorden in een andere volgorde.
+  const volgorde = v.type === 'waaronwaar' ? [0, 1] : vastGeschud(v.opties.map((_, i) => i).filter((i) => v.opties[i]?.trim()), `${spelerId}:${nr}`);
 
   return (
     <div className="space-y-4">
@@ -182,69 +221,28 @@ function Slot({ nr, spelerId, be, sessie, status, cijfer, onTerug }: { nr: numbe
         </div>
         <RichText text={v.tekst} className="text-2xl leading-snug font-medium" />
       </div>
-      {status.soort === 'klaar' && (
-        <div className="pop rounded-2xl bg-emerald-600 p-6 text-center text-white">
-          <div className="text-5xl">🔓</div>
-          <div className="mt-2 text-3xl font-bold">Slot open! Je cijfer: {cijfer}</div>
-        </div>
-      )}
-      {status.soort === 'nakijken' && <div className="rounded-2xl bg-surface p-6 text-center text-xl text-slate-500">Wordt nagekeken…</div>}
-      {status.soort === 'wachten' && (
-        <div className="rounded-2xl bg-red-600 p-6 text-center text-white">
-          <div className="text-4xl">✗</div>
-          <div className="mt-1 text-2xl font-bold">Fout! Opnieuw proberen over {status.seconden} s</div>
-          <div className="mt-1 opacity-90">Of probeer intussen een ander slot.</div>
-        </div>
-      )}
-      {status.soort === 'open' && (
-        <>
-          {status.fout && <p className="rounded-lg bg-red-50 px-4 py-3 text-red-700">Dat was fout. Probeer opnieuw!</p>}
-          <Beantwoord key={String(status.fout)} vraag={v} zaad={`${spelerId}:${nr}`} onVerstuur={(a) => be.antwoord(sessie.id, nr, a)} />
-        </>
-      )}
-    </div>
-  );
-}
-
-function Eindcode({ be, sessie, status, aantal }: { be: LiveBackend; sessie: LiveSessie; status: Status; aantal: number }) {
-  const [code, setCode] = useState('');
-  const [fout, setFout] = useState<string | null>(null);
-  async function verstuur(e: FormEvent) {
-    e.preventDefault();
-    try {
-      setFout(null);
-      await be.antwoord(sessie.id, EINDCODE, code);
-      setCode('');
-    } catch (err) {
-      setFout(foutTekst(err));
-    }
-  }
-  return (
-    <div className="pop rounded-2xl border-4 border-amber-400 bg-amber-50 p-6 text-center">
-      <div className="text-5xl">🚪</div>
-      <h2 className="mt-2 text-2xl font-bold">Alle sloten zijn open! Typ de code om te ontsnappen.</h2>
-      {status.soort === 'nakijken' ? (
-        <p className="mt-4 text-xl text-slate-500">Code wordt gecontroleerd…</p>
-      ) : status.soort === 'wachten' ? (
-        <p className="mt-4 text-xl font-semibold text-red-600">Verkeerde code! Opnieuw over {status.seconden} s.</p>
-      ) : (
-        <form className="mt-4 flex flex-wrap justify-center gap-3" onSubmit={verstuur}>
-          <input
-            autoFocus
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, aantal))}
-            inputMode="numeric"
-            aria-label="Code"
-            placeholder={'•'.repeat(aantal)}
-            className="w-64 rounded-xl border-2 border-slate-300 px-4 py-3 text-center font-mono text-4xl tracking-[0.3em] outline-none focus:border-amber-500"
-          />
-          <button type="submit" disabled={code.length !== aantal} className="rounded-xl bg-amber-500 px-8 py-3 text-xl font-semibold text-white disabled:opacity-50">
-            Ontsnappen
+      {straf > 0 && <p className="rounded-lg bg-red-50 px-4 py-3 font-semibold text-red-700">⛔ Straftijd: je kan pas over {straf} s weer antwoorden.</p>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {volgorde.map((i, plaats) => (
+          <button
+            key={i}
+            type="button"
+            disabled={straf > 0 || bezig}
+            aria-pressed={keuze === i}
+            aria-label={v.opties[i]}
+            onClick={() => {
+              setGekozen(true);
+              onKies(i);
+            }}
+            className={`flex min-h-20 items-center gap-4 rounded-2xl px-5 py-4 text-left text-2xl font-medium text-white shadow-sm transition hover:brightness-110 disabled:opacity-50 ${
+              v.type === 'waaronwaar' ? (i === 0 ? 'bg-emerald-600' : 'bg-red-600') : OPTIE_KLEUREN[plaats % OPTIE_KLEUREN.length]
+            } ${keuze === i ? 'ring-4 ring-slate-900 ring-offset-2' : ''}`}
+          >
+            <span className="w-8 shrink-0 text-center text-2xl">{keuze === i ? '✓' : ''}</span>
+            <RichText text={v.opties[i]} className="[&_code]:bg-white/20 [&_code]:text-white" />
           </button>
-          {status.fout && <p className="w-full text-red-600">Die code was fout. Kijk goed naar de volgorde van de cijfers.</p>}
-        </form>
-      )}
-      {fout && <p className="mt-3 text-red-600">{fout}</p>}
+        ))}
+      </div>
     </div>
   );
 }

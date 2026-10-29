@@ -177,3 +177,22 @@ body {
     animation: none;
   }
 }
+
+/* Het handje boven alles wat klikbaar is (Tailwind 4 zet dit niet meer standaard). */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  select:not(:disabled),
+  label:has(> input[type='checkbox']),
+  label:has(> input[type='radio']),
+  label:has(> input[type='file']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='range'] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}

@@ -1,7 +1,19 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
-test('escape room: sloten openen, foute code, ontsnappen', async ({ page }) => {
+/** Een slot openen en een antwoord kiezen (de vraag staat bij elke leerling achter een ander slot). */
+async function kies(p: Page, slot: number, antwoorden: Record<string, string>) {
+  await p.locator('main button', { hasText: `Slot ${slot}` }).click();
+  const vraag = (await p.locator('main .rounded-2xl.bg-surface').first().textContent()) ?? '';
+  const antwoord = Object.entries(antwoorden).find(([deel]) => vraag.includes(deel))![1];
+  await p.getByRole('button', { name: antwoord, exact: true }).click();
+  // Altijd een cijfer, ook bij een fout antwoord: niets verraadt of het juist was.
+  await expect(p.getByRole('button', { name: '← Terug naar de sloten' })).toBeHidden({ timeout: 6000 });
+  await expect(p.locator('main button', { hasText: `Slot ${slot}` })).toContainText(/\d/);
+}
+
+test('escape room: elk antwoord geeft een cijfer, foute code = straftijd, juiste code = ontsnapt', async ({ page }) => {
+  test.setTimeout(90_000);
   const controleer = geenFouten(page);
   page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '4B', ['Peeters Anna', 'Claes Bert']);
@@ -9,44 +21,39 @@ test('escape room: sloten openen, foute code, ontsnappen', async ({ page }) => {
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/escape-set.json');
   await expect(page.getByText('Ontsnap uit het wiskundelokaal')).toBeVisible();
   await kiesSpel(page, 'Ontsnap uit het wiskundelokaal (test)', 'Escape room');
-  await page.locator('div', { has: page.locator('label', { hasText: 'Wachten na fout antwoord' }) }).locator('select').last().selectOption('0');
+  // Open vragen tellen niet mee.
+  await expect(page.getByText(/Enkel meerkeuze- en waar\/onwaar-vragen \(2 van 3\)/)).toBeVisible();
+  await expect(page.getByLabel('Straftijd na foute code')).toHaveValue('60');
   const code = await startLive(page);
-
   const anna = await leerling(page, code, 'Anna');
+  const bert = await leerling(page, code, 'Bert');
   await page.getByRole('button', { name: /Start de escape room/ }).click();
-  const slot = (n: number) => anna.locator('main button', { hasText: `Slot ${n}` });
 
-  // Elke leerling heeft de vragen in een andere volgorde achter de sloten: antwoorden op wat er staat.
-  for (let n = 1; n <= 3; n++) {
-    await expect(slot(n)).toBeVisible({ timeout: 6000 });
-    await slot(n).click();
-    await expect(anna.getByRole('button', { name: '← Terug naar de sloten' })).toBeVisible();
-    if (await anna.getByLabel('Je antwoord').count()) {
-      await anna.getByLabel('Je antwoord').fill('8');
-      await anna.getByRole('button', { name: 'Versturen' }).click();
-      await expect(anna.getByText('Dat was fout. Probeer opnieuw!')).toBeVisible();
-      await anna.getByLabel('Je antwoord').fill('7');
-      await anna.getByRole('button', { name: 'Versturen' }).click();
-    } else if (await anna.getByRole('button', { name: '32', exact: true }).count()) {
-      await anna.getByRole('button', { name: '32', exact: true }).click();
-    } else {
-      await anna.getByRole('button', { name: 'Waar', exact: true }).click();
-    }
-    await expect(anna.getByText(/Slot open! Je cijfer/)).toBeVisible();
-  }
-  await expect(anna.getByText('Alle sloten zijn open!')).toBeVisible({ timeout: 6000 });
+  // Anna: één fout antwoord. De code testen kan pas als alle sloten een cijfer hebben.
+  await expect(anna.getByRole('button', { name: '🔓 Test de code' })).toBeDisabled();
+  await kies(anna, 1, { '2^5': '16', 'sqrt': 'Waar' });
+  await kies(anna, 2, { '2^5': '16', 'sqrt': 'Waar' });
+  await anna.getByRole('button', { name: '🔓 Test de code' }).click();
+  await expect(anna.getByText(/Er zit nog ergens een fout/)).toBeVisible();
+  await expect(anna.getByText(/Straftijd: nog \d+ s/)).toBeVisible();
+  // Tijdens de straftijd: vragen bekijken mag, antwoorden niet.
+  await anna.locator('main button', { hasText: 'Slot 1' }).click();
+  await expect(anna.getByText(/je kan pas over \d+ s weer antwoorden/)).toBeVisible();
+  await expect(anna.getByRole('button', { name: 'Waar', exact: true }).or(anna.getByRole('button', { name: '32', exact: true }))).toBeDisabled();
+  if (process.env.SCHERMAFDRUK) await anna.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-straf.png') });
+  await anna.getByRole('button', { name: '← Terug naar de sloten' }).click();
 
-  const cijfers = (await anna.locator('.font-mono.text-4xl.font-bold').allTextContents()).map((t) => t.trim()).join('');
-  expect(cijfers).toMatch(/^\d{3}$/);
-  const fout = String((Number(cijfers) + 1) % 1000).padStart(3, '0');
-  await anna.getByLabel('Code').fill(fout);
-  await anna.getByRole('button', { name: 'Ontsnappen' }).click();
-  await expect(anna.getByText(/Die code was fout/)).toBeVisible();
-  await anna.getByLabel('Code').fill(cijfers);
-  await anna.getByRole('button', { name: 'Ontsnappen' }).click();
-  await expect(anna.getByText('Je bent ontsnapt!')).toBeVisible();
+  // Bert: alles juist en ontsnapt.
+  await kies(bert, 1, { '2^5': '32', 'sqrt': 'Waar' });
+  await kies(bert, 2, { '2^5': '32', 'sqrt': 'Waar' });
+  if (process.env.SCHERMAFDRUK) await bert.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-leerling.png') });
+  await bert.getByRole('button', { name: '🔓 Test de code' }).click();
+  await expect(bert.getByText('Je bent ontsnapt!')).toBeVisible();
 
-  await expect(page.getByText('1 / 1 ontsnapt')).toBeVisible();
+  await expect(page.getByText('1 / 2 ontsnapt')).toBeVisible();
+  // Het bord verraadt niet wat juist is: enkel ingevulde sloten en foute codes.
+  await expect(page.locator('tr', { hasText: 'Anna' }).getByText('✗1')).toBeVisible();
+  if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-bord.png') });
   await page.getByRole('button', { name: /Beëindigen/ }).click();
   await expect(page.getByText(/ontsnapt!/).first()).toBeVisible();
   controleer();
