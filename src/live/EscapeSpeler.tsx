@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { volgendeActieNr } from './codekraker';
-import { escapeStaat, slotVraag, STRAF } from './escape';
-import { foutTekst } from './Invoer';
+import { escapeStaat, slotVraag, STRAF, type SlotKeuze } from './escape';
+import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { vastGeschud } from '../lib/vraagtypes';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
 
@@ -169,7 +169,7 @@ export function EscapeSpeler({
           keuze={st.keuzes.get(open) ?? null}
           bezig={st.bezig}
           straf={straf}
-          onKies={(keuze) => void stuur({ soort: 'slot', slot: open, keuze })}
+          onKies={(antwoord) => stuur({ soort: 'slot', slot: open, ...antwoord })}
           onTerug={terug}
         />
       )}
@@ -192,10 +192,10 @@ function Slot({
   nr: number;
   spelerId: string;
   sessie: LiveSessie;
-  keuze: number | null;
+  keuze: SlotKeuze | null;
   bezig: boolean;
   straf: number;
-  onKies: (keuze: number) => void;
+  onKies: (antwoord: { keuze: number } | { antwoord: string }) => Promise<void>;
   onTerug: () => void;
 }) {
   const v = sessie.vragen![slotVraag(spelerId, nr, sessie.vragen!)];
@@ -207,6 +207,7 @@ function Slot({
     return () => window.clearTimeout(id);
   }, [gekozen, bezig, onTerug]);
   // Elke leerling ziet de antwoorden in een andere volgorde.
+  const keuzevraag = v.type === 'meerkeuze' || v.type === 'waaronwaar';
   const volgorde = v.type === 'waaronwaar' ? [0, 1] : vastGeschud(v.opties.map((_, i) => i).filter((i) => v.opties[i]?.trim()), `${spelerId}:${nr}`);
 
   return (
@@ -222,27 +223,47 @@ function Slot({
         <RichText text={v.tekst} className="text-2xl leading-snug font-medium" />
       </div>
       {straf > 0 && <p className="rounded-lg bg-red-50 px-4 py-3 font-semibold text-red-700">⛔ Straftijd: je kan pas over {straf} s weer antwoorden.</p>}
+      {keuzevraag ? (
       <div className="grid gap-3 sm:grid-cols-2">
-        {volgorde.map((i, plaats) => (
-          <button
-            key={i}
-            type="button"
-            disabled={straf > 0 || bezig}
-            aria-pressed={keuze === i}
-            aria-label={v.opties[i]}
-            onClick={() => {
-              setGekozen(true);
-              onKies(i);
-            }}
-            className={`flex min-h-20 items-center gap-4 rounded-2xl px-5 py-4 text-left text-2xl font-medium text-white shadow-sm transition hover:brightness-110 disabled:opacity-50 ${
-              v.type === 'waaronwaar' ? (i === 0 ? 'bg-emerald-600' : 'bg-red-600') : OPTIE_KLEUREN[plaats % OPTIE_KLEUREN.length]
-            } ${keuze === i ? 'ring-4 ring-slate-900 ring-offset-2' : ''}`}
-          >
-            <span className="w-8 shrink-0 text-center text-2xl">{keuze === i ? '✓' : ''}</span>
-            <RichText text={v.opties[i]} className="[&_code]:bg-white/20 [&_code]:text-white" />
-          </button>
-        ))}
-      </div>
+          {volgorde.map((i, plaats) => (
+            <button
+              key={i}
+              type="button"
+              disabled={straf > 0 || bezig}
+              aria-pressed={keuze?.keuze === i}
+              aria-label={v.opties[i]}
+              onClick={() => {
+                setGekozen(true);
+                void onKies({ keuze: i });
+              }}
+              className={`flex min-h-20 items-center gap-4 rounded-2xl px-5 py-4 text-left text-2xl font-medium text-white shadow-sm transition hover:brightness-110 disabled:opacity-50 ${
+                v.type === 'waaronwaar' ? (i === 0 ? 'bg-emerald-600' : 'bg-red-600') : OPTIE_KLEUREN[plaats % OPTIE_KLEUREN.length]
+              } ${keuze?.keuze === i ? 'ring-4 ring-slate-900 ring-offset-2' : ''}`}
+            >
+              <span className="w-8 shrink-0 text-center text-2xl">{keuze?.keuze === i ? '✓' : ''}</span>
+              <RichText text={v.opties[i]} className="[&_code]:bg-white/20 [&_code]:text-white" />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {keuze?.antwoord !== undefined && (
+            <p className="rounded-lg bg-slate-100 px-4 py-2 text-lg">
+              Jouw antwoord: <AntwoordTekst vraag={v} antwoord={keuze.antwoord} />
+            </p>
+          )}
+          {straf === 0 && !bezig && (
+            <Beantwoord
+              vraag={v}
+              zaad={`${spelerId}:${nr}`}
+              onVerstuur={async (antwoord) => {
+                setGekozen(true);
+                await onKies({ antwoord });
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

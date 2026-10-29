@@ -1,7 +1,7 @@
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { Vraag } from '../lib/types';
 import { vastGeschud } from '../lib/vraagtypes';
-import { automatischJuist, schermNaam } from './logic';
+import { automatischJuist, normaliseer, schermNaam } from './logic';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
 
 /** Vraagnummer van de eindcode. */
@@ -102,8 +102,10 @@ export function escapeStand(voortgang: readonly EscapeVoortgang[]): StandRij[] {
 export interface SlotKeuze {
   soort: 'slot';
   slot: number;
-  /** Index in keuzeOpties van de vraag (de leerling ziet ze geschud). */
-  keuze: number;
+  /** Keuzevragen: index in keuzeOpties van de vraag (de leerling ziet ze geschud). */
+  keuze?: number;
+  /** Andere vragen: het antwoord zoals bij een gewone vraag. */
+  antwoord?: string;
 }
 export interface CodePoging {
   soort: 'code';
@@ -114,7 +116,7 @@ export type EscapeActie = SlotKeuze | CodePoging;
 export function leesEscapeActie(tekst: string): EscapeActie | null {
   try {
     const a = JSON.parse(tekst) as EscapeActie;
-    if (a?.soort === 'slot' && Number.isInteger(a.slot) && Number.isInteger(a.keuze)) return a;
+    if (a?.soort === 'slot' && Number.isInteger(a.slot) && (Number.isInteger(a.keuze) || typeof a.antwoord === 'string')) return a;
     if (a?.soort === 'code' && typeof a.code === 'string') return a;
     return null;
   } catch {
@@ -127,25 +129,38 @@ export const STRAF = 'straf';
 
 /** Aantal keuzes van een vraag (meerkeuze: de ingevulde opties, waar/onwaar: 2). */
 const aantalKeuzes = (v: Vraag) => (v.type === 'waaronwaar' ? 2 : v.opties.length);
+const isKeuze = (v: { type: string }) => v.type === 'meerkeuze' || v.type === 'waaronwaar';
+
+/** Is het antwoord op dit slot juist? (Enkel met de volledige vraag, dus bij de leerkracht.) */
+export function slotJuist(v: Vraag, a: SlotKeuze): boolean {
+  return isKeuze(v) ? a.keuze === v.juisteOptie : typeof a.antwoord === 'string' && automatischJuist(v, a.antwoord);
+}
 
 /**
- * Het cijfer bij een keuze: het juiste antwoord geeft het cijfer van de code op dat slot, elk
- * fout antwoord een ander (vast) cijfer, per leerling en slot anders.
+ * Het cijfer bij een antwoord: het juiste antwoord geeft het cijfer van de code op dat slot, elk
+ * fout antwoord een ander (vast) cijfer, per leerling en slot anders. Bij keuzevragen geeft elke
+ * foute keuze een ander cijfer; bij open vragen hangt het cijfer af van wat er getypt werd.
  */
-export function cijferVoor(code: string, spelerId: string, slot: number, vraag: Vraag, keuze: number): string {
+export function cijferVoor(code: string, spelerId: string, slot: number, vraag: Vraag, a: SlotKeuze): string {
   const juist = code[slot] ?? '0';
-  if (keuze === vraag.juisteOptie) return juist;
+  if (slotJuist(vraag, a)) return juist;
   const anderen = vastGeschud(
     '0123456789'.split('').filter((c) => c !== juist),
     `${code}:${spelerId}:${slot}`,
   );
-  return anderen[(keuze < vraag.juisteOptie ? keuze : keuze - 1) % anderen.length];
+  if (isKeuze(vraag)) {
+    const k = a.keuze ?? 0;
+    return anderen[(k < vraag.juisteOptie ? k : k - 1) % anderen.length];
+  }
+  let h = 0;
+  for (const c of normaliseer(a.antwoord ?? '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return anderen[h % anderen.length];
 }
 
 export interface EscapeStaat {
   speler: LiveSpeler;
-  /** Gekozen antwoord per slot (laatste keuze telt). */
-  keuzes: Map<number, number>;
+  /** Gegeven antwoord per slot (het laatste telt). */
+  keuzes: Map<number, SlotKeuze>;
   /** Cijfer per slot (zoals de leerling het ziet). */
   cijfers: Map<number, string>;
   /** Juiste sloten: enkel voor de leerkracht, nooit op het bord of de server. */
@@ -174,7 +189,7 @@ export function escapeStaat(vragen: readonly { categorie: string; juisteOptie?: 
         const actie = leesEscapeActie(a.antwoord);
         if (!actie) continue;
         if (actie.soort === 'slot' && a.juist) {
-          st.keuzes.set(actie.slot, actie.keuze);
+          st.keuzes.set(actie.slot, actie);
           if (a.beloning && a.beloning !== STRAF) st.cijfers.set(actie.slot, a.beloning);
           st.laatsteMs = a.tijdMs;
         } else if (actie.soort === 'code' && a.beloning !== STRAF) {
@@ -187,7 +202,7 @@ export function escapeStaat(vragen: readonly { categorie: string; juisteOptie?: 
       }
       st.juist = [...st.keuzes].filter(([slot, keuze]) => {
         const v = vragen[slotVraag(speler.id, slot, vragen)];
-        return v && keuze === v.juisteOptie;
+        return !!v && 'antwoord' in v && slotJuist(v as Vraag, keuze);
       }).length;
       return st;
     })
@@ -217,8 +232,9 @@ export function escapeActieBeoordelingen(vragen: readonly Vraag[], code: string,
         else if (a.tijdMs < strafTot) [juist, beloning] = [false, STRAF];
         else if (actie.soort === 'slot') {
           const v = vragen[slotVraag(spelerId, actie.slot, vragen)];
-          const geldig = !!v && actie.slot >= 0 && actie.slot < vragen.length && actie.keuze >= 0 && actie.keuze < aantalKeuzes(v);
-          [juist, beloning] = geldig ? [true, cijferVoor(code, spelerId, actie.slot, v, actie.keuze)] : [false, null];
+          const geldig =
+            !!v && actie.slot >= 0 && actie.slot < vragen.length && (isKeuze(v) ? (actie.keuze ?? -1) >= 0 && (actie.keuze ?? -1) < aantalKeuzes(v) : typeof actie.antwoord === 'string');
+          [juist, beloning] = geldig ? [true, cijferVoor(code, spelerId, actie.slot, v, actie)] : [false, null];
         } else [juist, beloning] = [zonderSpaties(actie.code) === code, null];
         uit.push({ id: a.id, juist, punten: 0, beloning });
       }
@@ -244,8 +260,8 @@ export function escapeAlsAntwoorden(vragen: readonly Vraag[], staat: readonly Es
   return staat.flatMap((s) =>
     [...s.keuzes].map(([slot, keuze]) => {
       const nr = slotVraag(s.speler.id, slot, vragen);
-      const juist = keuze === vragen[nr]?.juisteOptie;
-      return { id: `${s.speler.id}:${slot}`, spelerId: s.speler.id, vraagNr: nr, antwoord: String(keuze), tijdMs: s.laatsteMs, juist, punten: juist ? (vragen[nr]?.punten ?? 0) : 0, poging: 1, beloning: null };
+      const juist = !!vragen[nr] && slotJuist(vragen[nr], keuze);
+      return { id: `${s.speler.id}:${slot}`, spelerId: s.speler.id, vraagNr: nr, antwoord: keuze.antwoord ?? String(keuze.keuze), tijdMs: s.laatsteMs, juist, punten: juist ? (vragen[nr]?.punten ?? 0) : 0, poging: 1, beloning: null };
     }),
   );
 }

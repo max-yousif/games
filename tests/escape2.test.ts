@@ -28,7 +28,7 @@ describe('escape room v2', () => {
     for (let slot = 0; slot < 3; slot++) {
       const v = vraagAchter(slot);
       const aantal = v.type === 'waaronwaar' ? 2 : v.opties.length;
-      const cijfers = Array.from({ length: aantal }, (_, k) => cijferVoor(CODE, 'p', slot, v, k));
+      const cijfers = Array.from({ length: aantal }, (_, k) => cijferVoor(CODE, 'p', slot, v, { soort: 'slot', slot, keuze: k }));
       expect(cijfers[v.juisteOptie]).toBe(CODE[slot]);
       expect(new Set(cijfers).size).toBe(aantal);
       cijfers.forEach((c) => expect(c).toMatch(/^\d$/));
@@ -82,5 +82,22 @@ describe('escape room v2', () => {
     const r = escapeAlsAntwoorden(vragen, [st]);
     expect(r.map((a) => a.juist)).toEqual([true, true, true]);
     expect(r.map((a) => a.vraagNr).sort()).toEqual([0, 1, 2]);
+  });
+
+  it('open vragen: het juiste antwoord geeft het cijfer, elk ander antwoord een vast ander cijfer', () => {
+    const open: Vraag = { ...vraag('o', 'Y', 100), type: 'open', antwoord: 'Parijs' };
+    const lijst = [open];
+    const c = (antwoord: string) => cijferVoor('3', 'p', 0, open, { soort: 'slot', slot: 0, antwoord });
+    expect(c('parijs')).toBe('3');
+    expect(c(' PARIJS ')).toBe('3');
+    expect(c('Londen')).not.toBe('3');
+    expect(c('Londen')).toBe(c('londen'));
+    let alle: LiveAntwoord[] = [actie(1000, { soort: 'slot', slot: 0, antwoord: 'Londen' })];
+    const b = escapeActieBeoordelingen(lijst, '3', 60, alle);
+    expect(b[0]).toMatchObject({ juist: true, beloning: c('Londen') });
+    alle = alle.map((a) => ({ ...a, juist: true, beloning: b[0].beloning ?? null }));
+    const st = escapeStaat(lijst, spelers, alle, 60)[0];
+    expect(st.juist).toBe(0);
+    expect(escapeAlsAntwoorden(lijst, [st])[0]).toMatchObject({ juist: false, antwoord: 'Londen' });
   });
 });

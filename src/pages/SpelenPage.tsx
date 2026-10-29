@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { isKeuzeVraag } from '../lib/vraagtypes';
 import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
@@ -28,7 +27,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
   { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Alle vragen komen aan bod; de minste ontploffingen wint.' },
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
-  { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
+  { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer, juist of niet. Klopt de code? Dan ontsnap je, anders volgt straftijd.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Crypto Hack', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
   { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
   { type: 'cluedo', icoon: '🔎', naam: 'Cluedo', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
@@ -37,10 +36,33 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
 
 const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
 const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'cluedo', 'whodunit'];
+/** Op de eigen laptop, met een verhaal dat niet bij elke set voorbereid is. */
+const VERHAAL_SPELLEN: SpelType[] = ['cluedo', 'whodunit'];
 const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
 
 const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
 const WACHTTIJDEN = [0, 10, 15, 30, 60];
+
+/** Welke vragen uit staan, onthouden per vragenset en klas (in deze browser). */
+const VRAAGKEUZE = 'games.v1.vraagkeuze';
+function leesVraagKeuze(setId: string, klasId: string): Set<string> {
+  try {
+    const alles = JSON.parse(localStorage.getItem(VRAAGKEUZE) ?? '{}') as Record<string, string[]>;
+    return new Set(alles[`${setId}:${klasId}`] ?? []);
+  } catch {
+    return new Set();
+  }
+}
+function bewaarVraagKeuze(setId: string, klasId: string, uit: Set<string>) {
+  try {
+    const alles = JSON.parse(localStorage.getItem(VRAAGKEUZE) ?? '{}') as Record<string, string[]>;
+    if (uit.size) alles[`${setId}:${klasId}`] = [...uit];
+    else delete alles[`${setId}:${klasId}`];
+    localStorage.setItem(VRAAGKEUZE, JSON.stringify(alles));
+  } catch {
+    // Niet kunnen bewaren is geen probleem.
+  }
+}
 /** Escape room: straftijd na een foute code (seconden). */
 const STRAFTIJDEN = [30, 60, 120, 180];
 
@@ -73,8 +95,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   // Vragen die niet meedoen in dit spel (de vragenset zelf blijft ongewijzigd).
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
-  // Escape room: enkel vragen met keuzes (elk antwoord geeft een cijfer).
-  const escapeVragen = vragen.filter(isKeuzeVraag);
+  const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
   const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
@@ -249,7 +270,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   function kiesSet(id: string) {
     setGekozenSet(id);
-    setUit(new Set());
+    setUit(leesVraagKeuze(id, klasId ?? ''));
     laadCluedo(store.sets.find((s) => s.id === id)?.cluedo ?? STANDAARD_THEMA);
     setStap(4);
   }
@@ -261,6 +282,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     verdeel(k?.leerlingen ?? [], aantalTeams, []);
     // Vragensets meteen gefilterd op het jaar van de klas.
     setJaar(k ? (klasJaar(k) ?? 0) : 0);
+    if (gekozenSet) setUit(leesVraagKeuze(gekozenSet, id));
     setStap(set ? 4 : 3);
   }
 
@@ -318,7 +340,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         <Section step={1} title="Welk spel?">
           {[
             { titel: 'Op het bord, in teams', types: BORD_SPELLEN },
-            { titel: 'Elke leerling op de eigen laptop', types: LIVE_SPELLEN },
+            { titel: 'Elke leerling op de eigen laptop', types: LIVE_SPELLEN.filter((t) => !VERHAAL_SPELLEN.includes(t)) },
+            { titel: 'Op de eigen laptop, met een verhaal', types: VERHAAL_SPELLEN },
           ].map((groep) => (
             <div key={groep.titel} className="mb-5 last:mb-0">
               <h3 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">{groep.titel}</h3>
@@ -680,8 +703,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </>
             ) : spel === 'escape' ? (
               <p className="text-slate-600">
-                Elk antwoord geeft een cijfer, juist of niet. Wie denkt de code te hebben, test ze; een foute code geeft straftijd. Enkel meerkeuze- en waar/onwaar-vragen
-                ({escapeVragen.length} van {vragen.length}).
+                Elk antwoord geeft een cijfer, juist of niet. Wie denkt de code te hebben, test ze; een foute code geeft straftijd.
               </p>
             ) : (
               <>
@@ -795,7 +817,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   Vragenset bewerken
                 </a>
               </p>
-              <VraagKeuze key={gekozenSet} vragen={alleVragen} uit={uit} onChange={setUit} />
+              <VraagKeuze
+                key={`${gekozenSet}:${klasId}`}
+                vragen={alleVragen}
+                uit={uit}
+                onChange={(u) => {
+                  setUit(u);
+                  bewaarVraagKeuze(gekozenSet, klasId ?? '', u);
+                }}
+              />
             </Section>
           )}
         </>
