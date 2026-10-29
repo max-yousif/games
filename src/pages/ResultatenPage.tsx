@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { LEERJAREN } from '../components/JaarKeuze';
 import { RichText } from '../components/RichText';
 import { Button, inputClass, Notice, PageHeader } from '../components/ui';
 import { statistieken } from '../lib/statistiek';
@@ -55,7 +56,7 @@ export function ResultatenPage({ store }: { store: Store }) {
   const term = zoek.trim().toLowerCase();
   const naJaar = bewaard.filter((s) => !jaarFilter || jaarVan(s.klasNaam) === jaarFilter);
   const klassen = [...new Set(naJaar.map((s) => s.klasNaam))].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
-  const jaren = [...new Set(bewaard.map((s) => jaarVan(s.klasNaam)).filter((j): j is number => j !== null))].sort();
+  const jaren = [...new Set(bewaard.map((s) => jaarVan(s.klasNaam)).filter((j): j is number => j !== null && LEERJAREN.includes(j)))].sort();
   const spellen = [...new Set(bewaard.map((s) => s.spelType))];
   const sessies = naJaar
     .filter((s) => !klasFilter || s.klasNaam === klasFilter)

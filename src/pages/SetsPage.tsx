@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LEERJAREN } from '../components/JaarKeuze';
 import { Button, FileButton, inputClass, Notice, PageHeader } from '../components/ui';
 import { BackupError, bestandsnaam, downloadJson, leesBestand, setBestand, voegSamen } from '../lib/backup';
 import { dupliceerSet, nieuweSet, speelbareVragen, vakkenVan } from '../lib/questions';
@@ -148,13 +149,11 @@ export function SetsPage({ store }: { store: Store }) {
           <button type="button" className={chip(filter.jaar === 0)} aria-pressed={filter.jaar === 0} onClick={() => zet({ jaar: 0 })}>
             Alle ({store.sets.length})
           </button>
-          {[3, 4, 5, 6, 1, 2]
-            .filter((j) => j >= 3 || telJaar(j) > 0)
-            .map((j) => (
-              <button key={j} type="button" className={chip(filter.jaar === j)} aria-pressed={filter.jaar === j} onClick={() => zet({ jaar: j })}>
-                {j}e jaar ({telJaar(j)})
-              </button>
-            ))}
+          {LEERJAREN.map((j) => (
+            <button key={j} type="button" className={chip(filter.jaar === j)} aria-pressed={filter.jaar === j} onClick={() => zet({ jaar: j })}>
+              {j}e jaar ({telJaar(j)})
+            </button>
+          ))}
           {telJaar(-1) > 0 && (
             <button type="button" className={chip(filter.jaar === -1)} aria-pressed={filter.jaar === -1} onClick={() => zet({ jaar: -1 })}>
               Zonder jaar ({telJaar(-1)})

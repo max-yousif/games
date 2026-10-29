@@ -272,7 +272,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const kanStarten = spel !== null && set !== null && klasGekozen && vragen.length > 0 && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       <PageHeader title="Spelen">
         <GeluidMenu />
       </PageHeader>
@@ -435,11 +435,17 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         <>
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-4">
             {set.cover ? <img src={set.cover} alt="" className="aspect-video w-28 rounded-lg object-cover" /> : <span className="text-5xl">{spelInfo?.icoon}</span>}
-            <div className="text-lg">
+            <div className="min-w-0 flex-1 text-lg">
               <strong>
                 {spelInfo?.icoon} {spelInfo?.naam}
               </strong>{' '}
               met <strong>“{set.titel}”</strong> ({vragen.length} vragen) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
+                {bezig ? 'Bezig…' : '▶ Start het spel'}
+              </Button>
+              {fout && <span className="text-sm text-red-600">{fout}</span>}
             </div>
           </div>
 
@@ -741,25 +747,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </>
       )}
 
-      {/* Startbalk: altijd zichtbaar onderaan. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1 truncate text-sm text-slate-600">
-            {spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : 'Kies een spel'} · {klasGekozen ? (klas ? klas.naam : 'zonder klas') : 'kies een klas'} ·{' '}
-            {set ? `“${set.titel}”` : 'kies een vragenset'}
-          </div>
-          {fout && <span className="text-sm text-red-600">{fout}</span>}
-          {stap < 4 ? (
-            <Button variant="primary" disabled={!stappen[stap].kan} onClick={() => setStap((stap + 1) as Stap)}>
-              Volgende ▶
-            </Button>
-          ) : (
-            <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
-              {bezig ? 'Bezig…' : '▶ Start het spel'}
-            </Button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
