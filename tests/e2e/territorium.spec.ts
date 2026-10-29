@@ -9,11 +9,18 @@ async function juistEnTeken(p: Page, y: number) {
   const veld = p.locator('[data-tekenveld]');
   await expect(veld).toBeVisible();
   const box = (await veld.boundingBox())!;
+  // Het tekenveld ligt over het hele scherm: scrollen kan niet.
+  const voor = await p.evaluate(() => window.scrollY);
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.mouse.wheel(0, 600);
+  expect(await p.evaluate(() => window.scrollY)).toBe(voor);
+  await expect(p.getByText(/Teken zo snel mogelijk/)).toBeVisible();
   await p.mouse.move(box.x + box.width * 0.1, box.y + box.height * y);
   await p.mouse.down();
   for (let i = 1; i <= 10; i++) await p.mouse.move(box.x + box.width * (0.1 + i * 0.03), box.y + box.height * y);
   await p.mouse.up();
-  // Na 3 seconden gaat de tekening vanzelf door.
+  await expect(p.getByText(/Teken zo snel mogelijk/)).toBeHidden();
+  // Na de tekentijd gaat de tekening vanzelf door.
   await expect(p.getByText(/Hoeveel is \d\+\d\?/)).toBeVisible({ timeout: 8000 });
 }
 
@@ -26,6 +33,8 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
   await kiesSpel(page, 'Codekraker test (test)', 'Territorium');
   await page.locator('label:text-is("Wachten na fout antwoord") + select').selectOption('0');
+  await expect(page.getByLabel('Tekentijd per beurt')).toHaveValue('5');
+  await page.getByLabel('Tekentijd per beurt').selectOption('3');
   const code = await startLive(page);
 
   const anna = await leerling(page, code, 'Anna');
@@ -55,7 +64,7 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
     await expect(anna.locator('[data-tekenveld]')).toBeVisible();
     await anna.setViewportSize({ width: 1280, height: 800 });
     await anna.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-leerling.png') });
-    await anna.getByRole('button', { name: 'Niet tekenen, volgende vraag' }).click();
+    await anna.getByRole('button', { name: 'Niet tekenen' }).click();
   }
 
   await page.getByRole('button', { name: /Beëindigen/ }).click();

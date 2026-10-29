@@ -4,6 +4,7 @@ import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
 import { STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
+import { STANDAARD_SECONDEN, TEKENTIJDEN } from '../live/territorium';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
@@ -70,6 +71,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   };
   const cluedoFouten = spel === 'cluedo' ? themaProblemen(cluedoThema) : [];
   const [hacken, setHacken] = useState(true);
+  const [tekenSeconden, setTekenSeconden] = useState(STANDAARD_SECONDEN);
   const raadselFouten = spel === 'whodunit' ? raadselProblemen(set?.raadsel) : [];
   const aantalTeams = spel === 'vieropeenrij' ? 2 : isLive ? 1 : aantal;
   // Op het scherm enkel voornamen (met initiaal bij dezelfde voornaam).
@@ -177,7 +179,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? cluedoThema : undefined,
-        territorium: territorium ? { versie: 1 } : undefined,
+        territorium: territorium ? { versie: 1, seconden: tekenSeconden } : undefined,
       });
       const basis = nieuweSessie({
         spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : escape ? 'escape' : 'live',
@@ -202,6 +204,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           afgesloten: false,
           escapeCode,
           ...(codekraker ? { hacken } : {}),
+          ...(territorium ? { tekenSeconden } : {}),
           ...(metNamen ? { namen } : {}),
         },
       } as const;
@@ -370,6 +373,20 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   ))}
                 </select>
               </div>
+              {spel === 'territorium' && (
+                <div className="w-40">
+                  <label className={labelClass} htmlFor="tekentijd">
+                    Tekentijd per beurt
+                  </label>
+                  <select id="tekentijd" className={inputClass} value={tekenSeconden} onChange={(e) => setTekenSeconden(Number(e.target.value))}>
+                    {TEKENTIJDEN.map((t) => (
+                      <option key={t} value={t}>
+                        {t} seconden
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="w-48">
                 <label className={labelClass}>Wachten na fout antwoord</label>
                 <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
@@ -413,7 +430,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           <div className="mb-4 space-y-2 text-sm">
             {spel === 'territorium' ? (
               <p className="text-slate-600">
-                Elke leerling (of elk groepje) krijgt een eigen kleur. Bij een juist antwoord mag de leerling 3 seconden tekenen op het gedeelde veld, ook over het gebied van
+                Elke leerling (of elk groepje) krijgt een eigen kleur. Bij een juist antwoord mag de leerling enkele seconden tekenen op het gedeelde veld (hoe sneller, hoe meer gebied), ook over het gebied van
                 een ander. Wie meerdere vragen na elkaar juist heeft, krijgt een steeds groter penseel. Na de speeltijd wint wie het meeste gebied heeft. De vragen komen
                 steeds opnieuw.
               </p>

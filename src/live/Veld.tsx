@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BREEDTE, HOOGTE, INKT, KLEUREN, MAX_PUNTEN, schilder, TEKEN_MS } from './territorium';
+import { BREEDTE, HOOGTE, KLEUREN, MAX_PUNTEN, schilder } from './territorium';
 
 const SCHAAL = 10;
 
@@ -29,21 +29,54 @@ export function VeldBeeld({ veld, className = '' }: { veld: Uint8Array; classNam
 
 type Fase = 'wacht' | 'bezig' | 'klaar';
 
+/** Lengte van het antwoord: 4 tekens per punt en 1 per lijn (de server bewaart hoogstens 2000 tekens). */
+const lengte = (lijnen: [number, number][][]) => lijnen.reduce((n, l) => n + l.length * 4 + 1, 0);
+
 /**
- * Tekenen op het veld: de tijd (3 s) start bij de eerste aanraking; daarna of als de inkt op is,
- * gaan de lijnen naar `onKlaar`. Wat je tekent, zie je meteen (op een kopie van het veld).
+ * Tekenen op het veld, over het hele scherm (zodat er niets kan scrollen). De tijd start bij de
+ * eerste klik of aanraking; daarna gaan de lijnen naar `onKlaar`. Wat je tekent, zie je meteen.
  */
-export function VeldTekenen({ veld, kleur, straal, onKlaar }: { veld: Uint8Array; kleur: number; straal: number; onKlaar: (lijnen: [number, number][][]) => void }) {
+export function VeldTekenen({
+  veld,
+  kleur,
+  straal,
+  seconden,
+  onKlaar,
+  onOverslaan,
+}: {
+  veld: Uint8Array;
+  kleur: number;
+  straal: number;
+  seconden: number;
+  onKlaar: (lijnen: [number, number][][]) => void;
+  onOverslaan: () => void;
+}) {
+  const duur = seconden * 1000;
   const ref = useRef<HTMLCanvasElement>(null);
+  const laag = useRef<HTMLDivElement>(null);
   const kopie = useRef(new Uint8Array(veld));
   const lijnen = useRef<[number, number][][]>([]);
-  const inkt = useRef(INKT);
   const omlaag = useRef(false);
   const klaar = useRef(false);
   const [fase, setFase] = useState<Fase>('wacht');
-  const [rest, setRest] = useState(TEKEN_MS);
-  const [inktOver, setInktOver] = useState(1);
+  const [rest, setRest] = useState(duur);
   const start = useRef(0);
+  const kleurCode = KLEUREN[kleur % KLEUREN.length];
+
+  // Zolang er getekend wordt: de pagina niet laten scrollen (muiswiel, touchpad, aanraakscherm).
+  useEffect(() => {
+    const vorig = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const el = laag.current;
+    const stop = (e: Event) => e.preventDefault();
+    el?.addEventListener('wheel', stop, { passive: false });
+    el?.addEventListener('touchmove', stop, { passive: false });
+    return () => {
+      document.body.style.overflow = vorig;
+      el?.removeEventListener('wheel', stop);
+      el?.removeEventListener('touchmove', stop);
+    };
+  }, []);
 
   // Het veld van de server kan intussen veranderen: opnieuw beginnen van dat veld zolang er niet getekend werd.
   useEffect(() => {
@@ -64,10 +97,10 @@ export function VeldTekenen({ veld, kleur, straal, onKlaar }: { veld: Uint8Array
   useEffect(() => {
     if (fase !== 'bezig') return;
     const id = window.setInterval(() => {
-      const r = TEKEN_MS - (Date.now() - start.current);
+      const r = duur - (Date.now() - start.current);
       setRest(Math.max(0, r));
       if (r <= 0) stop();
-    }, 50);
+    }, 40);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fase]);
@@ -85,60 +118,74 @@ export function VeldTekenen({ veld, kleur, straal, onKlaar }: { veld: Uint8Array
     if (ctx) teken(ctx, kopie.current);
   };
 
-  const aantalPunten = () => lijnen.current.reduce((n, l) => n + l.length, 0);
-
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-4">
-        <div className="text-2xl font-bold">{fase === 'wacht' ? '🖌️ Teken!' : fase === 'bezig' ? `⏱ ${(rest / 1000).toFixed(1)} s` : '✓ Klaar'}</div>
-        <div className="flex flex-1 items-center gap-2" aria-label="Inkt">
-          <span className="text-sm text-slate-500">inkt</span>
-          <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full transition-[width]" style={{ width: `${inktOver * 100}%`, background: KLEUREN[kleur % KLEUREN.length] }} />
-          </div>
+    <div
+      ref={laag}
+      className="fixed inset-0 z-50 flex touch-none flex-col items-center justify-center gap-3 overscroll-none bg-slate-900/95 p-4 select-none"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <div className="flex w-full max-w-[min(100%,calc((100vh-9rem)*1.6))] items-center gap-4 text-white">
+        <span className="inline-block h-9 w-9 shrink-0 rounded-lg border-2 border-white/60" style={{ background: kleurCode }} aria-hidden />
+        <div className="font-mono text-4xl font-bold tabular-nums" aria-live="polite">
+          {fase === 'klaar' ? '✓' : `${(rest / 1000).toFixed(1)} s`}
         </div>
+        <div className="h-4 flex-1 overflow-hidden rounded-full bg-white/20" aria-label="Tijd">
+          <div className="h-full rounded-full" style={{ width: `${(rest / duur) * 100}%`, background: kleurCode }} />
+        </div>
+        <span className="text-sm text-white/70" title="Penseel (groter met een reeks juiste antwoorden)">
+          penseel {'●'.repeat(Math.round(straal * 2))}
+        </span>
+        {fase === 'wacht' && (
+          <button type="button" onClick={onOverslaan} className="rounded-lg px-3 py-1 text-sm text-white/70 underline hover:text-white">
+            Niet tekenen
+          </button>
+        )}
       </div>
-      <canvas
-        ref={ref}
-        width={BREEDTE * SCHAAL}
-        height={HOOGTE * SCHAAL}
-        data-tekenveld
-        className={`mx-auto block aspect-[8/5] touch-none rounded-xl border-4 bg-white ${fase === 'klaar' ? 'opacity-70' : 'cursor-crosshair'}`}
-        // Zo groot mogelijk, maar volledig op het scherm (ook op een kleine laptop).
-        style={{ borderColor: KLEUREN[kleur % KLEUREN.length], width: 'min(100%, calc((100vh - 250px) * 1.6))' }}
-        aria-label="Tekenveld"
-        onPointerDown={(e) => {
-          if (klaar.current) return;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          if (fase === 'wacht') {
-            start.current = Date.now();
-            setFase('bezig');
-          }
-          omlaag.current = true;
-          const p = punt(e);
-          lijnen.current.push([p]);
-          verf(p, p);
-        }}
-        onPointerMove={(e) => {
-          if (!omlaag.current || klaar.current) return;
-          const lijn = lijnen.current.at(-1)!;
-          const vorig = lijn.at(-1)!;
-          const p = punt(e);
-          const d = Math.hypot(p[0] - vorig[0], p[1] - vorig[1]);
-          if (d < 0.5) return;
-          const stuk = Math.min(d, inkt.current);
-          const echt: [number, number] = stuk < d ? [vorig[0] + ((p[0] - vorig[0]) * stuk) / d, vorig[1] + ((p[1] - vorig[1]) * stuk) / d] : p;
-          lijn.push(echt);
-          verf(vorig, echt);
-          inkt.current -= stuk;
-          setInktOver(Math.max(0, inkt.current / INKT));
-          if (inkt.current <= 0 || aantalPunten() >= MAX_PUNTEN) stop();
-        }}
-        onPointerUp={() => {
-          omlaag.current = false;
-        }}
-      />
-      <p className="text-sm text-slate-500">{fase === 'wacht' ? 'Raak het veld aan om te beginnen: je hebt 3 seconden en een beperkte hoeveelheid inkt.' : fase === 'bezig' ? 'Kleur zoveel mogelijk gebied in!' : 'Doorgestuurd.'}</p>
+      <div className="relative">
+        <canvas
+          ref={ref}
+          width={BREEDTE * SCHAAL}
+          height={HOOGTE * SCHAAL}
+          data-tekenveld
+          className={`block aspect-[8/5] touch-none rounded-xl border-4 bg-white ${fase === 'klaar' ? 'opacity-70' : 'cursor-crosshair'}`}
+          style={{ borderColor: kleurCode, width: 'min(calc(100vw - 2rem), calc((100vh - 9rem) * 1.6))' }}
+          aria-label="Tekenveld"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            if (klaar.current) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            if (fase === 'wacht') {
+              start.current = Date.now();
+              setFase('bezig');
+            }
+            omlaag.current = true;
+            const p = punt(e);
+            lijnen.current.push([p]);
+            verf(p, p);
+          }}
+          onPointerMove={(e) => {
+            if (!omlaag.current || klaar.current) return;
+            const lijn = lijnen.current.at(-1)!;
+            const vorig = lijn.at(-1)!;
+            const p = punt(e);
+            if (Math.hypot(p[0] - vorig[0], p[1] - vorig[1]) < 0.75) return;
+            lijn.push(p);
+            verf(vorig, p);
+            if (lengte(lijnen.current) > 1850 || lijnen.current.flat().length >= MAX_PUNTEN) stop();
+          }}
+          onPointerUp={() => {
+            omlaag.current = false;
+          }}
+        />
+        {fase === 'wacht' && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-2xl bg-slate-900/80 px-6 py-4 text-center text-white shadow-lg">
+              <div className="text-3xl font-bold">🖌️ Teken zo snel mogelijk!</div>
+              <div className="mt-1 text-lg">Klik en sleep (of raak aan): je hebt {seconden} seconden.</div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

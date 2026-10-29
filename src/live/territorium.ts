@@ -5,8 +5,8 @@ import type { Beoordeling, LiveAntwoord, LiveSessie, LiveSpeler, Oplossing, Stan
 
 /**
  * Territorium: leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds opnieuw).
- * Elk juist antwoord geeft een tekenbeurt: 3 seconden en een beperkte hoeveelheid inkt om in de
- * eigen kleur gebied in te kleuren op een gedeeld veld (ook over andermans gebied). Met een reeks
+ * Elk juist antwoord geeft een tekenbeurt: enkele seconden (instelbaar) om in de eigen kleur zo
+ * snel mogelijk gebied in te kleuren op een gedeeld veld (ook over andermans gebied). Met een reeks
  * juiste antwoorden na elkaar wordt het penseel groter. Wie op het einde het meeste gebied heeft, wint.
  *
  * Zoals bij Crypto Hack: vragen hebben nummers 0, 1, 2 ..., tekenbeurten nummers vanaf
@@ -16,12 +16,13 @@ import type { Beoordeling, LiveAntwoord, LiveSessie, LiveSpeler, Oplossing, Stan
 
 export const BREEDTE = 80;
 export const HOOGTE = 50;
-/** Tekentijd per beurt (ms). */
-export const TEKEN_MS = 3000;
-/** Maximale lengte van de lijnen per beurt (in vakjes). */
-export const INKT = 70;
-/** Maximaal aantal punten per tekening (houdt het antwoord klein). */
-export const MAX_PUNTEN = 280;
+/** Keuzes voor de tekentijd per beurt (seconden); spellen van vroeger hadden 3 seconden. */
+export const TEKENTIJDEN = [3, 5, 8, 10];
+export const STANDAARD_SECONDEN = 5;
+/** Sneller dan dit kan niemand tekenen (vakjes per seconde): langere lijnen worden afgekapt. */
+export const MAX_SNELHEID = 45;
+/** Maximaal aantal punten per tekening (het antwoord mag hoogstens 2000 tekens zijn). */
+export const MAX_PUNTEN = 420;
 
 /** Duidelijk verschillende kleuren; kleur 0 = eerste speler. */
 export const KLEUREN = [
@@ -106,11 +107,11 @@ export const alsOplossing = (veld: string) => ({ veld }) as unknown as Oplossing
 // ---------- Schilderen ----------
 
 /**
- * Kleurt de lijnen in op het veld met kleur `waarde` en penseelstraal `straal`. De inkt is beperkt:
- * na INKT vakjes lijn stopt het. Geeft het aantal geverfde vakjes terug.
+ * Kleurt de lijnen in op het veld met kleur `waarde` en penseelstraal `straal`, tot een totale
+ * lijnlengte van `maxLengte` vakjes. Geeft het aantal geverfde vakjes terug.
  */
-export function schilder(veld: Uint8Array, lijnen: [number, number][][], straal: number, waarde: number): number {
-  let inkt = INKT;
+export function schilder(veld: Uint8Array, lijnen: [number, number][][], straal: number, waarde: number, maxLengte = Infinity): number {
+  let inkt = maxLengte;
   let geverfd = 0;
   const r2 = straal * straal + 0.25;
   const stempel = (cx: number, cy: number) => {
@@ -168,7 +169,12 @@ export interface TerritoriumToestand {
 }
 
 /** Herberekent veld en stand uit alle beoordeelde antwoorden, in de volgorde waarin ze binnenkwamen. */
-export function territoriumToestand(spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], kleuren: Record<string, number>): TerritoriumToestand {
+export function territoriumToestand(
+  spelers: readonly LiveSpeler[],
+  antwoorden: readonly LiveAntwoord[],
+  kleuren: Record<string, number>,
+  seconden = STANDAARD_SECONDEN,
+): TerritoriumToestand {
   const t: TerritoriumToestand = {
     veld: new Uint8Array(BREEDTE * HOOGTE),
     spelers: new Map(spelers.map((s) => [s.id, { speler: s, kleur: kleuren[s.id] ?? 0, juist: 0, fout: 0, reeks: 0, besteReeks: 0, beurten: [], vakjes: 0 }])),
@@ -194,7 +200,7 @@ export function territoriumToestand(spelers: readonly LiveSpeler[], antwoorden: 
     const beurt = teken && p.beurten.find((b) => b.vraag === teken.vraag);
     if (!teken || !beurt) continue;
     p.beurten = p.beurten.filter((b) => b !== beurt);
-    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1);
+    schilder(t.veld, leesLijnen(teken.lijnen), beurt.penseel, p.kleur + 1, seconden * MAX_SNELHEID);
   }
   const tel = new Map<number, number>();
   for (const v of t.veld) if (v) tel.set(v, (tel.get(v) ?? 0) + 1);
@@ -214,13 +220,19 @@ export function leesTekening(tekst: string): Tekening | null {
 const beoordeeld = (a: LiveAntwoord, juist: boolean, beloning: unknown): Beoordeling => ({ id: a.id, juist, punten: 0, beloning: beloning === null ? null : JSON.stringify(beloning) });
 
 /** Kijkt nieuwe antwoorden en tekeningen na (enkel van leerlingen die in de lijst staan). */
-export function territoriumBeoordelingen(vragen: readonly Vraag[], spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], kleuren: Record<string, number>): Beoordeling[] {
+export function territoriumBeoordelingen(
+  vragen: readonly Vraag[],
+  spelers: readonly LiveSpeler[],
+  antwoorden: readonly LiveAntwoord[],
+  kleuren: Record<string, number>,
+  seconden = STANDAARD_SECONDEN,
+): Beoordeling[] {
   const bekend = new Set(spelers.map((s) => s.id));
   const lijst = antwoorden.filter((a) => a.juist !== null);
   const open = antwoorden.filter((a) => a.juist === null && bekend.has(a.spelerId)).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
   const uit: Beoordeling[] = [];
   for (const a of open) {
-    const p = territoriumToestand(spelers, lijst, kleuren).spelers.get(a.spelerId)!;
+    const p = territoriumToestand(spelers, lijst, kleuren, seconden).spelers.get(a.spelerId)!;
     let b: Beoordeling;
     if (!isActie(a.vraagNr)) {
       const v = vragen[vraagIndex(a.spelerId, a.vraagNr, vragen.length)];

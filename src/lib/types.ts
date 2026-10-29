@@ -139,6 +139,8 @@ export interface LiveInfo {
   /** Territorium: kleur per speler-id en gebied (vakjes) per leerlingnaam op het einde. */
   kleuren?: Record<string, number>;
   gebied?: Record<string, number>;
+  /** Territorium: seconden per tekenbeurt. */
+  tekenSeconden?: number;
   /** Territorium: het veld en de ranglijst op het einde (om het eindscherm te tonen). */
   eindveld?: string;
   eindstand?: { naam: string; punten: number; juist: number; kleur?: number }[];

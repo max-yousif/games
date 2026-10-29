@@ -27,6 +27,8 @@ export function TerritoriumSpeler({
   const [nu, setNu] = useState(() => Date.now());
   const [fout, setFout] = useState<string | null>(null);
   const foutGezien = useRef(new Map<string, number>());
+  const [poging, setPoging] = useState(0);
+  const seconden = sessie.territorium?.seconden ?? 3;
   const veldTekst = veldVan(sessie);
   const veld = useMemo(() => leesVeld(veldTekst), [veldTekst]);
 
@@ -46,12 +48,14 @@ export function TerritoriumSpeler({
   const verstreken = sessie.vraagStart ? Math.max(0, nu - new Date(sessie.vraagStart).getTime()) : 0;
   const resterend = sessie.timer ? sessie.timer * 1000 - verstreken : null;
 
-  async function stuur(nr: number, tekst: string) {
+  async function stuur(nr: number, tekst: string): Promise<boolean> {
     setFout(null);
     try {
       await be.antwoord(sessie.id, nr, tekst);
+      return true;
     } catch (e) {
       setFout(foutTekst(e));
+      return false;
     }
   }
 
@@ -97,29 +101,25 @@ export function TerritoriumSpeler({
   if (!spelerId) inhoud = <Kaart>Verbinden…</Kaart>;
   else if (wacht) inhoud = <Kaart>⏳ Wordt nagekeken…</Kaart>;
   else if (beurt) {
+    const tekening = (lijnen: string) =>
+      void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'teken', vraag: beurt.vraag, lijnen })).then((ok) => {
+        // Niet aangekomen: opnieuw laten tekenen.
+        if (!ok) setPoging((n) => n + 1);
+      });
     return (
       <div className="breed space-y-3">
         {kop}
         {fout && <p className="rounded-lg bg-red-50 px-4 py-2 text-red-700">{fout}</p>}
-        <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <VeldTekenen
-            key={beurt.vraag}
-            veld={veld}
-            kleur={kleur}
-            straal={beurt.penseel}
-            onKlaar={(lijnen) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'teken', vraag: beurt.vraag, lijnen: codeerLijnen(lijnen) }))}
-          />
-          <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
-            <span>Penseel: {'●'.repeat(Math.round(beurt.penseel * 2))}</span>
-            <button
-              type="button"
-              className="underline"
-              onClick={() => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'teken', vraag: beurt.vraag, lijnen: '' }))}
-            >
-              Niet tekenen, volgende vraag
-            </button>
-          </div>
-        </div>
+        <VeldBeeld veld={veld} />
+        <VeldTekenen
+          key={`${beurt.vraag}-${poging}`}
+          veld={veld}
+          kleur={kleur}
+          straal={beurt.penseel}
+          seconden={seconden}
+          onKlaar={(lijnen) => tekening(codeerLijnen(lijnen))}
+          onOverslaan={() => tekening('')}
+        />
       </div>
     );
   } else if (wachtNaFout > 0) {
@@ -138,7 +138,7 @@ export function TerritoriumSpeler({
       <Kaart>
         {v.categorie && <div className="mb-1 text-sm font-semibold text-slate-500">{v.categorie}</div>}
         <RichText text={v.tekst} className="mb-4 text-2xl leading-snug font-medium" />
-        <Beantwoord key={volgendeNr} vraag={v} onVerstuur={(a) => stuur(volgendeNr, a)} />
+        <Beantwoord key={volgendeNr} vraag={v} onVerstuur={(a) => stuur(volgendeNr, a).then(() => {})} />
       </Kaart>
     );
   }
@@ -151,7 +151,7 @@ export function TerritoriumSpeler({
         {inhoud}
         <div>
           <VeldBeeld veld={veld} />
-          <p className="mt-1 text-sm text-slate-500">Juist antwoord = 3 seconden tekenen. Meerdere juist na elkaar = een groter penseel.</p>
+          <p className="mt-1 text-sm text-slate-500">Juist antwoord = {seconden} seconden tekenen. Meerdere juist na elkaar = een groter penseel.</p>
         </div>
       </div>
     </div>

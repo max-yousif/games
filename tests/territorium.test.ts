@@ -5,7 +5,7 @@ import {
   codeerLijnen,
   codeerVeld,
   HOOGTE,
-  INKT,
+  MAX_SNELHEID,
   kenKleurenToe,
   leesLijnen,
   leesVeld,
@@ -79,11 +79,15 @@ describe('territorium', () => {
     const klein = schilder(new Uint8Array(BREEDTE * HOOGTE), lijn, 1, 1);
     const groot = schilder(new Uint8Array(BREEDTE * HOOGTE), lijn, 3, 1);
     expect(groot).toBeGreaterThan(klein * 2);
-    // Een heel lange lijn: maar INKT vakjes ver.
+    // Een onmogelijk snelle lijn wordt afgekapt (hier na 1 seconde tekenen).
     const veld = new Uint8Array(BREEDTE * HOOGTE);
-    schilder(veld, [[[0, 10], [79, 10], [79, 40], [0, 40]]], 0.5, 1);
+    schilder(veld, [[[0, 10], [79, 10], [79, 40], [0, 40]]], 0.5, 1, MAX_SNELHEID);
     const verste = Math.max(...[...veld].map((v, i) => (v ? (i % BREEDTE) + Math.floor(i / BREEDTE) : 0)));
-    expect(verste).toBeLessThanOrEqual(10 + INKT + 1);
+    expect(verste).toBeLessThanOrEqual(10 + MAX_SNELHEID + 1);
+    // Zonder grens: de hele lijn.
+    const vrij = new Uint8Array(BREEDTE * HOOGTE);
+    schilder(vrij, [[[0, 10], [79, 10], [79, 40], [0, 40]]], 0.5, 1);
+    expect(vrij[40 * BREEDTE + 1]).toBe(1);
   });
 
   it('juist antwoord = tekenbeurt; tekenen kleurt het veld; overschilderen mag', () => {
