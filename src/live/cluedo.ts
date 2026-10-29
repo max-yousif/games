@@ -234,24 +234,31 @@ const zelfdeKaart = (a: Kaart, b: Kaart) => a.soort === b.soort && a.naam === b.
 
 /**
  * Welke kaart een keuze bij een meerkeuzevraag wegstreept: het juiste antwoord die van de vraag. Een
- * fout antwoord streept een kaart weg die bij deze leerling nog niet weg is (`bezet`: door andere
- * vragen weggestreept), zodat geen kaart twee keer opduikt: liefst de kaart waarvan het foute
- * antwoord de uitkomst is, anders een (per leerling verschillende) andere. Dat kan ook de oplossing
- * zijn: de leerling merkt het pas bij een foute beschuldiging.
+ * fout antwoord streept een andere gewone kaart weg die bij deze leerling nog niet weg is (`bezet`:
+ * door andere vragen weggestreept): liefst de kaart waarvan het foute antwoord de uitkomst is, anders
+ * een (per leerling verschillende) andere. Nooit de oplossing: die zou anders opvallen. Wie fouten
+ * maakt, houdt op het einde gewoon meer kaarten over en beschuldigt verkeerd.
  */
-export function kaartVoorKeuze(t: CluedoThema, v: Vraag, keuze: number, bezet: readonly Kaart[] = [], zaad = ''): Kaart | null {
+export function kaartVoorKeuze(
+  t: CluedoThema,
+  v: Vraag,
+  keuze: number,
+  bezet: readonly Kaart[] = [],
+  zaad = '',
+  oplossing: CluedoOplossing | null = null,
+): Kaart | null {
   const eigen = kaartVanOpgave(t, v.id);
   if (keuze === v.juisteOptie) return eigen;
   const gekozen = keuzeOpties(v)[keuze] ?? '';
-  const vrij = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !bezet.some((b) => zelfdeKaart(b, k)));
+  const vrij = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !bezet.some((b) => zelfdeKaart(b, k)) && !(oplossing && inOplossing(k, oplossing)));
   const zelfde = vrij.find((k) => {
     const u = opgaveVan(t, k.soort, t[k.soort].indexOf(k.naam)).uitkomst;
     return u.trim() && zelfdeUitkomst(u, gekozen);
   });
   if (zelfde) return zelfde;
   if (vrij.length) return vrij[hash(`${zaad}:${v.id}:${keuze}`) % vrij.length];
-  // Alles is al weg: een andere kaart dan die van de vraag.
-  const anderen = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)));
+  // Alles is al weg: een andere gewone kaart dan die van de vraag (die dan dubbel staat).
+  const anderen = alleKaarten(t).filter((k) => !(eigen && zelfdeKaart(k, eigen)) && !(oplossing && inOplossing(k, oplossing)));
   return anderen.length ? anderen[hash(`${zaad}:${v.id}:${keuze}`) % anderen.length] : null;
 }
 
@@ -415,7 +422,7 @@ export function cluedoBeoordelingen(
           .at(-1);
         const vorigeKaart = vorig ? leesBeloning<VraagBeloning>(vorig.beloning)?.kaart : null;
         const bezet = p.weg.filter((k) => !(vorigeKaart && zelfdeKaart(k, vorigeKaart)));
-        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze, bezet, a.spelerId) } satisfies VraagBeloning) : null);
+        b = beoordeeld(a, geldig, geldig ? ({ kaart: kaartVoorKeuze(thema, v, keuze, bezet, a.spelerId, oplossing) } satisfies VraagBeloning) : null);
       } else {
         const juist = !!v && !teVroeg && p.opgelostMs === null && automatischJuist(v, op.antwoord);
         b = beoordeeld(a, juist, juist ? ({ kaart: kaartVanOpgave(thema, v.id) } satisfies VraagBeloning) : null);

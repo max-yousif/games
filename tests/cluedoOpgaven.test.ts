@@ -103,7 +103,7 @@ describe('cluedo met meerkeuzevragen uit de set', () => {
   it('elke keuze streept stil een kaart weg; de laatste keuze telt', () => {
     const o = trekOplossing(t);
     const vragen = opgaveVragen(t, o, setVragen);
-    // Juist: Ann weg. Fout met de uitkomst van een andere kaart (-π/4 = Bob, de dader!): Bob weg. Ander fout antwoord: een vaste andere kaart.
+    // Juist: Keuken weg. Fout antwoord: een andere gewone kaart, nooit de oplossing (Bob, Tuin, Touw).
     let alle = [ant({ soort: 'opgave', nr: 0, antwoord: '2' }, 1000), ant({ soort: 'opgave', nr: 1, antwoord: '0' }, 2000), ant({ soort: 'opgave', nr: 2, antwoord: '1' }, 3000)];
     const speel = () => {
       const b = cluedoBeoordelingen(vragen, t, o, spelers, alle);
@@ -116,9 +116,9 @@ describe('cluedo met meerkeuzevragen uit de set', () => {
     expect(alle.every((a) => a.juist)).toBe(true);
     let p = cluedoToestand(spelers, alle).spelers.get('A')!;
     const weg = p.weg.map((k) => k.naam);
-    expect(weg.slice(0, 2)).toEqual(['Bob', 'Keuken']);
-    expect(weg[2]).not.toBe('Mes');
-    // Antwoord op vraag 1 verbeteren: Bob komt terug, Ann verdwijnt.
+    expect(weg).toContain('Keuken');
+    expect(weg.some((n) => ['Bob', 'Tuin', 'Touw'].includes(n))).toBe(false);
+    // Antwoord op vraag 1 verbeteren: Ann verdwijnt.
     alle.push(ant({ soort: 'opgave', nr: 0, antwoord: '0' }, 4000));
     speel();
     p = cluedoToestand(spelers, alle).spelers.get('A')!;
@@ -191,6 +191,8 @@ describe('cluedo: foute antwoorden verraden de oplossing niet', () => {
       });
     }
     const kaarten = alle.map((a) => (JSON.parse(a.beloning!) as { kaart: { naam: string } }).kaart.naam);
-    expect(new Set(kaarten).size).toBe(kaarten.length);
+    expect(kaarten.some((n) => ['V0', 'L0', 'W0'].includes(n))).toBe(false);
+    // Zolang er vrije kaarten zijn, nooit dubbel.
+    expect(new Set(kaarten.slice(0, 8)).size).toBe(8);
   });
 });
