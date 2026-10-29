@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
-import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, SOORT_NAMEN, strafMsVan, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
+import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, leesOpgaveAntwoord, SOORT_NAMEN, strafMsVan, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
+import { vastGeschud } from '../lib/vraagtypes';
 import { isActie, leesBeloning, vraagIndex, volgendeActieNr } from './codekraker';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
@@ -56,6 +57,8 @@ export function CluedoSpeler({
   }
 
   const blad = <Detectiveblad thema={thema} weg={p.weg} />;
+  // Cluedo met opgaven per kaart: de leerling kiest zelf welke opgave (geen vragen na elkaar).
+  const metOpgaven = !!thema.uitkomsten;
 
   if (p.opgelostMs !== null) {
     return (
@@ -99,7 +102,8 @@ export function CluedoSpeler({
   const nieuweKaart = laatsteVraag?.juist && !gezien.has(laatsteVraag.vraagNr) ? leesBeloning<VraagBeloning>(laatsteVraag.beloning)?.kaart : undefined;
 
   let inhoud: ReactNode;
-  if (wacht) inhoud = <Kaart titel="⏳ Even geduld…">Wordt nagekeken.</Kaart>;
+  // Bij opgaven blijft de lijst staan tijdens het nakijken (zo blijft de opgave open).
+  if (wacht && !metOpgaven) inhoud = <Kaart titel="⏳ Even geduld…">Wordt nagekeken.</Kaart>;
   else if (straf > 0) {
     inhoud = (
       <Kaart titel="">
@@ -116,7 +120,9 @@ export function CluedoSpeler({
       </Kaart>
     );
   } else if (beschuldigen) {
-    inhoud = <BeschuldigFormulier thema={thema} weg={p.weg} bezig={bezig} onAnnuleer={() => setBeschuldigen(false)} onBeschuldig={(x) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'beschuldig', ...x })).then(() => setBeschuldigen(false))} />;
+    inhoud = <BeschuldigFormulier thema={thema} weg={p.weg} bezig={bezig} strafSeconden={strafMsVan(sessie.wachttijd) / 1000} onAnnuleer={() => setBeschuldigen(false)} onBeschuldig={(x) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'beschuldig', ...x })).then(() => setBeschuldigen(false))} />;
+  } else if (metOpgaven) {
+    inhoud = <Opgaven vragen={vragen} eigen={eigen} spelerId={spelerId ?? ''} onVerstuur={(nr, antwoord) => stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'opgave', nr, antwoord }))} />;
   } else if (nieuweKaart !== undefined && laatsteVraag) {
     inhoud = (
       <Kaart titel="">
@@ -159,7 +165,9 @@ export function CluedoSpeler({
         </span>
       </div>
       {fout && <p className="rounded-lg bg-red-50 px-4 py-2 text-red-700">{fout}</p>}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      {/* Met opgaven: het blad (met de uitkomsten) bovenaan over de hele breedte. */}
+      {metOpgaven && blad}
+      <div className={`grid items-start gap-4 ${metOpgaven ? '' : 'lg:grid-cols-2'}`}>
         <div className="space-y-3">
           {inhoud}
           {!beschuldigen && straf <= 0 && !wacht && (
@@ -168,7 +176,7 @@ export function CluedoSpeler({
             </button>
           )}
         </div>
-        {blad}
+        {!metOpgaven && blad}
       </div>
     </div>
   );
@@ -206,6 +214,9 @@ function Detectiveblad({ thema, weg }: { thema: NonNullable<LiveSessie['cluedo']
                     <li key={naam} className={`rounded px-1 ${isWeg ? 'text-slate-400 line-through' : 'font-medium'} ${nieuw ? 'pop bg-amber-200' : ''}`} data-weg={isWeg || undefined}>
                       {isWeg ? '✗ ' : '◻ '}
                       {naam}
+                      {thema.uitkomsten && (
+                        <RichText text={`$${thema.uitkomsten[soort][thema[soort].indexOf(naam)] ?? ''}$`} className="block overflow-x-auto py-1 pl-4 text-lg font-normal whitespace-nowrap" />
+                      )}
                     </li>
                   );
                 })}
@@ -222,12 +233,14 @@ function BeschuldigFormulier({
   thema,
   weg,
   bezig,
+  strafSeconden,
   onAnnuleer,
   onBeschuldig,
 }: {
   thema: NonNullable<LiveSessie['cluedo']>;
   weg: Kaart[];
   bezig: boolean;
+  strafSeconden: number;
   onAnnuleer: () => void;
   onBeschuldig: (x: { verdachte: string; locatie: string; wapen: string }) => void;
 }) {
@@ -250,7 +263,7 @@ function BeschuldigFormulier({
   );
   return (
     <Kaart titel="🔎 Wie, waar en waarmee?">
-      <p className="mb-3 text-slate-600">Ben je zeker? Een verkeerde beschuldiging kost je een minuut.</p>
+      <p className="mb-3 text-slate-600">Ben je zeker? Een verkeerde beschuldiging geeft {strafSeconden >= 60 ? `${strafSeconden / 60} min.` : `${strafSeconden} s`} straftijd.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {kies('verdachten', verdachte, setVerdachte, 'Dader')}
         {kies('locaties', locatie, setLocatie, 'Plaats')}
@@ -268,3 +281,65 @@ function BeschuldigFormulier({
   );
 }
 
+
+/**
+ * Cluedo met opgaven: alle opgaven in een lijst (bij elke leerling in een andere volgorde). Een
+ * juiste uitkomst streept de kaart van die opgave weg; opnieuw proberen mag altijd.
+ */
+function Opgaven({
+  vragen,
+  eigen,
+  spelerId,
+  onVerstuur,
+}: {
+  vragen: NonNullable<LiveSessie['vragen']>;
+  eigen: LiveAntwoord[];
+  spelerId: string;
+  onVerstuur: (nr: number, antwoord: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState<number | null>(null);
+  const volgorde = vastGeschud(
+    vragen.map((_, i) => i),
+    `${spelerId}:opgaven`,
+  );
+  const pogingen = (nr: number) =>
+    eigen
+      .filter((a) => a.juist !== null && leesOpgaveAntwoord(a.antwoord)?.nr === nr)
+      .sort((a, b) => a.tijdMs - b.tijdMs);
+  const opgelost = (nr: number) => pogingen(nr).find((a) => a.juist);
+  const aantal = vragen.filter((_, nr) => opgelost(nr)).length;
+  return (
+    <Kaart titel={`✏️ Opgaven (${aantal} / ${vragen.length})`}>
+      <ol className="grid items-start gap-2 md:grid-cols-2">
+        {volgorde.map((nr, plaats) => {
+          const juist = opgelost(nr);
+          const kaart = juist ? leesBeloning<VraagBeloning>(juist.beloning)?.kaart : null;
+          const laatste = pogingen(nr).at(-1);
+          return (
+            <li key={nr} data-opgave className={`rounded-xl border-2 ${juist ? 'border-emerald-300 bg-emerald-50' : open === nr ? 'border-[var(--accent)]' : 'border-slate-200'}`}>
+              <button type="button" onClick={() => setOpen(open === nr ? null : nr)} className="flex w-full items-start gap-3 p-3 text-left">
+                <span className="w-7 shrink-0 font-bold text-slate-400">{plaats + 1}.</span>
+                <RichText text={vragen[nr].tekst} className="min-w-0 flex-1 text-lg" />
+                {juist ? (
+                  <span className="shrink-0 text-sm font-semibold text-emerald-700">✓ {kaart ? `${SOORT_NAMEN[kaart.soort].icoon} ${kaart.naam}` : ''}</span>
+                ) : (
+                  laatste && <span className="shrink-0 text-sm text-red-600">✗ niet juist</span>
+                )}
+              </button>
+              {open === nr && !juist && (
+                <div className="border-t border-slate-100 p-3">
+                  <Beantwoord key={pogingen(nr).length} vraag={vragen[nr]} onVerstuur={(a) => onVerstuur(nr, a)} />
+                </div>
+              )}
+              {open === nr && juist && kaart && (
+                <div className="pop border-t border-emerald-200 p-3 text-xl font-bold">
+                  {SOORT_NAMEN[kaart.soort].icoon} {kaart.naam} is niet {SOORT_NAMEN[kaart.soort].enkel}!
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </Kaart>
+  );
+}

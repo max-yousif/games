@@ -1,3 +1,4 @@
+import { uitdrukkingGelijk } from '../lib/wiskunde';
 import { juistAntwoord, juisteAntwoorden } from '../lib/questions';
 import type { Beurt, Leerling, Sessie, Vraag } from '../lib/types';
 import { gatenVan, gatLabel, getalJuist, isKeuzeVraag, keuzeOpties, koppelenRechts, leesGetal, LETTERS, ordenenGetoond, tekstMetGaten } from '../lib/vraagtypes';
@@ -145,7 +146,7 @@ export function automatischJuist(v: Vraag, antwoord: string): boolean {
       return l.length === paren.length && paren.every(([, r], i) => l[i] === r);
     }
     default:
-      return juisteAntwoorden(v).some((juist) => tekstJuist(antwoord, juist));
+      return juisteAntwoorden(v).some((juist) => tekstJuist(antwoord, juist) || (!!v.gelijkwaardig && uitdrukkingGelijk(antwoord, juist) === true));
   }
 }
 

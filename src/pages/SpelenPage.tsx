@@ -3,7 +3,7 @@ import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
-import { STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
+import { metOpgaven, opgaveVragen, publiekThema, STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
 import { KLEURPLATEN, STANDAARD_SECONDEN, TEKENTIJDEN, type TerritoriumModus } from '../live/territorium';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
@@ -191,7 +191,16 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const territorium = spel === 'territorium';
       const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
-      const gekozen = spel === 'escape' ? (aantalSloten > 0 && aantalSloten < escapeVragen.length ? shuffle(escapeVragen).slice(0, aantalSloten) : escapeVragen) : vragen;
+      // Cluedo met opgaven per kaart: de oplossing nu al trekken; de opgaven (zonder de oplossing) zijn de vragen.
+      const cluedoOplossing = cluedo ? trekOplossing(cluedoThema) : undefined;
+      const metKaartOpgaven = cluedo && metOpgaven(cluedoThema);
+      const gekozen = metKaartOpgaven
+        ? shuffle(opgaveVragen(cluedoThema, cluedoOplossing!))
+        : spel === 'escape'
+          ? aantalSloten > 0 && aantalSloten < escapeVragen.length
+            ? shuffle(escapeVragen).slice(0, aantalSloten)
+            : escapeVragen
+          : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
       const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
       // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
@@ -208,7 +217,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         wachttijd: spel === 'escape' || spel === 'cluedo' ? strafTijd : escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
-        cluedo: cluedo ? cluedoThema : undefined,
+        cluedo: cluedo ? publiekThema(cluedoThema) : undefined,
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
       });
       const basis = nieuweSessie({
@@ -224,7 +233,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         ...basis,
         ...(whodunit && set.raadsel ? { raadsel: set.raadsel } : {}),
         // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
-        ...(cluedo ? { cluedo: { thema: cluedoThema, oplossing: trekOplossing(cluedoThema) } } : {}),
+        ...(cluedo ? { cluedo: { thema: cluedoThema, oplossing: cluedoOplossing! } } : {}),
         vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
@@ -301,7 +310,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && set !== null && klasGekozen },
   ];
 
-  const kanStarten = spel !== null && set !== null && klasGekozen && vragen.length > 0 && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+  const kanStarten = spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
     <div className="space-y-6">
@@ -394,13 +403,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {sets.map((s) => {
               const n = speelbareVragen(s).length;
+              // Cluedo met opgaven per kaart heeft geen gewone vragen nodig.
+              const opgaven = spel === 'cluedo' && s.cluedo && metOpgaven(s.cluedo) ? opgaveVragen(s.cluedo, trekOplossing(s.cluedo, () => 0)).length : 0;
               const gekozen = s.id === gekozenSet;
               return (
                 <button
                   key={s.id}
                   type="button"
                   aria-label={`${s.titel}${s.leerjaar ? ` (${s.leerjaar})` : ''}`}
-                  disabled={n === 0}
+                  disabled={n === 0 && opgaven === 0}
                   onClick={() => kiesSet(s.id)}
                   className={`flex flex-col overflow-hidden rounded-xl border-2 text-left transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 ${gekozen ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
                 >
@@ -414,7 +425,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   <div className="p-3">
                     <div className="font-semibold">{s.titel}</div>
                     <div className="mt-1 text-sm text-slate-500">
-                      {[s.leerjaar, vakkenVan(s).map((v) => VAK_LABELS[v]).join(', '), `${n} vragen`].filter(Boolean).join(' · ')}
+                      {[s.leerjaar, vakkenVan(s).map((v) => VAK_LABELS[v]).join(', '), opgaven ? `${opgaven} opgaven` : `${n} vragen`].filter(Boolean).join(' · ')}
                     </div>
                     <div className="mt-1 text-xs text-slate-400">{s.statistiek?.gespeeld ? `al ${s.statistiek.gespeeld}× gespeeld` : 'nog niet gespeeld'}</div>
                   </div>
@@ -471,7 +482,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               <strong>
                 {spelInfo?.icoon} {spelInfo?.naam}
               </strong>{' '}
-              met <strong>“{set.titel}”</strong> ({vragen.length} vragen) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0)).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
             </div>
             <div className="flex flex-col items-end gap-1">
               <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
@@ -636,7 +647,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
               </div>
             ) : spel === 'cluedo' ? (
               <>
-                <p className="text-slate-600">
+                {metOpgaven(cluedoThema) && (
+                  <p className="text-slate-600">
+                    Elke opgave hoort bij één kaart: wie de juiste uitkomst vindt, streept die kaart weg. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = straftijd.
+                  </p>
+                )}
+                <p className={`text-slate-600 ${metOpgaven(cluedoThema) ? 'hidden' : ''}`}>
                   De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds
                   opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
                   fout = straftijd. Wie het snelst oplost, wint; de anderen spelen verder.

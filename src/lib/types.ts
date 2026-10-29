@@ -17,6 +17,8 @@ export interface Vraag {
   antwoord: string;
   /** Open vraag: andere antwoorden die ook juist zijn. */
   alternatieven?: string[];
+  /** Open vraag: elke wiskundig gelijkwaardige uitdrukking is juist (bij integralen mag de constante verschillen). */
+  gelijkwaardig?: boolean;
   /** Meerkeuze: de opties. Ordenen: de items in de juiste volgorde. */
   opties: string[];
   /** Meerkeuze: index van de juiste optie. Waar/onwaar: 0 = waar, 1 = onwaar. */
@@ -98,6 +100,19 @@ export interface CluedoThema {
   verdachten: string[];
   locaties: string[];
   wapens: string[];
+  /**
+   * Cluedo met opgaven per kaart (bv. integralen): bij elke kaart (zelfde volgorde als de namen) een
+   * opgave en de uitkomst. Een juiste uitkomst streept die kaart weg. Een kaart zonder opgave is de
+   * oplossing (hoogstens één per soort); zonder zo'n kaart kiest de laptop de oplossing.
+   */
+  opgaven?: Record<'verdachten' | 'locaties' | 'wapens', KaartOpgave[]>;
+  /** Enkel op de server: de uitkomst bij elke kaart, om op het detectiveblad te tonen (zonder opgaven). */
+  uitkomsten?: Record<'verdachten' | 'locaties' | 'wapens', string[]>;
+}
+
+export interface KaartOpgave {
+  opgave: string;
+  uitkomst: string;
 }
 
 export interface CluedoOplossing {

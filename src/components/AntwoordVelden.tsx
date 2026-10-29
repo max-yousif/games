@@ -37,6 +37,10 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
           <Button variant="ghost" className="mt-1" onClick={() => zetExtra([...extra, ''])}>
             + ook juist
           </Button>
+          <label className="mt-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={v.gelijkwaardig ?? false} onChange={(e) => onChange((x) => ({ ...x, gelijkwaardig: e.target.checked || undefined }))} />
+            Elke gelijkwaardige uitdrukking is juist (bv. bij integralen: <code>Bgtan(ln x)+C</code> = <code>arctan(ln(x))</code>)
+          </label>
           <p className="mt-1 text-xs text-slate-500">
             Voeg andere schrijfwijzen toe die ook juist zijn (bv. <code>x=6</code> en <code>6</code>, of <code>dalparabool</code> en <code>parabool met top onderaan</code>). Bij een live quiz
             wordt automatisch nagekeken (spaties, hoofdletters en $…$ maken niet uit); jij kan afwijkende antwoorden nog goedkeuren.

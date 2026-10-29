@@ -1,5 +1,5 @@
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
-import type { CluedoOplossing, CluedoThema, Vraag } from '../lib/types';
+import type { CluedoOplossing, CluedoThema, KaartOpgave, Vraag } from '../lib/types';
 import { isActie, leesActie as leesJson, leesBeloning, vraagIndex } from './codekraker';
 import { automatischJuist, schermNaam } from './logic';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
@@ -40,13 +40,27 @@ export const STANDAARD_THEMA: CluedoThema = {
   wapens: ['Passer', 'Geodriehoek', 'Rekenmachine', 'USB-stick', 'Verlengkabel', 'Wiskundeboek'],
 };
 
+/** Cluedo met opgaven per kaart (in plaats van de vragen van de set)? */
+export const metOpgaven = (t: CluedoThema) => !!t.opgaven && KAART_SOORTEN.some((s) => t.opgaven![s]?.some((o) => o?.opgave.trim()));
+export const opgaveVan = (t: CluedoThema, soort: KaartSoort, i: number): KaartOpgave => t.opgaven?.[soort]?.[i] ?? { opgave: '', uitkomst: '' };
+
 /** Wat er mis is met een thema (leeg = in orde). */
 export function themaProblemen(t: CluedoThema): string[] {
   const uit: string[] = [];
+  if (metOpgaven(t)) {
+    for (const s of KAART_SOORTEN) {
+      const naam = SOORT_NAMEN[s].titel.toLowerCase();
+      const zonder = t[s].filter((_, i) => !opgaveVan(t, s, i).opgave.trim()).length;
+      if (zonder > 1) uit.push(`Bij de ${naam} mag hoogstens één kaart zonder opgave zijn (dat is de oplossing).`);
+      if (t[s].some((_, i) => !opgaveVan(t, s, i).uitkomst.trim()))
+        uit.push(`Geef bij elke kaart van de ${naam} een uitkomst, ook bij de oplossing: anders verraadt het detectiveblad de oplossing.`);
+    }
+  }
   for (const s of KAART_SOORTEN) {
     const lijst = t[s];
     const naam = SOORT_NAMEN[s].titel.toLowerCase();
     if (lijst.length < 2) uit.push(`Geef minstens 2 ${naam}.`);
+    if (lijst.some((x) => !x.trim())) uit.push(`Geef elke kaart bij de ${naam} een naam.`);
     if (lijst.length > 12) uit.push(`Maximaal 12 ${naam}.`);
     if (new Set(lijst.map((x) => x.toLowerCase())).size !== lijst.length) uit.push(`Elke naam bij de ${naam} mag maar één keer voorkomen.`);
   }
@@ -63,8 +77,49 @@ export const lijstUitTekst = (tekst: string) =>
 export const alleKaarten = (t: CluedoThema): Kaart[] => KAART_SOORTEN.flatMap((soort) => t[soort].map((naam) => ({ soort, naam })));
 
 export function trekOplossing(t: CluedoThema, rand: RandomInt = defaultRandomInt): CluedoOplossing {
-  return { verdachte: t.verdachten[rand(t.verdachten.length)], locatie: t.locaties[rand(t.locaties.length)], wapen: t.wapens[rand(t.wapens.length)] };
+  // Met opgaven: de kaart zonder opgave is de oplossing (anders een willekeurige).
+  const kies = (s: KaartSoort) => {
+    const zonder = metOpgaven(t) ? t[s].filter((_, i) => !opgaveVan(t, s, i).opgave.trim()) : [];
+    return zonder.length === 1 ? zonder[0] : t[s][rand(t[s].length)];
+  };
+  return { verdachte: kies('verdachten'), locatie: kies('locaties'), wapen: kies('wapens') };
 }
+
+/** De opgaven die leerlingen krijgen: één per kaart die niet de oplossing is. Het id verwijst naar de kaart. */
+export function opgaveVragen(t: CluedoThema, o: CluedoOplossing): Vraag[] {
+  return KAART_SOORTEN.flatMap((soort) =>
+    t[soort].flatMap((naam, i) => {
+      const op = opgaveVan(t, soort, i);
+      if (inOplossing({ soort, naam }, o) || !op.opgave.trim()) return [];
+      return [{ id: `cluedo:${soort}:${i}`, categorie: '', punten: 100, type: 'open', tekst: op.opgave, antwoord: op.uitkomst, opties: [], juisteOptie: 0, uitleg: '', gelijkwaardig: true } satisfies Vraag];
+    }),
+  );
+}
+
+/** De kaart bij een opgave (uit het id van opgaveVragen). */
+export function kaartVanOpgave(t: CluedoThema, vraagId: string): Kaart | null {
+  const [, soort, i] = vraagId.split(':');
+  const naam = KAART_SOORTEN.includes(soort as KaartSoort) ? t[soort as KaartSoort][Number(i)] : undefined;
+  return naam ? { soort: soort as KaartSoort, naam } : null;
+}
+
+/** Het thema voor de server: zonder opgaven (die verraden welke kaarten niet de oplossing zijn), wel de uitkomsten. */
+export function publiekThema(t: CluedoThema): CluedoThema {
+  const { opgaven: _, ...rest } = t;
+  if (!metOpgaven(t)) return rest;
+  return { ...rest, uitkomsten: Object.fromEntries(KAART_SOORTEN.map((s) => [s, t[s].map((_, i) => opgaveVan(t, s, i).uitkomst)])) as CluedoThema['uitkomsten'] };
+}
+
+/** Een antwoord op een opgave (Cluedo met opgaven): nr = plaats in de lijst opgaven. */
+export interface OpgaveAntwoord {
+  soort: 'opgave';
+  nr: number;
+  antwoord: string;
+}
+export const leesOpgaveAntwoord = (tekst: string): OpgaveAntwoord | null => {
+  const a = leesJson(tekst) as unknown as OpgaveAntwoord | null;
+  return a?.soort === 'opgave' && Number.isInteger(a.nr) && typeof a.antwoord === 'string' ? a : null;
+};
 
 const inOplossing = (k: Kaart, o: CluedoOplossing) =>
   (k.soort === 'verdachten' && k.naam === o.verdachte) || (k.soort === 'locaties' && k.naam === o.locatie) || (k.soort === 'wapens' && k.naam === o.wapen);
@@ -137,6 +192,17 @@ export function cluedoToestand(spelers: readonly LiveSpeler[], antwoorden: reado
       if (kaart && !p.weg.some((k) => k.soort === kaart.soort && k.naam === kaart.naam)) p.weg.push(kaart);
       continue;
     }
+    // Cluedo met opgaven: een antwoord op een opgave (als actie, zodat opnieuw proberen altijd kan).
+    if (leesOpgaveAntwoord(a.antwoord)) {
+      if (!a.juist) {
+        p.fout++;
+        continue;
+      }
+      p.juist++;
+      const kaart = leesBeloning<VraagBeloning>(a.beloning)?.kaart;
+      if (kaart && !p.weg.some((k) => k.soort === kaart.soort && k.naam === kaart.naam)) p.weg.push(kaart);
+      continue;
+    }
     const b = leesBeloning<BeschuldigBeloning>(a.beloning);
     if (!b || b.ongeldig) continue;
     p.beschuldigingen++;
@@ -180,6 +246,12 @@ export function cluedoBeoordelingen(
         const over = alleKaarten(thema).filter((k) => !inOplossing(k, oplossing) && !p.weg.some((w) => w.soort === k.soort && w.naam === k.naam));
         b = beoordeeld(a, true, { kaart: over.length ? over[rand(over.length)] : null } satisfies VraagBeloning);
       }
+    } else if (leesOpgaveAntwoord(a.antwoord)) {
+      const op = leesOpgaveAntwoord(a.antwoord)!;
+      const v = vragen[op.nr];
+      const teVroeg = p.strafVanaf !== null && a.tijdMs - p.strafVanaf < strafMs - 2000;
+      const juist = !!v && !teVroeg && p.opgelostMs === null && automatischJuist(v, op.antwoord);
+      b = beoordeeld(a, juist, juist ? ({ kaart: kaartVanOpgave(thema, v.id) } satisfies VraagBeloning) : null);
     } else {
       const x = leesBeschuldiging(a.antwoord);
       const teVroeg = p.strafVanaf !== null && a.tijdMs - p.strafVanaf < strafMs - 2000;

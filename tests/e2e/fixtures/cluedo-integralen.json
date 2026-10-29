@@ -1,0 +1,71 @@
+{
+  "soort": "games-vragenset",
+  "versie": 1,
+  "set": {
+    "id": "cluedo-integralen",
+    "titel": "Integralen Cluedo",
+    "beschrijving": "",
+    "vak": "wiskunde",
+    "leerjaar": "test",
+    "vragen": [
+      {
+        "id": "q1",
+        "categorie": "Test",
+        "punten": 100,
+        "type": "open",
+        "tekst": "1+1?",
+        "antwoord": "2",
+        "opties": [],
+        "juisteOptie": 0,
+        "uitleg": ""
+      }
+    ],
+    "cluedo": {
+      "titel": "Moord met integralen",
+      "verdachten": [
+        "Ann",
+        "Bob"
+      ],
+      "locaties": [
+        "Keuken",
+        "Tuin"
+      ],
+      "wapens": [
+        "Mes",
+        "Touw"
+      ],
+      "opgaven": {
+        "verdachten": [
+          {
+            "opgave": "$\\int \\frac{1}{x\\ln x}\\,dx$",
+            "uitkomst": "\\ln|\\ln x|+C"
+          },
+          {
+            "opgave": "",
+            "uitkomst": "\\frac{\\pi}{4}"
+          }
+        ],
+        "locaties": [
+          {
+            "opgave": "",
+            "uitkomst": "x^2+C"
+          },
+          {
+            "opgave": "$\\int \\frac{\\operatorname{Bgtan} x}{1+x^2}\\,dx$",
+            "uitkomst": "\\frac{\\operatorname{Bgtan}^2 x}{2}+C"
+          }
+        ],
+        "wapens": [
+          {
+            "opgave": "$\\int 7^{2-3x}\\,dx$",
+            "uitkomst": "-\\frac{7^{2-3x}}{3\\ln 7}+C"
+          },
+          {
+            "opgave": "",
+            "uitkomst": "\\sin x+C"
+          }
+        ]
+      }
+    }
+  }
+}

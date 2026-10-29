@@ -5,7 +5,7 @@ import { exporteerSessie, tijdTekst } from '../lib/exportResults';
 import { speel, useMuziek } from '../lib/geluid';
 import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { CluedoOplossing, Sessie, Vraag } from '../lib/types';
-import { aantalWeg, cluedoBeoordelingen, cluedoStand, cluedoToestand, SOORT_NAMEN, strafMsVan, type CluedoToestand } from './cluedo';
+import { aantalWeg, leesOpgaveAntwoord, cluedoBeoordelingen, cluedoStand, cluedoToestand, SOORT_NAMEN, strafMsVan, type CluedoToestand } from './cluedo';
 import { isActie, vraagIndex } from './codekraker';
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
@@ -23,7 +23,12 @@ export function CluedoHost(props: Props) {
 
 /** Antwoorden op vragen als beurten van de lokale sessie (beschuldigingen tellen niet als beurt). */
 function alsBeurten(antwoorden: readonly LiveAntwoord[], aantal: number): LiveAntwoord[] {
-  return antwoorden.filter((a) => !isActie(a.vraagNr)).map((a) => ({ ...a, vraagNr: vraagIndex(a.spelerId, a.vraagNr, aantal) }));
+  return antwoorden.flatMap((a) => {
+    if (!isActie(a.vraagNr)) return [{ ...a, vraagNr: vraagIndex(a.spelerId, a.vraagNr, aantal) }];
+    // Cluedo met opgaven: elk antwoord op een opgave is een beurt voor die opgave.
+    const op = leesOpgaveAntwoord(a.antwoord);
+    return op ? [{ ...a, vraagNr: op.nr }] : [];
+  });
 }
 
 /** Tijd tot de oplossing per leerlingnaam (bij een groepje voor elke leerling). */
