@@ -9,6 +9,7 @@ import {
   lijstUitTekst,
   STANDAARD_THEMA,
   STRAF_MS,
+  strafMsVan,
   themaProblemen,
   trekOplossing,
   type CluedoThema,
@@ -70,6 +71,14 @@ describe('cluedo', () => {
     expect(p.weg).toHaveLength(4);
     const over = alleKaarten(thema).filter((k) => !p.weg.some((w) => w.soort === k.soort && w.naam === k.naam));
     expect(over.map((k) => k.naam).sort()).toEqual(['Bob', 'Mes', 'Tuin']);
+  });
+
+  it('de straftijd is instelbaar', () => {
+    const alle = [ant('B', ACTIE_BASIS, beschuldig('Ann', 'Tuin', 'Mes'), 5), ant('B', ACTIE_BASIS + 1, beschuldig('Bob', 'Tuin', 'Mes'), 30_010)];
+    const b = cluedoBeoordelingen(vragen, thema, oplossing, spelers, alle, () => 0, 30_000);
+    expect(b.map((x) => x.juist)).toEqual([false, true]);
+    expect(strafMsVan(120)).toBe(120_000);
+    expect(strafMsVan(0)).toBe(STRAF_MS);
   });
 
   it('beschuldigen: fout geeft straf, juist = opgelost; ranglijst', () => {

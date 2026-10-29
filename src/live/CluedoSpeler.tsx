@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
-import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, SOORT_NAMEN, STRAF_MS, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
+import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, SOORT_NAMEN, strafMsVan, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
 import { isActie, leesBeloning, vraagIndex, volgendeActieNr } from './codekraker';
 import { Beantwoord, foutTekst } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
@@ -30,13 +30,11 @@ export function CluedoSpeler({
   const [beschuldigen, setBeschuldigen] = useState(false);
   // Vragen waarvan de leerling de weggestreepte kaart al gezien heeft.
   const [gezien, setGezien] = useState<Set<number>>(new Set());
-  const foutGezien = useRef(new Map<string, number>());
 
   useEffect(() => {
     const id = window.setInterval(() => setNu(Date.now()), 500);
     return () => window.clearInterval(id);
   }, []);
-  for (const a of antwoorden) if (a.juist === false && !foutGezien.current.has(a.id)) foutGezien.current.set(a.id, Date.now());
 
   const ik: LiveSpeler = { id: spelerId ?? '', naam: '', bijnaam: null, verbonden: true };
   const eigen = antwoorden.filter((a) => a.spelerId === spelerId);
@@ -93,8 +91,7 @@ export function CluedoSpeler({
   const vraagAntwoorden = eigen.filter((a) => !isActie(a.vraagNr)).sort((a, b) => a.vraagNr - b.vraagNr);
   const laatsteVraag = vraagAntwoorden.at(-1);
   const volgendeNr = laatsteVraag ? laatsteVraag.vraagNr + 1 : 0;
-  const wachtNaFout = laatsteVraag?.juist === false ? Math.ceil((sessie.wachttijd * 1000 - (nu - (foutGezien.current.get(laatsteVraag.id) ?? nu))) / 1000) : 0;
-  const straf = p.strafVanaf !== null ? Math.ceil((STRAF_MS - (verstreken - p.strafVanaf)) / 1000) : 0;
+  const straf = p.strafVanaf !== null ? Math.ceil((strafMsVan(sessie.wachttijd) - (verstreken - p.strafVanaf)) / 1000) : 0;
   const laatsteBeschuldiging = eigen
     .filter((a) => isActie(a.vraagNr) && a.juist !== null)
     .sort((a, b) => b.vraagNr - a.vraagNr)
@@ -135,15 +132,6 @@ export function CluedoSpeler({
           <button type="button" autoFocus onClick={() => setGezien((g) => new Set(g).add(laatsteVraag.vraagNr))} className="mt-6 rounded-xl bg-[var(--accent)] px-8 py-3 text-xl font-semibold text-white">
             Volgende vraag ▶
           </button>
-        </div>
-      </Kaart>
-    );
-  } else if (wachtNaFout > 0) {
-    inhoud = (
-      <Kaart titel="">
-        <div className="text-center">
-          <div className="text-6xl">✗</div>
-          <div className="mt-2 text-2xl font-bold text-red-600">Fout! Volgende vraag over {wachtNaFout} s</div>
         </div>
       </Kaart>
     );

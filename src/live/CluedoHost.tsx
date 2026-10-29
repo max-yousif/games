@@ -5,7 +5,7 @@ import { exporteerSessie, tijdTekst } from '../lib/exportResults';
 import { speel, useMuziek } from '../lib/geluid';
 import { beeindig, korteNaamVan, resultatenPerLeerling } from '../lib/session';
 import type { CluedoOplossing, Sessie, Vraag } from '../lib/types';
-import { aantalWeg, cluedoBeoordelingen, cluedoStand, cluedoToestand, SOORT_NAMEN, type CluedoToestand } from './cluedo';
+import { aantalWeg, cluedoBeoordelingen, cluedoStand, cluedoToestand, SOORT_NAMEN, strafMsVan, type CluedoToestand } from './cluedo';
 import { isActie, vraagIndex } from './codekraker';
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
@@ -69,7 +69,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
       const b = a.juist === null ? beslist.current.get(a.id) : undefined;
       return b ? { ...a, juist: b.juist, punten: b.punten, beloning: b.beloning ?? null } : a;
     });
-    const items = cluedoBeoordelingen(vragen, thema, oplossing, spelers, bekend);
+    const items = cluedoBeoordelingen(vragen, thema, oplossing, spelers, bekend, undefined, strafMsVan(server?.wachttijd));
     if (items.length === 0 || nakijken.current) return;
     nakijken.current = true;
     void (async () => {

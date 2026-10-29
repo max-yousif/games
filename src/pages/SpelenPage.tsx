@@ -205,7 +205,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
-        wachttijd: spel === 'escape' ? strafTijd : escape ? wachttijd : 0,
+        wachttijd: spel === 'escape' || spel === 'cluedo' ? strafTijd : escape ? wachttijd : 0,
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? cluedoThema : undefined,
@@ -541,10 +541,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   </select>
                 </div>
               )}
-              {spel === 'escape' ? (
-                <div className="w-48">
+              {spel === 'escape' || spel === 'cluedo' ? (
+                <div className="w-52">
                   <label className={labelClass} htmlFor="straftijd">
-                    Straftijd na foute code
+                    {spel === 'cluedo' ? 'Straftijd na foute beschuldiging' : 'Straftijd na foute code'}
                   </label>
                   <select id="straftijd" className={inputClass} value={strafTijd} onChange={(e) => setStrafTijd(Number(e.target.value))}>
                     {STRAFTIJDEN.map((w) => (
@@ -639,7 +639,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 <p className="text-slate-600">
                   De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds
                   opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
-                  fout = een minuut geblokkeerd. Wie het snelst oplost, wint; de anderen spelen verder.
+                  fout = straftijd. Wie het snelst oplost, wint; de anderen spelen verder.
                 </p>
                 <details className="rounded-xl border border-slate-200 p-3" open={Boolean(set?.cluedo) || cluedoFouten.length > 0}>
                   <summary className="cursor-pointer font-semibold">

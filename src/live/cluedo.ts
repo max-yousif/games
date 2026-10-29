@@ -28,8 +28,10 @@ export interface Kaart {
   naam: string;
 }
 
-/** Na een foute beschuldiging even geen vragen of beschuldigingen (ms). */
+/** Na een foute beschuldiging even geen vragen of beschuldigingen (ms), als de leerkracht niets koos. */
 export const STRAF_MS = 60_000;
+/** Straftijd van een sessie: de gekozen straftijd (in seconden, in `wachttijd`), anders STRAF_MS. */
+export const strafMsVan = (wachttijd: number | undefined) => (wachttijd ? wachttijd * 1000 : STRAF_MS);
 
 export const STANDAARD_THEMA: CluedoThema = {
   titel: 'Moord in de leraarskamer',
@@ -159,6 +161,7 @@ export function cluedoBeoordelingen(
   spelers: readonly LiveSpeler[],
   antwoorden: readonly LiveAntwoord[],
   rand: RandomInt = defaultRandomInt,
+  strafMs = STRAF_MS,
 ): Beoordeling[] {
   const lijst = antwoorden.filter((a) => a.juist !== null);
   // Een leerling die net aansloot en nog niet in de lijst staat: later nakijken, niet afkeuren.
@@ -179,7 +182,7 @@ export function cluedoBeoordelingen(
       }
     } else {
       const x = leesBeschuldiging(a.antwoord);
-      const teVroeg = p.strafVanaf !== null && a.tijdMs - p.strafVanaf < STRAF_MS - 2000;
+      const teVroeg = p.strafVanaf !== null && a.tijdMs - p.strafVanaf < strafMs - 2000;
       if (!x || p.opgelostMs !== null || teVroeg) b = beoordeeld(a, false, { juist: false, ongeldig: true } satisfies BeschuldigBeloning);
       else {
         const juist = x.verdachte === oplossing.verdachte && x.locatie === oplossing.locatie && x.wapen === oplossing.wapen;

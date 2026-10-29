@@ -17,7 +17,9 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
   await kiesSpel(page, 'Codekraker test (test)', 'Cluedo');
-  await page.locator('label:text-is("Wachten na fout antwoord") + select').selectOption('0');
+  // Enkel straftijd na een foute beschuldiging (geen wachten na een foute vraag).
+  await expect(page.locator('label:text-is("Wachten na fout antwoord")')).toHaveCount(0);
+  await page.getByLabel('Straftijd na foute beschuldiging').selectOption('30');
 
   // Een klein thema voor dit spel: 2 + 2 + 2 kaarten, dus 3 juiste antwoorden om alles weg te strepen.
   await page.getByText(/Verdachten, locaties en wapens voor dit spel/).click();
