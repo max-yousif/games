@@ -49,6 +49,19 @@ export function SetsPage({ store }: { store: Store }) {
   // Filter en sortering (onthouden in deze browser). jaar: 0 = alle, -1 = zonder jaar.
   const [filter, setFilter] = useState(leesFilter);
   const [zoek, setZoek] = useState('');
+  // Eén menu (⋯) tegelijk open; klikken ernaast of Esc sluit het.
+  const [menu, setMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const klik = (e: MouseEvent) => !(e.target as HTMLElement).closest('[data-setmenu]') && setMenu(null);
+    const toets = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null);
+    document.addEventListener('click', klik);
+    document.addEventListener('keydown', toets);
+    return () => {
+      document.removeEventListener('click', klik);
+      document.removeEventListener('keydown', toets);
+    };
+  }, [menu]);
   useEffect(() => {
     try {
       localStorage.setItem(FILTER_SLEUTEL, JSON.stringify(filter));
@@ -180,7 +193,7 @@ export function SetsPage({ store }: { store: Store }) {
       </p>
 
       <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-surface shadow-sm">
-        {sets.map((s, nr) => {
+        {sets.map((s) => {
           const categorieen = [...new Set(s.vragen.map((v) => v.categorie.trim()).filter(Boolean))];
           const klaar = speelbareVragen(s).length;
           const jaren = jarenPerSet.get(s.id)!;
@@ -230,22 +243,30 @@ export function SetsPage({ store }: { store: Store }) {
                 <a href={href({ pagina: 'set', id: s.id })} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
                   Bewerken
                 </a>
-                <details className="relative">
-                  <summary className="cursor-pointer list-none rounded-lg px-3 py-2 text-lg leading-none text-slate-500 hover:bg-slate-100" aria-label={`Meer voor ${s.titel}`}>
+                <div className="relative" data-setmenu>
+                  <button
+                    type="button"
+                    className={`rounded-lg px-3 py-2 text-lg leading-none text-slate-500 hover:bg-slate-100 ${menu === s.id ? 'bg-slate-100' : ''}`}
+                    aria-label={`Meer voor ${s.titel}`}
+                    aria-expanded={menu === s.id}
+                    onClick={() => setMenu(menu === s.id ? null : s.id)}
+                  >
                     ⋯
-                  </summary>
-                  <div className={`absolute right-0 z-20 w-44 ${nr >= 2 && nr >= sets.length - 2 ? 'bottom-full mb-1' : 'mt-1'} rounded-xl border border-slate-200 bg-surface p-1 shadow-lg`}>
-                    <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => store.setSets((all) => [...all, dupliceerSet(s)])}>
+                  </button>
+                  {menu === s.id && (
+                  <div onClick={() => setMenu(null)} className="absolute top-1/2 right-full z-20 mr-1 flex -translate-y-1/2 gap-1 rounded-xl border border-slate-200 bg-surface p-1 whitespace-nowrap shadow-lg">
+                    <button type="button" className="rounded-lg px-3 py-2 text-sm hover:bg-slate-100" onClick={() => store.setSets((all) => [...all, dupliceerSet(s)])}>
                       Dupliceren
                     </button>
-                    <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => downloadJson(bestandsnaam(s.titel, 'json'), setBestand(s))}>
+                    <button type="button" className="rounded-lg px-3 py-2 text-sm hover:bg-slate-100" onClick={() => downloadJson(bestandsnaam(s.titel, 'json'), setBestand(s))}>
                       Als bestand
                     </button>
-                    <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" aria-label={`${s.titel} verwijderen`} onClick={() => verwijder(s)}>
+                    <button type="button" className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" aria-label={`${s.titel} verwijderen`} onClick={() => verwijder(s)}>
                       🗑 Verwijderen
                     </button>
                   </div>
-                </details>
+                  )}
+                </div>
               </div>
             </li>
           );

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { CloudStatus } from '../lib/useCloud';
-import { Button, Notice } from './ui';
+import { Button } from './ui';
 
 const STATUS: Record<CloudStatus, { icoon: string; tekst: string }> = {
   uit: { icoon: '', tekst: '' },
@@ -72,38 +72,6 @@ export function AccountKnop({ store }: { store: Store }) {
           <p className="text-xs text-slate-500">Gebruik dit laatste op een gedeelde computer, zodat de namen van je leerlingen er niet blijven staan.</p>
         </div>
       )}
-    </div>
-  );
-}
-
-/** Uitleg bovenaan de klassen: staan ze in de cloud of enkel in deze browser? */
-export function CloudKaart({ store }: { store: Store }) {
-  const { account, cloud } = store;
-  if (!account.beschikbaar)
-    return (
-      <div className="mb-6">
-        <Notice>☁️ Je klassen op al je toestellen kan pas wanneer Supabase ingesteld is (zie supabase/README.md).</Notice>
-      </div>
-    );
-  if (!account.leerkracht)
-    return (
-      <div className="mb-6">
-        <Notice tone="warn">
-          Je klassen staan nu enkel in deze browser.{' '}
-          <a className="font-semibold underline" href={href({ pagina: 'aanmelden' })}>
-            Meld je aan
-          </a>{' '}
-          om je vragensets, klassen en resultaten op al je toestellen te hebben.
-        </Notice>
-      </div>
-    );
-  return (
-    <div className="mb-6">
-      <Notice tone={cloud.status === 'fout' ? 'warn' : 'ok'}>
-        {STATUS[cloud.status].icoon} Je vragensets, klassen en resultaten staan in je account <strong>{account.leerkracht.naam}</strong> en zijn beschikbaar op elk toestel
-        waar je aanmeldt.
-        {cloud.melding && <span className="block text-red-700">{cloud.melding}</span>}
-      </Notice>
     </div>
   );
 }

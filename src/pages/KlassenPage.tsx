@@ -1,12 +1,9 @@
 import { useMemo, useState } from 'react';
 import { LEERJAREN } from '../components/JaarKeuze';
-import { CloudKaart } from '../components/Account';
 import { Button, FileButton, inputClass, labelClass, Notice, PageHeader } from '../components/ui';
 import { newId } from '../lib/ids';
 import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
-import { isBewaard } from '../lib/session';
-import { datumTekst } from '../lib/exportResults';
 import { inkorten, isIngekort, korteNamen, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
 import type { Klas, NaamVolgorde } from '../lib/types';
 
@@ -31,16 +28,6 @@ export function KlassenPage({ store }: { store: Store }) {
     setGekozen(k.id);
   }
 
-  // Bewaarde spellen per klas (op naam).
-  const spellen = useMemo(() => {
-    const m = new Map<string, { aantal: number; laatst: string }>();
-    for (const s of store.sessies.filter(isBewaard)) {
-      const oud = m.get(s.klasNaam);
-      m.set(s.klasNaam, { aantal: (oud?.aantal ?? 0) + 1, laatst: !oud || s.gestart > oud.laatst ? s.gestart : oud.laatst });
-    }
-    return m;
-  }, [store.sessies]);
-
   if (klas) {
     return (
       <div>
@@ -50,7 +37,6 @@ export function KlassenPage({ store }: { store: Store }) {
         <KlasEditor
           key={klas.id}
           klas={klas}
-          spellen={spellen.get(klas.naam)}
           onChange={(f) => store.setKlassen((all) => all.map((k) => (k.id === klas.id ? f(k) : k)))}
           onDelete={() => {
             if (confirm(`Klas "${klas.naam}" verwijderen? Gespeelde resultaten blijven bewaard.`)) {
@@ -70,7 +56,6 @@ export function KlassenPage({ store }: { store: Store }) {
   const vanJaar = (j: number) => gefilterd.filter((k) => klasJaar(k) === j);
   const andere = gefilterd.filter((k) => !LEERJAREN.includes(klasJaar(k) ?? 0));
   const kaart = (k: Klas) => {
-    const sp = spellen.get(k.naam);
     const namen = k.leerlingen.map((l) => l.naam);
     const voornamen = korteNamen(namen, naamVolgordeVan(namen, k.naamVolgorde));
     return (
@@ -87,9 +72,6 @@ export function KlassenPage({ store }: { store: Store }) {
         </div>
         <div className="mt-2 line-clamp-2 text-sm text-slate-600">
           {voornamen.length ? voornamen.slice(0, 12).join(', ') + (voornamen.length > 12 ? ', …' : '') : 'Nog geen leerlingen'}
-        </div>
-        <div className="mt-auto pt-3 text-xs text-slate-500">
-          {sp ? `${sp.aantal} ${sp.aantal === 1 ? 'spel' : 'spellen'} · laatst ${datumTekst(sp.laatst)}` : 'nog geen bewaarde spellen'}
         </div>
       </button>
     );
@@ -139,22 +121,16 @@ export function KlassenPage({ store }: { store: Store }) {
           )}
         </>
       )}
-
-      <div className="mt-10">
-        <CloudKaart store={store} />
-      </div>
     </div>
   );
 }
 
 function KlasEditor({
   klas,
-  spellen,
   onChange,
   onDelete,
 }: {
   klas: Klas;
-  spellen?: { aantal: number; laatst: string };
   onChange: (f: (k: Klas) => Klas) => void;
   onDelete: () => void;
 }) {
@@ -219,7 +195,6 @@ function KlasEditor({
         </div>
         <div className="pb-2 text-sm text-slate-500">
           👥 {klas.leerlingen.length} leerlingen
-          {spellen && ` · ${spellen.aantal} bewaarde ${spellen.aantal === 1 ? 'spel' : 'spellen'}`}
         </div>
         {!klas.leerlingen.every((l) => isIngekort(l.naam)) && (
           <>
