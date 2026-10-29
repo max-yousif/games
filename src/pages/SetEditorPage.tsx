@@ -12,7 +12,7 @@ import { VakKeuze } from '../components/VakKeuze';
 import { JaarKeuze } from '../components/JaarKeuze';
 import { jaarTekst, jarenVanSet } from './SetsPage';
 import { nieuwRaadsel } from '../live/whodunit';
-import { href } from '../lib/route';
+import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vraag, VraagType, Vragenset } from '../lib/types';
 import { isKeuzeVraag, VRAAG_TYPES } from '../lib/vraagtypes';
@@ -156,6 +156,20 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           </div>
         </section>
       )}
+
+      <div className="mt-10 border-t border-slate-200 pt-4">
+        <Button
+          variant="ghost"
+          className="text-red-600 hover:bg-red-50"
+          onClick={() => {
+            if (!confirm(`Vragenset "${set.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`)) return;
+            store.setSets((all) => all.filter((x) => x.id !== set.id));
+            ga({ pagina: 'sets' });
+          }}
+        >
+          🗑 Vragenset verwijderen
+        </Button>
+      </div>
     </div>
   );
 }
