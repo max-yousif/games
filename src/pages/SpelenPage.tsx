@@ -26,6 +26,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elke leerling opent sloten door vragen op te lossen; de cijfers vormen de code om te ontsnappen.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Crypto Hack', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
+  { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = 3 seconden tekenen in je eigen kleur op een gedeeld veld. Wie bakent het meeste gebied af?' },
   { type: 'cluedo', icoon: '🔎', naam: 'Cluedo', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
@@ -57,9 +58,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [uit, setUit] = useState<Set<string>>(new Set());
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
-  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo';
+  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
   // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
   const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA);
   const [cluedoSleutel, setCluedoSleutel] = useState(0);
@@ -144,6 +145,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const whodunit = spel === 'whodunit';
       const codekraker = spel === 'codekraker';
       const cluedo = spel === 'cluedo';
+      const territorium = spel === 'territorium';
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
       const gekozen = spel === 'escape' && aantalSloten > 0 && aantalSloten < vragen.length ? shuffle(vragen).slice(0, aantalSloten) : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
@@ -167,7 +169,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
-        aantalVragen: codekraker || cluedo ? AANTAL_NUMMERS : gekozen.length,
+        aantalVragen: codekraker || cluedo || territorium ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         vragen: escape ? gekozen.map(publiekeVraag) : undefined,
@@ -175,9 +177,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? cluedoThema : undefined,
+        territorium: territorium ? { versie: 1 } : undefined,
       });
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : escape ? 'escape' : 'live',
         set,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -268,9 +271,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 setSpel(s.type);
                 verdeel(
                   klas?.leerlingen,
-                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' ? 1 : aantal,
+                  s.type === 'vieropeenrij' ? 2 : s.type === 'live' || s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' || s.type === 'territorium' ? 1 : aantal,
                   afwezig,
-                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' ? groepGrootte : 1,
+                  s.type === 'escape' || s.type === 'whodunit' || s.type === 'codekraker' || s.type === 'cluedo' || s.type === 'territorium' ? groepGrootte : 1,
                 );
                 if (s.type === 'live' && timer === null) setTimer(30);
               }}
@@ -408,7 +411,13 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
         {isLive && (
           <div className="mb-4 space-y-2 text-sm">
-            {spel === 'cluedo' ? (
+            {spel === 'territorium' ? (
+              <p className="text-slate-600">
+                Elke leerling (of elk groepje) krijgt een eigen kleur. Bij een juist antwoord mag de leerling 3 seconden tekenen op het gedeelde veld, ook over het gebied van
+                een ander. Wie meerdere vragen na elkaar juist heeft, krijgt een steeds groter penseel. Na de speeltijd wint wie het meeste gebied heeft. De vragen komen
+                steeds opnieuw.
+              </p>
+            ) : spel === 'cluedo' ? (
               <>
                 <p className="text-slate-600">
                   De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds

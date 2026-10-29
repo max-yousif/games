@@ -38,6 +38,9 @@ export interface StandRij {
   /** Codekraker: firewall actief, vermenigvuldiger, laatste melding (gehackt …). */
   firewall?: boolean;
   mult?: number;
+  /** Territorium: kleurnummer en huidige reeks juiste antwoorden. */
+  kleur?: number;
+  reeks?: number;
   /** Crypto Hack: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
   gehackt?: number;
   melding?: { tekst: string; tijdMs: number };
@@ -67,6 +70,8 @@ export interface LiveSessie {
   codekraker?: CodekrakerInstellingen | null;
   /** Cluedo (escape-modus): het thema, zonder oplossing. */
   cluedo?: CluedoThema | null;
+  /** Territorium (escape-modus): ingesteld = dit spel. */
+  territorium?: { versie: 1 } | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -199,6 +204,7 @@ export interface LiveBackend {
     raadsel?: PubliekRaadsel;
     codekraker?: CodekrakerInstellingen;
     cluedo?: CluedoThema;
+    territorium?: { versie: 1 };
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;

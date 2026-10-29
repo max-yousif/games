@@ -47,6 +47,7 @@ function sessieUit(r: any): LiveSessie {
     raadsel: Array.isArray(r.vragen) ? null : (r.vragen?.raadsel ?? null),
     codekraker: Array.isArray(r.vragen) ? null : (r.vragen?.codekraker ?? null),
     cluedo: Array.isArray(r.vragen) ? null : (r.vragen?.cluedo ?? null),
+    territorium: Array.isArray(r.vragen) ? null : (r.vragen?.territorium ?? null),
     wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
@@ -262,12 +263,13 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           modus: input.modus ?? 'quiz',
           // Whodunit, Crypto Hack en Cluedo: de vragen samen met het raadsel, de instellingen of het thema.
           vragen:
-            input.raadsel || input.codekraker || input.cluedo
+            input.raadsel || input.codekraker || input.cluedo || input.territorium
               ? {
                   vragen: input.vragen ?? [],
                   ...(input.raadsel ? { raadsel: input.raadsel } : {}),
                   ...(input.codekraker ? { codekraker: input.codekraker } : {}),
                   ...(input.cluedo ? { cluedo: input.cluedo } : {}),
+                  ...(input.territorium ? { territorium: input.territorium } : {}),
                 }
               : (input.vragen ?? null),
           wachttijd: input.wachttijd ?? 0,

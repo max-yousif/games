@@ -19,6 +19,7 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   whodunit: 'Whodunit',
   codekraker: 'Crypto Hack',
   cluedo: 'Cluedo',
+  territorium: 'Territorium',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });
@@ -33,6 +34,7 @@ function sessieBladen(s: Sessie, prefix = '') {
   const tijd = (naam: string) => (ontsnapt?.[naam] !== undefined ? tijdTekst(ontsnapt[naam]) : '');
   const bijnamen = s.live?.bijnamen;
   const munten = s.live?.munten;
+  const gebied = s.live?.gebied;
   const perLeerling = [
     [
       bold('Leerling'),
@@ -44,6 +46,7 @@ function sessieBladen(s: Sessie, prefix = '') {
       bold('Punten'),
       ...(ontsnapt ? [bold(s.spelType === 'whodunit' || s.spelType === 'cluedo' ? 'Opgelost na' : 'Ontsnapt na')] : []),
       ...(munten ? [bold('Munten')] : []),
+      ...(gebied ? [bold('Gebied (vakjes)')] : []),
     ],
     ...resultatenPerLeerling(s).map((r) => [
       r.naam,
@@ -55,6 +58,7 @@ function sessieBladen(s: Sessie, prefix = '') {
       r.punten,
       ...(ontsnapt ? [tijd(r.naam)] : []),
       ...(munten ? [munten[r.naam] ?? 0] : []),
+      ...(gebied ? [gebied[r.naam] ?? 0] : []),
     ]),
     [],
     [bold('Team'), bold('Score')],

@@ -18,6 +18,7 @@ import { BomSpel } from '../games/BomSpel';
 import { bomWinnaar, nieuweBom } from '../lib/bom';
 import { CodekrakerHost } from '../live/CodekrakerHost';
 import { CluedoHost } from '../live/CluedoHost';
+import { TerritoriumHost } from '../live/TerritoriumHost';
 
 /** Maakt de laatste handeling ongedaan (bij vier op een rij eerst de laatste schijf). */
 export function ongedaanMaken(s: Sessie): Sessie {
@@ -75,7 +76,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
 
   const vierWinnaar =
     sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
-  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo';
+  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo' || sessie.spelType === 'territorium';
   // Bij de bom niet: de ontploffingen en de houder zouden niet mee teruggaan.
   const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
 
@@ -110,7 +111,9 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       </header>
 
-      {sessie.spelType === 'cluedo' ? (
+      {sessie.spelType === 'territorium' ? (
+        <TerritoriumHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
+      ) : sessie.spelType === 'cluedo' ? (
         <CluedoHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
       ) : sessie.spelType === 'codekraker' ? (
         <CodekrakerHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />

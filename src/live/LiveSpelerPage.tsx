@@ -4,6 +4,7 @@ import { backend, supabaseIngesteld } from './config';
 import { EscapeSpeler } from './EscapeSpeler';
 import { WhodunitSpeler } from './Whodunit';
 import { CluedoSpeler } from './CluedoSpeler';
+import { TerritoriumSpeler } from './TerritoriumSpeler';
 import { CodekrakerSpeler } from './CodekrakerSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
@@ -296,6 +297,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
+  if (sessie.modus === 'escape' && sessie.territorium) return <TerritoriumSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape' && sessie.cluedo) return <CluedoSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape' && sessie.codekraker) return <CodekrakerSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape' && sessie.raadsel) return <WhodunitSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;

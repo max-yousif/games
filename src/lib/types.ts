@@ -99,7 +99,7 @@ export interface CluedoOplossing {
   wapen: string;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium';
 
 export interface Team {
   naam: string;
@@ -136,6 +136,12 @@ export interface LiveInfo {
   ontsnapt?: Record<string, number>;
   /** Codekraker: munten per leerlingnaam op het einde. */
   munten?: Record<string, number>;
+  /** Territorium: kleur per speler-id en gebied (vakjes) per leerlingnaam op het einde. */
+  kleuren?: Record<string, number>;
+  gebied?: Record<string, number>;
+  /** Territorium: het veld en de ranglijst op het einde (om het eindscherm te tonen). */
+  eindveld?: string;
+  eindstand?: { naam: string; punten: number; juist: number; kleur?: number }[];
   /** Codekraker: hacken toegestaan. */
   hacken?: boolean;
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */
