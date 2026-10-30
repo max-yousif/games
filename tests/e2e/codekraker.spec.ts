@@ -51,6 +51,10 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   // Fout antwoord: geen kistje, volgende vraag.
   await anna.getByLabel('Je antwoord').fill('8');
   await anna.getByRole('button', { name: 'Versturen' }).click();
+  // Het juiste antwoord verschijnt; de volgende vraag pas met de knop.
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('Juiste antwoord');
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('7');
+  await anna.getByRole('button', { name: 'Volgende vraag ▶' }).click();
   await expect(anna.getByLabel('Je antwoord')).toBeVisible();
 
   for (let i = 0; i < 3; i++) await ronde(anna);

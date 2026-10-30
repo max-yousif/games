@@ -1,3 +1,4 @@
+import { juistAntwoord } from '../lib/questions';
 import { vastGeschud } from '../lib/vraagtypes';
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { Vraag } from '../lib/types';
@@ -345,7 +346,8 @@ function beslis(a: LiveAntwoord, t: Toestand, vragen: readonly Vraag[], inst: Co
   if (!isActie(a.vraagNr)) {
     const v = vragen[vraagIndex(a.spelerId, a.vraagNr, vragen.length)];
     const juist = !!v && automatischJuist(v, a.antwoord);
-    return beoordeeld(a, juist, juist ? { kist: true } : null);
+    // Fout: het juiste antwoord meegeven (enkel deze leerling ziet het, na het antwoorden).
+    return beoordeeld(a, juist, juist ? { kist: true } : v ? { oplossing: juistAntwoord(v) } : null);
   }
   const actie = leesActie(a.antwoord);
   if (!actie) return beoordeeld(a, false, null);

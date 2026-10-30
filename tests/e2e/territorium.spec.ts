@@ -43,6 +43,10 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
   // Fout antwoord: geen tekenbeurt.
   await anna.getByLabel('Je antwoord').fill('8');
   await anna.getByRole('button', { name: 'Versturen' }).click();
+  // Het juiste antwoord verschijnt; de volgende vraag pas met de knop.
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('Juiste antwoord');
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('7');
+  await anna.getByRole('button', { name: 'Volgende vraag ▶' }).click();
   await expect(anna.getByLabel('Je antwoord')).toBeVisible();
   await expect(anna.locator('[data-tekenveld]')).toHaveCount(0);
 

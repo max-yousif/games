@@ -357,3 +357,64 @@ function Koppelen({ links, rechts, start, bezig, onVerstuur }: { links: string[]
     </div>
   );
 }
+
+/** Het juiste antwoord dat het bord meegaf bij een fout antwoord (spellen in eigen tempo). */
+export function oplossingUit(beloning: string | null): string | null {
+  try {
+    const b = JSON.parse(beloning ?? '') as { oplossing?: unknown };
+    return typeof b?.oplossing === 'string' ? b.oplossing : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Na een fout antwoord: wat de leerling antwoordde en wat het juiste antwoord was. De volgende vraag
+ * komt pas met de knop (na de eventuele wachttijd), zodat er tijd is om het te lezen.
+ */
+export function FoutAntwoord({
+  vraag,
+  antwoord,
+  beloning,
+  seconden,
+  onVerder,
+}: {
+  vraag: PubliekeVraag | undefined;
+  antwoord: string;
+  beloning: string | null;
+  /** Wachttijd die nog loopt (0 = meteen verder). */
+  seconden: number;
+  onVerder: () => void;
+}) {
+  const oplossing = oplossingUit(beloning);
+  return (
+    <div className="pop space-y-4 rounded-2xl bg-surface p-6 shadow-sm" data-fout-antwoord>
+      <div className="text-center">
+        <div className="text-5xl text-red-600">✗</div>
+        <div className="mt-1 text-2xl font-bold text-red-600">Fout!</div>
+        {vraag && (
+          <div className="mt-1 text-slate-600">
+            Jouw antwoord: <AntwoordTekst vraag={vraag} antwoord={antwoord} />
+          </div>
+        )}
+      </div>
+      {oplossing && (
+        <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 p-4">
+          <div className="text-sm font-semibold tracking-wide text-emerald-700 uppercase">Juiste antwoord</div>
+          <RichText text={oplossing} className="mt-1 text-2xl font-semibold" />
+        </div>
+      )}
+      <div className="text-center">
+        <button
+          type="button"
+          autoFocus
+          disabled={seconden > 0}
+          onClick={onVerder}
+          className="rounded-xl bg-[var(--accent)] px-8 py-3 text-xl font-semibold text-white disabled:opacity-50"
+        >
+          {seconden > 0 ? `Volgende vraag over ${seconden} s` : 'Volgende vraag ▶'}
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { isActie, vraagIndex, volgendeActieNr } from './codekraker';
-import { Beantwoord, foutTekst } from './Invoer';
+import { Beantwoord, foutTekst, FoutAntwoord } from './Invoer';
 import { aantalVakjes, codeerLijnen, gekleurd, KLEUREN, leesVeld, maskerVan, territoriumToestand, veldVan } from './territorium';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
 import { VeldBeeld, VeldTekenen } from './Veld';
@@ -26,6 +26,8 @@ export function TerritoriumSpeler({
   const vragen = sessie.vragen ?? [];
   const [nu, setNu] = useState(() => Date.now());
   const [fout, setFout] = useState<string | null>(null);
+  // Foute antwoorden waarvan de leerling het juiste antwoord al gezien heeft.
+  const [verder, setVerder] = useState<Set<string>>(new Set());
   const foutGezien = useRef(new Map<string, number>());
   const [poging, setPoging] = useState(0);
   const seconden = sessie.territorium?.seconden ?? 3;
@@ -126,14 +128,17 @@ export function TerritoriumSpeler({
         />
       </div>
     );
-  } else if (wachtNaFout > 0) {
+  } else if (laatsteVraag?.juist === false && !verder.has(laatsteVraag.id)) {
+    // Fout: het juiste antwoord tonen; de volgende vraag pas met de knop (na de wachttijd).
+    const foutAntwoord = laatsteVraag;
     inhoud = (
-      <Kaart>
-        <div className="text-center">
-          <div className="text-6xl">✗</div>
-          <div className="mt-2 text-2xl font-bold text-red-600">Fout! Volgende vraag over {wachtNaFout} s</div>
-        </div>
-      </Kaart>
+      <FoutAntwoord
+        vraag={vragen[vraagIndex(spelerId, foutAntwoord.vraagNr, vragen.length)]}
+        antwoord={foutAntwoord.antwoord}
+        beloning={foutAntwoord.beloning}
+        seconden={Math.max(0, wachtNaFout)}
+        onVerder={() => setVerder((v) => new Set(v).add(foutAntwoord.id))}
+      />
     );
   } else if (vragen.length === 0) inhoud = <Kaart>⚠️ Er zijn geen vragen gevonden voor dit spel.</Kaart>;
   else {

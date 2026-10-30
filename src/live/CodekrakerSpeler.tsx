@@ -15,7 +15,7 @@ import {
   type KistBeloning,
   type RaadBeloning,
 } from './codekraker';
-import { Beantwoord, foutTekst } from './Invoer';
+import { Beantwoord, foutTekst, FoutAntwoord } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
 
 const fmt = (n: number) => n.toLocaleString('nl-BE');
@@ -46,6 +46,8 @@ export function CodekrakerSpeler({
   const vragen = sessie.vragen ?? [];
   const [nu, setNu] = useState(() => Date.now());
   const [fout, setFout] = useState<string | null>(null);
+  // Foute antwoorden waarvan de leerling het juiste antwoord al gezien heeft.
+  const [verder, setVerder] = useState<Set<string>>(new Set());
   const [bezig, setBezig] = useState(false);
   // Uitkomsten die de leerling al gezien heeft (actienummers) en overgeslagen hackkansen.
   const [gezien, setGezien] = useState<Set<number>>(new Set());
@@ -249,14 +251,17 @@ export function CodekrakerSpeler({
         </div>
       </Kaart>
     );
-  } else if (wachtNaFout > 0) {
+  } else if (laatsteVraag?.juist === false && !verder.has(laatsteVraag.id)) {
+    // Fout: het juiste antwoord tonen; de volgende vraag pas met de knop (na de wachttijd).
+    const foutAntwoord = laatsteVraag;
     inhoud = (
-      <Kaart titel="">
-        <div className="text-center">
-          <div className="text-6xl">✗</div>
-          <div className="mt-2 text-2xl font-bold text-red-600">Fout! Volgende vraag over {wachtNaFout} s</div>
-        </div>
-      </Kaart>
+      <FoutAntwoord
+        vraag={vragen[vraagIndex(spelerId ?? '', foutAntwoord.vraagNr, vragen.length)]}
+        antwoord={foutAntwoord.antwoord}
+        beloning={foutAntwoord.beloning}
+        seconden={Math.max(0, wachtNaFout)}
+        onVerder={() => setVerder((v) => new Set(v).add(foutAntwoord.id))}
+      />
     );
   } else if (vragen.length === 0) {
     inhoud = <Kaart titel="⚠️ Geen vragen">Er zijn geen vragen gevonden voor dit spel. Vraag de leerkracht om het spel opnieuw te starten.</Kaart>;

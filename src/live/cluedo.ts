@@ -1,3 +1,4 @@
+import { juistAntwoord } from '../lib/questions';
 import { isKeuzeVraag, keuzeOpties } from '../lib/vraagtypes';
 import { randomInt as defaultRandomInt, type RandomInt } from '../lib/random';
 import type { CluedoOplossing, CluedoThema, KaartOpgave, Vraag } from '../lib/types';
@@ -423,7 +424,7 @@ export function cluedoBeoordelingen(
     else if (!isActie(a.vraagNr)) {
       const v = vragen[vraagIndex(a.spelerId, a.vraagNr, vragen.length)];
       const juist = !!v && automatischJuist(v, a.antwoord);
-      if (!juist) b = beoordeeld(a, false, null);
+      if (!juist) b = beoordeeld(a, false, v ? { oplossing: juistAntwoord(v) } : null);
       else {
         const over = alleKaarten(thema).filter((k) => !inOplossing(k, oplossing) && !p.weg.some((w) => w.soort === k.soort && w.naam === k.naam));
         b = beoordeeld(a, true, { kaart: over.length ? over[rand(over.length)] : null } satisfies VraagBeloning);

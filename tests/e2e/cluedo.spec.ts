@@ -49,6 +49,10 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   // Fout antwoord: niets weg.
   await anna.getByLabel('Je antwoord').fill('8');
   await anna.getByRole('button', { name: 'Versturen' }).click();
+  // Het juiste antwoord verschijnt; de volgende vraag pas met de knop.
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('Juiste antwoord');
+  await expect(anna.locator('[data-fout-antwoord]')).toContainText('7');
+  await anna.getByRole('button', { name: 'Volgende vraag ▶' }).click();
   await expect(anna.getByLabel('Je antwoord')).toBeVisible();
   await expect(anna.locator('[data-weg]')).toHaveCount(0);
 

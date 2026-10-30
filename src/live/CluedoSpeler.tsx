@@ -4,7 +4,7 @@ import { tijdTekst } from '../lib/exportResults';
 import { cluedoToestand, KAART_SOORTEN, leesBeschuldiging, leesOpgaveAntwoord, SOORT_NAMEN, strafMsVan, type BeschuldigBeloning, type Kaart, type VraagBeloning } from './cluedo';
 import { vastGeschud } from '../lib/vraagtypes';
 import { isActie, leesBeloning, vraagIndex, volgendeActieNr } from './codekraker';
-import { Beantwoord, foutTekst } from './Invoer';
+import { Beantwoord, foutTekst, FoutAntwoord } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie, LiveSpeler } from './types';
 
 const zelfde = (a: Kaart, b: Kaart) => a.soort === b.soort && a.naam === b.naam;
@@ -27,6 +27,8 @@ export function CluedoSpeler({
   const vragen = sessie.vragen ?? [];
   const [nu, setNu] = useState(() => Date.now());
   const [fout, setFout] = useState<string | null>(null);
+  // Foute antwoorden waarvan de leerling het juiste antwoord al gezien heeft.
+  const [verder, setVerder] = useState<Set<string>>(new Set());
   const [bezig, setBezig] = useState(false);
   const [beschuldigen, setBeschuldigen] = useState(false);
   // Vragen waarvan de leerling de weggestreepte kaart al gezien heeft.
@@ -125,6 +127,18 @@ export function CluedoSpeler({
     inhoud = <BeschuldigFormulier thema={mijnThema} weg={p.weg} bezig={bezig} strafSeconden={strafMsVan(sessie.wachttijd) / 1000} onAnnuleer={() => setBeschuldigen(false)} onBeschuldig={(x) => void stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'beschuldig', ...x })).then(() => setBeschuldigen(false))} />;
   } else if (metOpgaven) {
     inhoud = <Opgaven vragen={vragen} eigen={eigen} spelerId={spelerId ?? ''} onVerstuur={(nr, antwoord) => stuur(volgendeActieNr(eigen), JSON.stringify({ soort: 'opgave', nr, antwoord }))} />;
+  } else if (!metOpgaven && laatsteVraag?.juist === false && !verder.has(laatsteVraag.id)) {
+    // Fout: het juiste antwoord tonen, dan pas de volgende vraag.
+    const foutAntwoord = laatsteVraag;
+    inhoud = (
+      <FoutAntwoord
+        vraag={vragen[vraagIndex(spelerId ?? '', foutAntwoord.vraagNr, vragen.length)]}
+        antwoord={foutAntwoord.antwoord}
+        beloning={foutAntwoord.beloning}
+        seconden={0}
+        onVerder={() => setVerder((v) => new Set(v).add(foutAntwoord.id))}
+      />
+    );
   } else if (nieuweKaart !== undefined && laatsteVraag) {
     inhoud = (
       <Kaart titel="">

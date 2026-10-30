@@ -1,3 +1,4 @@
+import { juistAntwoord } from '../lib/questions';
 import type { Vraag } from '../lib/types';
 import { isActie, leesBeloning, vraagIndex } from './codekraker';
 import { automatischJuist, schermNaam } from './logic';
@@ -307,7 +308,7 @@ export function territoriumBeoordelingen(
     if (!isActie(a.vraagNr)) {
       const v = vragen[vraagIndex(a.spelerId, a.vraagNr, vragen.length)];
       const juist = !!v && automatischJuist(v, a.antwoord);
-      b = beoordeeld(a, juist, juist ? ({ teken: true, reeks: p.reeks + 1, penseel: penseel(p.reeks + 1) } satisfies VraagBeloning) : null);
+      b = beoordeeld(a, juist, juist ? ({ teken: true, reeks: p.reeks + 1, penseel: penseel(p.reeks + 1) } satisfies VraagBeloning) : v ? { oplossing: juistAntwoord(v) } : null);
     } else {
       const teken = leesTekening(a.antwoord);
       const geldig = !!teken && p.beurten.some((x) => x.vraag === teken.vraag) && teken.lijnen.length <= MAX_TEKENS;
