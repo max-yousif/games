@@ -205,6 +205,98 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     };
   }
 
+  /**
+   * Een lange lijst rijen volgen (bv. de antwoorden): de wijzigingen komen één per één binnen via
+   * realtime en worden in de lijst verwerkt, zonder telkens alles op te halen. Bij het starten, na een
+   * onderbreking en elke minuut wordt alles opnieuw opgehaald (in blokken, zonder grens) als controle.
+   */
+  function volgRijen<T extends { id: string }>(tabel: string, filter: string, allesOphalen: () => Promise<T[]>, uitRij: (r: unknown) => T, cb: (t: T[]) => void): () => void {
+    let actief = true;
+    const rijen = new Map<string, T>();
+    // Meerdere wijzigingen kort na elkaar: één keer doorgeven.
+    let gepland = 0;
+    const doorgeven = () => {
+      if (gepland || !actief) return;
+      gepland = window.setTimeout(() => {
+        gepland = 0;
+        if (actief) cb([...rijen.values()]);
+      }, 80);
+    };
+    let bezig = false;
+    let opnieuw = false;
+    const verversen = async () => {
+      if (bezig) {
+        opnieuw = true;
+        return;
+      }
+      bezig = true;
+      try {
+        const alles = await allesOphalen();
+        rijen.clear();
+        for (const r of alles) rijen.set(r.id, r);
+        doorgeven();
+        zetVerbinding('verbonden');
+      } catch {
+        zetVerbinding('verbinden');
+      } finally {
+        bezig = false;
+        if (opnieuw && actief) {
+          opnieuw = false;
+          void verversen();
+        }
+      }
+    };
+    let kanaal: ReturnType<SupabaseClient['channel']> | null = null;
+    void Promise.all([sb(), uid()]).then(
+      ([c]) => {
+        if (!actief) return;
+        kanaal = c
+          .channel(`${tabel}:${filter}:${Math.random().toString(36).slice(2)}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: tabel, filter }, (p: { eventType: string; new: unknown; old: unknown }) => {
+            if (p.eventType === 'DELETE') {
+              const id = (p.old as { id?: string } | null)?.id;
+              if (id) rijen.delete(id);
+            } else if (p.new) {
+              const r = uitRij(p.new);
+              rijen.set(r.id, r);
+            }
+            doorgeven();
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') void verversen();
+            else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') zetVerbinding('verbinden');
+          });
+        void verversen();
+      },
+      () => zetVerbinding('verbinden'),
+    );
+    const wakker = () => {
+      if (document.visibilityState === 'visible') void verversen();
+    };
+    window.addEventListener('online', wakker);
+    document.addEventListener('visibilitychange', wakker);
+    const interval = window.setInterval(() => void verversen(), 60000);
+    return () => {
+      actief = false;
+      window.clearTimeout(gepland);
+      window.clearInterval(interval);
+      window.removeEventListener('online', wakker);
+      document.removeEventListener('visibilitychange', wakker);
+      if (kanaal) void sb().then((c) => c.removeChannel(kanaal!));
+    };
+  }
+
+  /** Alle rijen ophalen in blokken van 1000 (Supabase geeft er hoogstens 1000 per keer). */
+  async function inBlokken(maak: (van: number, tot: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>): Promise<unknown[]> {
+    const uit: unknown[] = [];
+    for (let van = 0; ; van += 1000) {
+      const { data, error } = await maak(van, van + 999);
+      if (error) vertaal(error as never);
+      uit.push(...(data ?? []));
+      if (!data || data.length < 1000) return uit;
+    }
+  }
+
   /** Eén broadcast-kanaal per sessie voor reacties, gedeeld door zenden en ontvangen. */
   const reactieKanalen = new Map<string, { kanaal: Promise<RealtimeChannel>; luisteraars: Set<(r: Reactie) => void> }>();
   function reactieKanaal(sessieId: string) {
@@ -330,14 +422,16 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     },
 
     volgAntwoorden(sessieId, cb) {
-      return volg(
+      // Kan in een spel in eigen tempo duizenden rijen worden: per wijziging bijwerken, niet telkens alles.
+      return volgRijen(
         'live_antwoorden',
         `sessie_id=eq.${sessieId}`,
         async () => {
-          const { data, error } = await (await sb()).from('live_antwoorden').select('*').eq('sessie_id', sessieId).order('aangemaakt').limit(5000);
-          if (error) vertaal(error);
-          return (data ?? []).map(antwoordUit);
+          const c = await sb();
+          const rijen = await inBlokken((van, tot) => c.from('live_antwoorden').select('*').eq('sessie_id', sessieId).order('aangemaakt').order('id').range(van, tot));
+          return rijen.map(antwoordUit);
         },
+        antwoordUit,
         cb,
       );
     },
