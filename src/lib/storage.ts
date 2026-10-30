@@ -5,6 +5,7 @@ const KEYS = {
   klassen: 'games.v1.klassen',
   sessies: 'games.v1.sessies',
   voorbeelden: 'games.v1.voorbeelden',
+  eigenaar: 'games.v1.eigenaar',
 } as const;
 
 function read<T>(key: string): T | null {
@@ -36,3 +37,7 @@ export const saveSessies = (s: Sessie[]) => write(KEYS.sessies, s);
 /** Id's van voorbeeldsets die al eens toegevoegd werden (ook als ze daarna gewist zijn). */
 export const loadVoorbeelden = () => read<string[]>(KEYS.voorbeelden);
 export const saveVoorbeelden = (ids: string[]) => write(KEYS.voorbeelden, ids);
+
+/** Het account waarvan de vragensets, klassen en resultaten in deze browser zijn. */
+export const loadEigenaar = () => read<string>(KEYS.eigenaar);
+export const saveEigenaar = (uid: string) => write(KEYS.eigenaar, uid);

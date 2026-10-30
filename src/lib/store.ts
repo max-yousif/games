@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
-import { loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
+import { loadEigenaar, loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveEigenaar, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
 import { isBewaard, ruimOp, telGespeeld as telSpel } from './session';
 import type { Klas, Sessie, Vragenset } from './types';
 import { useAccount, type Account } from './account';
@@ -68,7 +68,22 @@ export function useStore(): Store {
     setSessiesState((oud) => [...l.sessies, ...oud.filter((s) => !isBewaard(s) && !l.sessies.some((x) => x.id === s.id))]);
   }, []);
   const bewaardeSessies = useMemo(() => sessies.filter(isBewaard), [sessies]);
-  const cloud = useCloud(uid, { sets, klassen, sessies: bewaardeSessies }, zetLokaal);
+
+  // De gegevens in deze browser horen bij één account. Meldt een ander account aan, dan begint
+  // het leeg en haalt het enkel zijn eigen gegevens uit de cloud (anders zou het die van het vorige
+  // account overnemen en opsturen). Gegevens van vóór het aanmelden horen bij het eerste account.
+  const [eigenaar, setEigenaar] = useState(loadEigenaar);
+  useEffect(() => {
+    if (!uid || uid === eigenaar) return;
+    if (eigenaar) {
+      setSetsState([]);
+      setKlassenState([]);
+      setSessiesState([]);
+    }
+    saveEigenaar(uid);
+    setEigenaar(uid);
+  }, [uid, eigenaar]);
+  const cloud = useCloud(uid && uid === eigenaar ? uid : null, { sets, klassen, sessies: bewaardeSessies }, zetLokaal);
 
   const afmelden = useCallback(
     async (wissen: boolean) => {
