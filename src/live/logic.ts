@@ -87,6 +87,9 @@ export function normaliseer(antwoord: string): string {
     .replace(/\\(le|leq)(?![a-z])|≤/g, '<=')
     .replace(/\\(ge|geq)(?![a-z])|≥/g, '>=')
     .replace(/\\pm(?![a-z])|±/g, '+-')
+    // Minteken uit Word of een wiskunde-toetsenbord (−, –) is gewoon een min.
+    .replace(/[−–‒]/g, '-')
+    .replace(/⁻([⁰¹²³⁴-⁹]+)/g, (_m, c: string) => `^-${[...c].map((x) => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(x)).join('')}`)
     .replace(/²/g, '^2')
     .replace(/³/g, '^3')
     .replace(/√\s*([a-z0-9.]+)/gi, 'sqrt($1)');

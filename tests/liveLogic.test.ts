@@ -29,6 +29,17 @@ describe('live: publieke vraag', () => {
 });
 
 describe('live: beoordelen', () => {
+  it('leest een typografisch minteken als gewone min', () => {
+    expect(normaliseer('x = −3')).toBe(normaliseer('x=-3'));
+    expect(normaliseer('(x+1)(x–1)')).toBe(normaliseer('(x+1)(x-1)'));
+    expect(normaliseer('10⁻²')).toBe(normaliseer('10^-2'));
+    expect(normaliseer('3⁻¹²')).toBe(normaliseer('3^-12'));
+    const getal = { id: 'g', type: 'getal', tekst: '', antwoord: '-1/2', punten: 1 } as never;
+    expect(automatischJuist(getal, '−1/2')).toBe(true);
+    expect(automatischJuist(getal, '–0,5')).toBe(true);
+    expect(automatischJuist(getal, '−1/−2')).toBe(false);
+  });
+
   it('normaliseert schrijfwijzen', () => {
     expect(normaliseer('$x = 7$')).toBe('x=7');
     expect(normaliseer('0,15')).toBe(normaliseer('$0{,}15$'));
