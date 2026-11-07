@@ -33,6 +33,7 @@ Stack: React 19 + TypeScript + Vite + Tailwind 4, Vitest (unit, `tests/`), Playw
 - Voor elke commit: `npx tsc -b`, `npm test`, `npm run test:e2e` (relevante specs) en `npm run build` moeten slagen.
 - Nieuw live spel: spellogica puur in `src/live/<spel>.ts` met unit tests; host- en spelerscherm in `src/live/`; opnemen in `SpelenPage`; e2e-test toevoegen.
 - Geen prettier op hele bestanden draaien.
+- Grote wijziging aan het live spelen (nakijken, ophalen van antwoorden): ook de belastingstest draaien (`LEERLINGEN=8 npm run test:belasting`).
 - Geen modelnamen in commits of code.
 
 ## Publiceren

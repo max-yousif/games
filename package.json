@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b",
-    "mathlive:fonts": "node -e \"require('fs').cpSync('node_modules/mathlive/fonts','public/mathlive-fonts',{recursive:true})\""
+    "mathlive:fonts": "node -e \"require('fs').cpSync('node_modules/mathlive/fonts','public/mathlive-fonts',{recursive:true})\"",
+    "test:belasting": "playwright test --config playwright.belasting.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

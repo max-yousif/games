@@ -1,0 +1,49 @@
+name: Belastingstest
+
+# Een volle klas speelt Codekraker tegen de echte database: de leerkracht als Gast, elke leerling
+# met een eigen anonieme aanmelding. Start via Actions → Belastingstest → Run workflow, liefst niet
+# tijdens een les. Er wordt niets bewaard; het spel wordt op het einde van de server gewist.
+# Gebruikt enkel de publieke (anon) sleutel en het secret GAST_WACHTWOORD.
+
+on:
+  workflow_dispatch:
+    inputs:
+      leerlingen:
+        description: Aantal leerlingen
+        default: '25'
+      minuten:
+        description: Duur in minuten
+        default: '10'
+
+permissions:
+  contents: read
+
+jobs:
+  belasting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:belasting
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          GAST_WACHTWOORD: ${{ secrets.GAST_WACHTWOORD }}
+          LEERLINGEN: ${{ inputs.leerlingen }}
+          MINUTEN: ${{ inputs.minuten }}
+          DENKTIJD: '3000'
+      - name: Samenvatting
+        if: always()
+        run: |
+          {
+            echo '## Belastingstest'
+            echo '```json'
+            cat test-results/belasting.json 2>/dev/null || echo 'geen resultaat (zie het logboek)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
