@@ -222,6 +222,21 @@ drop policy if exists antwoord_wijzigen on public.live_antwoorden;
 create policy antwoord_wijzigen on public.live_antwoorden for update to authenticated
   using (public.live_is_host(sessie_id)) with check (public.live_is_host(sessie_id));
 
+-- Bijlage bij een sessie (de foto van de puzzel): apart van live_sessies en niet in realtime,
+-- zodat ze maar één keer naar elke laptop gaat en niet bij elke wijziging van de stand.
+create table if not exists public.live_bijlagen (
+  sessie_id uuid primary key references public.live_sessies (id) on delete cascade,
+  data text not null check (length(data) <= 1500000)
+);
+alter table public.live_bijlagen enable row level security;
+drop policy if exists bijlage_lezen on public.live_bijlagen;
+create policy bijlage_lezen on public.live_bijlagen for select to authenticated
+  using (public.live_is_host(sessie_id) or public.live_is_speler(sessie_id));
+drop policy if exists bijlage_maken on public.live_bijlagen;
+create policy bijlage_maken on public.live_bijlagen for insert to authenticated
+  with check (public.live_is_host(sessie_id));
+grant select, insert on public.live_bijlagen to authenticated;
+
 -- Spelers en antwoorden worden enkel via de functies hieronder toegevoegd.
 
 -- ---------- Functies voor leerlingen ----------

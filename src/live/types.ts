@@ -3,6 +3,7 @@ import type { CodekrakerInstellingen } from './codekraker';
 import type { PubliekRaadsel } from './whodunit';
 import type { TerritoriumModus } from './territorium';
 import type { GrafiekjachtPubliek } from './grafiekjacht';
+import type { PuzzelPubliek } from './puzzel';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -78,6 +79,8 @@ export interface LiveSessie {
   territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string } | null;
   /** Grafiekjacht (escape-modus): per ronde de punten van de doelgrafiek. */
   grafiekjacht?: GrafiekjachtPubliek | null;
+  /** Puzzel (escape-modus): het raster; de foto komt apart (bijlage). */
+  puzzel?: PuzzelPubliek | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -212,6 +215,7 @@ export interface LiveBackend {
     cluedo?: CluedoThema;
     territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string };
     grafiekjacht?: GrafiekjachtPubliek;
+    puzzel?: PuzzelPubliek;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;
@@ -220,6 +224,8 @@ export interface LiveBackend {
   ontkoppel(spelerId: string): Promise<void>;
   wisBijnaam(spelerId: string): Promise<void>;
   verwijderSessie(sessieId: string): Promise<void>;
+  /** Een bijlage bij de sessie (de foto van de puzzel), één keer na het maken. */
+  zetBijlage(sessieId: string, data: string): Promise<void>;
   volgSpelers(sessieId: string, cb: (s: LiveSpeler[]) => void): () => void;
   volgAntwoorden(sessieId: string, cb: (a: LiveAntwoord[]) => void): () => void;
 
@@ -234,6 +240,8 @@ export interface LiveBackend {
   antwoord(sessieId: string, vraagNr: number, antwoord: string): Promise<void>;
 
   // Beide (leerlingen zien enkel hun eigen antwoorden)
+  /** De bijlage van de sessie, of null. */
+  bijlage(sessieId: string): Promise<string | null>;
   volgSessie(sessieId: string, cb: (s: LiveSessie | null) => void): () => void;
 
   // Reacties: niet bewaard, rechtstreeks doorgestuurd (Supabase Realtime of tussen tabbladen).

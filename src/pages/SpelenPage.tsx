@@ -5,6 +5,8 @@ import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
 import { koppelVragen, metOpgaven, moderniseer, nodigeVragen, opgaveVragen, publiekThema, STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
 import { KLEURPLATEN, STANDAARD_SECONDEN, TEKENTIJDEN, type TerritoriumModus } from '../live/territorium';
+import { raster, STUKJES } from '../live/puzzel';
+import { CoverFout, maakPuzzelFoto, verhoudingVan } from '../lib/cover';
 import { alsVragen, BASIS_IDS, BASISFUNCTIES, maakDoelen, publiek, TRANSFORMATIES, type BasisId, type Transformatie } from '../live/grafiekjacht';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
@@ -31,13 +33,14 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer, juist of niet. Klopt de code? Dan ontsnap je, anders volgt straftijd.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
   { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
+  { type: 'puzzel', icoon: '🧩', naam: 'Puzzel', tekst: 'Elk juist antwoord geeft een stukje van een foto. Wie de puzzel als eerste af heeft, wint.' },
   { type: 'grafiekjacht', icoon: '📈', naam: 'Grafiekjacht', tekst: 'Elke leerling zoekt het voorschrift bij een grafiek: transformaties van functies. Geen vragenset nodig.' },
   { type: 'cluedo', icoon: '🔎', naam: 'Detectivezaak', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
 const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
-const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'grafiekjacht', 'cluedo', 'whodunit'];
+const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'puzzel', 'grafiekjacht', 'cluedo', 'whodunit'];
 /** Op de eigen laptop, met een verhaal dat niet bij elke set voorbereid is. */
 const VERHAAL_SPELLEN: SpelType[] = ['cluedo', 'whodunit'];
 const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
@@ -106,11 +109,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
-  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht';
+  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
   const zonderSet = spel === 'grafiekjacht';
   const [aantalGrafieken, setAantalGrafieken] = useState(8);
+  const [stukjes, setStukjes] = useState(12);
+  const [fotoFout, setFotoFout] = useState<string | null>(null);
+  // De foto van de puzzel staat bij de vragenset (anders de cover).
+  const puzzelFoto = set?.puzzelFoto ?? set?.cover ?? null;
   const [basissen, setBasissen] = useState<BasisId[]>(['kwadraat', 'abs', 'wortel']);
   const [transformaties, setTransformaties] = useState<Transformatie[]>(['verschuiven', 'uitrekken', 'spiegelen']);
   // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
@@ -211,6 +218,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const cluedo = spel === 'cluedo';
       const territorium = spel === 'territorium';
       const grafiekjacht = spel === 'grafiekjacht';
+      const puzzel = spel === 'puzzel';
+      const verhouding = puzzel ? await verhoudingVan(puzzelFoto!) : 1;
       const doelen = grafiekjacht ? maakDoelen(aantalGrafieken, basissen, transformaties) : [];
       const spelSet = grafiekjacht ? grafiekSet(alsVragen(doelen)) : set!;
       const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
@@ -243,7 +252,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
-        aantalVragen: codekraker || cluedo || territorium || spel === 'escape' ? AANTAL_NUMMERS : gekozen.length,
+        aantalVragen: codekraker || cluedo || territorium || puzzel || spel === 'escape' ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
         // Grafiekjacht: geen vragen, enkel de punten van de grafieken (het voorschrift blijft hier).
@@ -254,9 +263,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         cluedo: cluedo ? publiekThema(spelThema) : undefined,
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
         grafiekjacht: grafiekjacht ? publiek(doelen) : undefined,
+        puzzel: puzzel ? { versie: 1, ...raster(stukjes, verhouding), verhouding } : undefined,
       });
+      // De foto apart, zodat ze maar één keer naar elke laptop gaat.
+      if (puzzel) await backend(soort).zetBijlage(server.id, puzzelFoto!);
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : puzzel ? 'puzzel' : escape ? 'escape' : 'live',
         set: spelSet,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -280,6 +292,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           ...(codekraker ? { hacken } : {}),
           ...(territorium ? { tekenSeconden, ...(kleurplaat ? { kleurplaat } : {}) } : {}),
           ...(grafiekjacht ? { doelen } : {}),
+          ...(puzzel ? { stukjes } : {}),
           ...(metNamen ? { namen } : {}),
         },
       } as const;
@@ -349,7 +362,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   const kanStarten = zonderSet
     ? klasGekozen && basissen.length > 0 && !bezig && !(!demo && !store.account.leerkracht)
-    : spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+    : (spel !== 'puzzel' || puzzelFoto !== null) && spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
     <div className="space-y-6">
@@ -583,6 +596,20 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   ))}
                 </select>
               </div>
+              {spel === 'puzzel' && (
+                <div className="w-40">
+                  <label className={labelClass} htmlFor="stukjes">
+                    Aantal stukjes
+                  </label>
+                  <select id="stukjes" className={inputClass} value={stukjes} onChange={(e) => setStukjes(Number(e.target.value))}>
+                    {STUKJES.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {spel === 'grafiekjacht' && (
                 <div className="w-40">
                   <label className={labelClass} htmlFor="grafieken">
@@ -703,6 +730,41 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     ))}
                   </div>
                 )}
+              </div>
+            ) : spel === 'puzzel' ? (
+              <div className="flex flex-wrap items-center gap-4">
+                {puzzelFoto ? (
+                  <img src={puzzelFoto} alt="Foto van de puzzel" className="h-28 rounded-lg object-cover shadow-sm" data-puzzelfoto />
+                ) : (
+                  <div className="flex h-28 w-40 items-center justify-center rounded-lg bg-slate-100 text-4xl" aria-hidden>
+                    🧩
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="inline-block cursor-pointer rounded-lg border border-slate-300 bg-surface px-3 py-2 font-medium hover:bg-slate-50">
+                    📷 {puzzelFoto ? 'Andere foto' : 'Foto kiezen'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      aria-label="Foto voor de puzzel"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!f || !set) return;
+                        setFotoFout(null);
+                        maakPuzzelFoto(f).then(
+                          (foto) => store.setSets((all) => all.map((x) => (x.id === set.id ? { ...x, puzzelFoto: foto } : x))),
+                          (err) => setFotoFout(err instanceof CoverFout ? err.message : 'Deze afbeelding kon niet gelezen worden.'),
+                        );
+                      }}
+                    />
+                  </label>
+                  {fotoFout && <p className="text-red-600">{fotoFout}</p>}
+                  <p className="text-slate-600">
+                    {puzzelFoto ? 'De foto blijft bij deze vragenset. Leerlingen zien ze pas stukje per stukje.' : 'Kies eerst een foto. Ze blijft bij deze vragenset.'}
+                  </p>
+                </div>
               </div>
             ) : spel === 'grafiekjacht' ? (
               <div className="space-y-3">

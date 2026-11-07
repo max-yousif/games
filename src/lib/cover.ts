@@ -30,3 +30,33 @@ export async function maakCover(bestand: File): Promise<string> {
   beeld.close();
   return canvas.toDataURL('image/jpeg', 0.75);
 }
+
+/** Een foto voor de puzzel: verhouding behouden, langste zijde hoogstens 900 px, als JPEG. */
+export async function maakPuzzelFoto(bestand: File): Promise<string> {
+  if (!bestand.type.startsWith('image/')) throw new CoverFout('Kies een afbeelding (jpg, png, webp …).');
+  let beeld: ImageBitmap;
+  try {
+    beeld = await createImageBitmap(bestand);
+  } catch {
+    throw new CoverFout('Deze afbeelding kon niet gelezen worden.');
+  }
+  const schaal = Math.min(1, 900 / Math.max(beeld.width, beeld.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(beeld.width * schaal);
+  canvas.height = Math.round(beeld.height * schaal);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new CoverFout('Deze browser kan de afbeelding niet verwerken.');
+  ctx.drawImage(beeld, 0, 0, canvas.width, canvas.height);
+  beeld.close();
+  return canvas.toDataURL('image/jpeg', 0.75);
+}
+
+/** Breedte gedeeld door hoogte van een afbeelding (data-URL). */
+export function verhoudingVan(data: string): Promise<number> {
+  return new Promise((ok, fout) => {
+    const img = new Image();
+    img.onload = () => ok(img.naturalWidth / img.naturalHeight);
+    img.onerror = () => fout(new CoverFout('Deze afbeelding kon niet gelezen worden.'));
+    img.src = data;
+  });
+}

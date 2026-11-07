@@ -11,6 +11,8 @@ interface Rijen {
   sessies: (LiveSessie & { host: string; aangemaakt: number; vraagStartMs: number | null })[];
   spelers: (LiveSpeler & { sessieId: string; uid: string | null })[];
   antwoorden: (LiveAntwoord & { sessieId: string; aangemaaktMs: number })[];
+  /** Bijlage per sessie (de foto van de puzzel). */
+  bijlagen?: Record<string, string>;
 }
 
 const SLEUTEL = 'klasspelen.lokaal-live';
@@ -130,6 +132,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
           cluedo: input.cluedo ?? null,
           territorium: input.territorium ?? null,
           grafiekjacht: input.grafiekjacht ?? null,
+          puzzel: input.puzzel ?? null,
           wachttijd: input.wachttijd ?? 0,
           vraagStart: null,
           timer: input.timer,
@@ -191,9 +194,22 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
       });
     },
 
+    async zetBijlage(sessieId, data) {
+      wijzig((r) => {
+        if (!isHost(r, sessieId)) throw new LiveFout('geen_leerkracht');
+        r.bijlagen = { ...r.bijlagen, [sessieId]: data };
+      });
+    },
+
+    async bijlage(sessieId) {
+      const r = lees();
+      return isHost(r, sessieId) || isSpeler(r, sessieId) ? (r.bijlagen?.[sessieId] ?? null) : null;
+    },
+
     async verwijderSessie(sessieId) {
       wijzig((r) => {
         if (!isHost(r, sessieId)) return;
+        if (r.bijlagen) delete r.bijlagen[sessieId];
         r.sessies = r.sessies.filter((s) => s.id !== sessieId);
         r.spelers = r.spelers.filter((p) => p.sessieId !== sessieId);
         r.antwoorden = r.antwoorden.filter((a) => a.sessieId !== sessieId);

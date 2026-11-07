@@ -70,6 +70,8 @@ export interface Vragenset {
   cluedo?: CluedoThema;
   /** Coverafbeelding (JPEG als data-URL, 16:9). */
   cover?: string;
+  /** Foto voor de puzzel (data-URL, verkleind). */
+  puzzelFoto?: string;
   /** Hoe vaak deze set gespeeld werd en met hoeveel spelers in totaal (blijft, ook als resultaten gewist worden). */
   statistiek?: { gespeeld: number; spelers: number };
   aangemaakt: string;
@@ -135,7 +137,7 @@ export interface CluedoOplossing {
   wapen: string;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium' | 'grafiekjacht';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium' | 'grafiekjacht' | 'puzzel';
 
 export interface Team {
   naam: string;
@@ -181,11 +183,13 @@ export interface LiveInfo {
   kleurplaat?: string;
   /** Territorium: het veld en de ranglijst op het einde (om het eindscherm te tonen). */
   eindveld?: string;
-  eindstand?: { naam: string; punten: number; juist: number; kleur?: number }[];
+  eindstand?: { naam: string; punten: number; juist: number; kleur?: number; tijdMs?: number | null }[];
   /** Codekraker: hacken toegestaan. */
   hacken?: boolean;
   /** Grafiekjacht: de doelgrafieken (het voorschrift blijft op deze laptop). */
   doelen?: { basis: string; a: number; b: number; c: number; d: number }[];
+  /** Puzzel: aantal stukjes (de foto zelf staat enkel op de server en in de vragenset). */
+  stukjes?: number;
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */
   namen?: Record<string, string[]>;
   /** Bijnamen per leerlingnaam (voor op het scherm). */

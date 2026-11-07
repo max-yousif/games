@@ -6,6 +6,7 @@ import { WhodunitSpeler } from './Whodunit';
 import { CluedoSpeler } from './CluedoSpeler';
 import { TerritoriumSpeler } from './TerritoriumSpeler';
 import { GrafiekjachtSpeler } from './GrafiekjachtSpeler';
+import { PuzzelSpeler } from './PuzzelSpeler';
 import { CodekrakerSpeler } from './CodekrakerSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
@@ -330,6 +331,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
+  if (sessie.modus === 'escape' && sessie.puzzel) return metMelding(bordStil, <PuzzelSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.grafiekjacht) return metMelding(bordStil, <GrafiekjachtSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.territorium) return metMelding(bordStil, <TerritoriumSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.cluedo) return metMelding(bordStil, <CluedoSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);

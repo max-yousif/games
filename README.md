@@ -18,6 +18,8 @@ spel spelen. Live op https://max-yousif.github.io/games/.
 - **Codekraker**: munten verdienen, kistjes openen en elkaars wachtwoord kraken.
 - **Territorium**: juist antwoord = even tekenen in je kleur; tegen elkaar of samen een
   kleurplaat inkleuren.
+- **Puzzel**: elk juist antwoord geeft een stukje van een foto die jij kiest; wie de puzzel als
+  eerste juist gelegd heeft, wint. De foto blijft bij de vragenset.
 - **Grafiekjacht** (zonder vragenset): het voorschrift zoeken bij een grafiek
   a·f(b(x − c)) + d. De leerling ziet de eigen grafiek meteen over de doelgrafiek; jij kiest de
   basisfuncties en transformaties.

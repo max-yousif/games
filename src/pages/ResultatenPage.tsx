@@ -22,6 +22,7 @@ const SPEL_ICONEN: Record<Sessie['spelType'], string> = {
   cluedo: '🔎',
   territorium: '🖌️',
   grafiekjacht: '📈',
+  puzzel: '🧩',
 };
 
 /** Kerncijfers van één spel voor de lijst. */

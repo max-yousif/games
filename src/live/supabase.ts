@@ -22,7 +22,7 @@ const CODES: FoutCode[] = [
 export function vertaal(error: { message?: string; code?: string } | null): never {
   const msg = error?.message ?? '';
   // Functie of kolom bestaat nog niet: het schema werd niet opnieuw uitgevoerd na een update.
-  if (error?.code === 'PGRST202' || error?.code === '42883' || /could not find the function/i.test(msg)) throw new LiveFout('schema_oud');
+  if (error?.code === 'PGRST202' || error?.code === 'PGRST205' || error?.code === '42P01' || error?.code === '42883' || /could not find the function/i.test(msg)) throw new LiveFout('schema_oud');
   const code = CODES.find((c) => msg.includes(c));
   if (code) throw new LiveFout(code);
   if (/anonymous sign-ins are disabled/i.test(msg)) throw new LiveFout('anoniem_uit');
@@ -49,6 +49,7 @@ function sessieUit(r: any): LiveSessie {
     cluedo: Array.isArray(r.vragen) ? null : (r.vragen?.cluedo ?? null),
     territorium: Array.isArray(r.vragen) ? null : (r.vragen?.territorium ?? null),
     grafiekjacht: Array.isArray(r.vragen) ? null : (r.vragen?.grafiekjacht ?? null),
+    puzzel: Array.isArray(r.vragen) ? null : (r.vragen?.puzzel ?? null),
     wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
@@ -356,7 +357,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           modus: input.modus ?? 'quiz',
           // Whodunit, Codekraker, detectivezaak, Territorium en Grafiekjacht: de vragen samen met wat het spel nodig heeft.
           vragen:
-            input.raadsel || input.codekraker || input.cluedo || input.territorium || input.grafiekjacht
+            input.raadsel || input.codekraker || input.cluedo || input.territorium || input.grafiekjacht || input.puzzel
               ? {
                   vragen: input.vragen ?? [],
                   ...(input.raadsel ? { raadsel: input.raadsel } : {}),
@@ -364,6 +365,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
                   ...(input.cluedo ? { cluedo: input.cluedo } : {}),
                   ...(input.territorium ? { territorium: input.territorium } : {}),
                   ...(input.grafiekjacht ? { grafiekjacht: input.grafiekjacht } : {}),
+                  ...(input.puzzel ? { puzzel: input.puzzel } : {}),
                 }
               : (input.vragen ?? null),
           wachttijd: input.wachttijd ?? 0,
@@ -403,6 +405,17 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     async wisBijnaam(spelerId) {
       const { error } = await (await sb()).from('live_spelers').update({ bijnaam: null }).eq('id', spelerId);
       if (error) vertaal(error);
+    },
+
+    async zetBijlage(sessieId, data) {
+      const { error } = await (await sb()).from('live_bijlagen').insert({ sessie_id: sessieId, data });
+      if (error) vertaal(error);
+    },
+
+    async bijlage(sessieId) {
+      const { data, error } = await (await sb()).from('live_bijlagen').select('data').eq('sessie_id', sessieId).maybeSingle();
+      if (error) vertaal(error);
+      return (data?.data as string | undefined) ?? null;
     },
 
     async verwijderSessie(sessieId) {

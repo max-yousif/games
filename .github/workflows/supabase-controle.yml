@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
 
-          for tabel in leerkrachten leerkracht_items live_sessies live_spelers live_antwoorden; do
+          for tabel in leerkrachten leerkracht_items live_sessies live_spelers live_antwoorden live_bijlagen; do
             roep GET "/rest/v1/$tabel?select=*&limit=1" "$TOKEN"
             if [ "$CODE" = 200 ] && [ "$BODY" = "[]" ]; then
               ok "Tabel $tabel bestaat en is afgeschermd voor leerlingen"
