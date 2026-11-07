@@ -1,19 +1,32 @@
 name: Belastingstest
 
-# Een volle klas speelt Codekraker tegen de echte database: de leerkracht als Gast, elke leerling
-# met een eigen anonieme aanmelding. Start via Actions → Belastingstest → Run workflow, liefst niet
-# tijdens een les. Er wordt niets bewaard; het spel wordt op het einde van de server gewist.
-# Gebruikt enkel de publieke (anon) sleutel en het secret GAST_WACHTWOORD.
+# Een volle klas speelt een live spel tegen de echte database: de leerkracht als Gast, elke
+# leerling met een eigen anonieme aanmelding. De leerlingen doen ook onnozel: veel en snel klikken,
+# onzin typen, herladen, even offline, een tweede tabblad, verlaten en terugkomen.
+# Start via Actions → Belastingstest → Run workflow, liefst niet tijdens een les. Er wordt niets
+# bewaard; het spel wordt op het einde van de server gewist. Gebruikt enkel de publieke (anon)
+# sleutel en het secret GAST_WACHTWOORD.
 
 on:
   workflow_dispatch:
     inputs:
+      spel:
+        description: Spel
+        type: choice
+        default: codekraker
+        options: [codekraker, escape, detectivezaak, territorium, puzzel, grafiekjacht, whodunit, quiz]
       leerlingen:
         description: Aantal leerlingen
         default: '25'
       minuten:
-        description: Duur in minuten
+        description: Duur in minuten (tot 70)
         default: '10'
+      tempo:
+        description: Gemiddelde tijd tussen twee acties van een leerling (ms)
+        default: '4000'
+      chaos:
+        description: 0 = braaf, 1 = onnozel, 2 = heel onnozel
+        default: '1'
 
 permissions:
   contents: read
@@ -21,7 +34,7 @@ permissions:
 jobs:
   belasting:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -35,15 +48,23 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
           GAST_WACHTWOORD: ${{ secrets.GAST_WACHTWOORD }}
+          SPEL: ${{ inputs.spel }}
           LEERLINGEN: ${{ inputs.leerlingen }}
           MINUTEN: ${{ inputs.minuten }}
-          DENKTIJD: '3000'
+          TEMPO: ${{ inputs.tempo }}
+          CHAOS: ${{ inputs.chaos }}
       - name: Samenvatting
         if: always()
         run: |
           {
-            echo '## Belastingstest'
+            echo "## Belastingstest: ${{ inputs.spel }}"
             echo '```json'
-            cat test-results/belasting.json 2>/dev/null || echo 'geen resultaat (zie het logboek)'
+            cat test-results/belasting-*.json 2>/dev/null || echo 'geen resultaat (zie het logboek)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: belasting-${{ inputs.spel }}
+          path: test-results
+          retention-days: 14

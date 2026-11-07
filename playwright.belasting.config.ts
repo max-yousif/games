@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Belastingstest (npm run test:belasting): een volle klas speelt Codekraker. Zonder Supabase
+ * Belastingstest (npm run test:belasting): een volle klas speelt een live spel. Zonder Supabase
  * draait alles in één browser (enkel om het script te testen); met SUPABASE_URL,
  * SUPABASE_ANON_KEY en GAST_WACHTWOORD speelt de leerkracht als Gast tegen de echte database.
  * De site draait als testversie (VITE_VOORSTEL): er gaat niets naar de cloud van het gastaccount.
@@ -13,6 +13,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4175/',
     trace: 'off',
+    // Nooit eindeloos wachten op een knop (de test zelf heeft geen tijdslimiet).
+    actionTimeout: 30_000,
+    navigationTimeout: 60_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } } }],
   webServer: {
