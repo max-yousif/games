@@ -42,7 +42,7 @@ export interface StandRij {
   /** Territorium: kleurnummer en huidige reeks juiste antwoorden. */
   kleur?: number;
   reeks?: number;
-  /** Crypto Hack: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
+  /** Codekraker: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
   gehackt?: number;
   melding?: { tekst: string; tijdMs: number };
 }

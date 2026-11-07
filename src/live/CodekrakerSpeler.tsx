@@ -29,7 +29,7 @@ const UITKOMST: Record<KistBeloning['uitkomst'], { icoon: string; tekst: (b: Kis
   pech: { icoon: '💸', tekst: (b) => (b.bedrag < 0 ? `Pech: ${fmt(b.bedrag)} munten` : 'Pech… maar je had nog niets te verliezen.') },
 };
 
-/** Crypto Hack voor de leerling: wachtwoord kiezen, vragen beantwoorden, kistjes openen en hacken. */
+/** Codekraker voor de leerling: wachtwoord kiezen, vragen beantwoorden, kistjes openen en hacken. */
 export function CodekrakerSpeler({
   be,
   sessie,

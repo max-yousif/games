@@ -6,7 +6,7 @@ import { automatischJuist, schermNaam } from './logic';
 import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
 
 /**
- * Codekraker (naar Crypto Hack van Blooket): leerlingen beantwoorden vragen in eigen tempo. Na een
+ * Codekraker: leerlingen beantwoorden vragen in eigen tempo. Na een
  * juist antwoord kiezen ze een kistje met munten, een vermenigvuldiger, een firewall of een kans om
  * te hacken: wie het wachtwoord van een medespeler raadt, steelt een deel van diens munten.
  *

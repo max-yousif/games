@@ -1,7 +1,7 @@
 /**
  * Wiskundige uitdrukkingen vergelijken door ze uit te rekenen: zo is $\frac{1}{12}\operatorname{Bgtan}(\sin^2 4x)+C$
  * gelijk aan "Bgtan(sin(4x)^2)/12", hoe de leerling het ook schrijft. Gebruikt voor open vragen
- * waarbij "elke gelijkwaardige uitdrukking" juist is (bv. integralen bij Cluedo).
+ * waarbij "elke gelijkwaardige uitdrukking" juist is (bv. integralen bij de detectivezaak).
  *
  * Werkt met LaTeX (zoals de wiskunde-editor het geeft) en met gewone tekst. Eén veranderlijke x;
  * constanten e, π en de integratieconstante C. Lukt het niet om te lezen, dan geeft het null.

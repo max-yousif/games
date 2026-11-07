@@ -115,6 +115,35 @@ export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo:
   );
 }
 
+const STIL_MS = 12_000;
+
+/** Wacht een antwoord al lang op nakijken? Dan reageert de laptop van de leerkracht even niet. */
+function useBordStil(antwoorden: LiveAntwoord[], actief: boolean): boolean {
+  const gezien = useRef(new Map<string, number>());
+  const [nu, setNu] = useState(() => Date.now());
+  const open = actief ? antwoorden.filter((a) => a.juist === null) : [];
+  useEffect(() => {
+    if (!open.length) return;
+    const id = window.setInterval(() => setNu(Date.now()), 2000);
+    return () => window.clearInterval(id);
+  }, [open.length]);
+  for (const a of open) if (!gezien.current.has(a.id)) gezien.current.set(a.id, Date.now());
+  return open.some((a) => nu - gezien.current.get(a.id)! > STIL_MS);
+}
+
+function metMelding(bordStil: boolean, scherm: ReactNode) {
+  return (
+    <>
+      {bordStil && (
+        <div role="status" className="mx-auto mb-4 max-w-2xl rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-amber-900" data-bord-stil>
+          ⏳ De laptop van je leerkracht reageert even niet. Je antwoord is bewaard, even geduld.
+        </div>
+      )}
+      {scherm}
+    </>
+  );
+}
+
 function Kaart({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl bg-surface p-8 shadow-sm">{children}</div>;
 }
@@ -271,6 +300,9 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     };
   }, [sessie, be, deelname.code, onWeg]);
 
+  // In de spellen in eigen tempo kijkt de laptop van de leerkracht elk antwoord meteen na.
+  const bordStil = useBordStil(antwoorden, sessie?.modus === 'escape' && sessie.status !== 'einde');
+
   if (!sessie) return <p className="text-center text-xl text-slate-500">Verbinden…</p>;
 
   const mijn = antwoorden.find((a) => a.vraagNr === sessie.vraagNr);
@@ -297,11 +329,11 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
-  if (sessie.modus === 'escape' && sessie.territorium) return <TerritoriumSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
-  if (sessie.modus === 'escape' && sessie.cluedo) return <CluedoSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
-  if (sessie.modus === 'escape' && sessie.codekraker) return <CodekrakerSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
-  if (sessie.modus === 'escape' && sessie.raadsel) return <WhodunitSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
-  if (sessie.modus === 'escape') return <EscapeSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
+  if (sessie.modus === 'escape' && sessie.territorium) return metMelding(bordStil, <TerritoriumSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
+  if (sessie.modus === 'escape' && sessie.cluedo) return metMelding(bordStil, <CluedoSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
+  if (sessie.modus === 'escape' && sessie.codekraker) return metMelding(bordStil, <CodekrakerSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
+  if (sessie.modus === 'escape' && sessie.raadsel) return metMelding(bordStil, <WhodunitSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
+  if (sessie.modus === 'escape') return metMelding(bordStil, <EscapeSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
 
   if (sessie.status === 'einde') {
     return (

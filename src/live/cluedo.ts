@@ -11,7 +11,7 @@ import type { Beoordeling, LiveAntwoord, LiveSpeler, StandRij } from './types';
  * tempo (de vragen komen steeds opnieuw); elk juist antwoord streept één kaart weg die niet de
  * oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = even geblokkeerd.
  *
- * Zoals bij Crypto Hack: vragen hebben nummers 0, 1, 2 ..., beschuldigingen nummers vanaf
+ * Zoals bij Codekraker: vragen hebben nummers 0, 1, 2 ..., beschuldigingen nummers vanaf
  * ACTIE_BASIS. Enkel de laptop van de leerkracht kent de oplossing en beslist welke kaart verdwijnt.
  */
 

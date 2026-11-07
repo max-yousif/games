@@ -20,7 +20,7 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await maakKlas(page, '5A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
-  await kiesSpel(page, 'Codekraker test (test)', 'Crypto Hack');
+  await kiesSpel(page, 'Codekraker test (test)', 'Codekraker');
   await page.locator('label:text-is("Wachten na fout antwoord") + select').selectOption('0');
   const code = await startLive(page);
 
@@ -29,7 +29,7 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await anna.getByRole('button', { name: 'geit' }).click();
   await expect(page.locator('.reactie-zweef', { hasText: '🐐' })).toBeVisible();
   await expect(page.getByRole('button', { name: '😀 Reacties aan' })).toBeVisible();
-  await page.getByRole('button', { name: /Start Crypto Hack/ }).click();
+  await page.getByRole('button', { name: /Start Codekraker/ }).click();
 
   // Eerst een geheim wachtwoord kiezen.
   // Elke leerling kiest uit 3 eigen woorden.

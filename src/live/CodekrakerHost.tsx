@@ -193,7 +193,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
           sessie={sessie}
           spelers={spelers}
           bezig={bezig}
-          startTekst="Start Crypto Hack"
+          startTekst="Start Codekraker"
           onStart={() => actie(() => be.startEscape(live.sessieId))}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
           onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
@@ -206,9 +206,9 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             <span className={`rounded-2xl px-5 py-2 font-mono text-5xl font-bold ${resterend !== null && resterend < 60000 ? 'bg-red-100 text-red-700' : 'bg-surface'}`}>
               ⏱ {tijdTekst(resterend !== null ? Math.max(0, resterend) : verstreken)}
             </span>
-            <span className="text-3xl font-semibold">🔐 Crypto Hack</span>
+            <span className="text-3xl font-semibold">🔐 Codekraker</span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Crypto Hack nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => confirm('Codekraker nu beëindigen?') && void actie(einde)}>
               ⏹ Beëindigen
             </Button>
           </div>

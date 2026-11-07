@@ -19,6 +19,7 @@ import { bomWinnaar, nieuweBom } from '../lib/bom';
 import { CodekrakerHost } from '../live/CodekrakerHost';
 import { CluedoHost } from '../live/CluedoHost';
 import { TerritoriumHost } from '../live/TerritoriumHost';
+import { useWakker } from '../lib/useWakker';
 
 /** Maakt de laatste handeling ongedaan (bij vier op een rij eerst de laatste schijf). */
 export function ongedaanMaken(s: Sessie): Sessie {
@@ -38,6 +39,9 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+
+  // Tijdens een live spel kijkt deze laptop alles na: wakker houden en niet per ongeluk sluiten.
+  useWakker(!!sessie?.live && !sessie.live.afgesloten);
 
   if (!sessie) {
     return (
@@ -77,6 +81,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   const vierWinnaar =
     sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
   const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo' || sessie.spelType === 'territorium';
+  const liveLoopt = isLive && !!sessie.live && !sessie.live.afgesloten;
   // Bij de bom niet: de ontploffingen en de houder zouden niet mee teruggaan.
   const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
 
@@ -101,7 +106,10 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
             {volScherm ? '⤡ Venster' : '⤢ Volledig scherm'}
           </ToolKnop>
           {!sessie.beeindigd && (
-            <ToolKnop onClick={() => ga({ pagina: 'start' })} title="Het spel blijft bewaard; je kan het later hervatten">
+            <ToolKnop
+              onClick={() => (!liveLoopt || confirm('Pauzeren? Tot je terugkeert, wordt er niets nagekeken en wachten de leerlingen.')) && ga({ pagina: 'start' })}
+              title="Het spel blijft bewaard; je kan het later hervatten"
+            >
               ⏸ Pauzeren
             </ToolKnop>
           )}

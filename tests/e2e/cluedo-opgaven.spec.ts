@@ -8,7 +8,7 @@ test('cluedo met opgaven per kaart: een gelijkwaardige uitkomst streept die kaar
   await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/cluedo-integralen.json');
-  await kiesSpel(page, 'Integralen Cluedo (test)', 'Cluedo');
+  await kiesSpel(page, 'Integralen Cluedo (test)', 'Detectivezaak');
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-editor.png'), fullPage: true });
   const code = await startLive(page);
   const anna = await leerling(page, code, 'Anna');

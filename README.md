@@ -1,90 +1,63 @@
 # Klasspelen: wiskunde en Python
 
-Spelletjes met je **eigen vragen**. Eén vragenset kan je spelen als:
+Spelletjes met je **eigen vragen**, voor het 3e tot 6e jaar. Eén vragenset kan je met elk
+spel spelen. Live op https://max-yousif.github.io/games/.
 
-- **Quizbord** (categorieën × punten, 2–6 teams) en **Vier op een rij** (2 teams), op het bord;
-- **Bom doorgeven** (2–6 teams, op het bord): juist antwoord = bom naar het volgende team; de
-  bom ontploft na een verborgen tijd bij het team dat ze vasthoudt; alle vragen komen aan bod en
-  het team met de minste ontploffingen wint;
-- **Live quiz**: elke leerling speelt op de eigen laptop terwijl jij live meevolgt op het bord;
-- **Escape room**: elke leerling opent sloten door vragen op te lossen; elk slot geeft een
-  cijfer van de geheime code, en met de volledige code ontsnap je. Jij ziet live wie welk slot
-  open heeft en wie ontsnapt is.
-- **Codekraker** (naar Crypto Hack van Blooket): elke leerling op de eigen laptop, in eigen tempo.
-  Juist antwoord = een kistje met munten (1.000 tot 25.000), ×2/×3, een firewall, pech of een
-  kans om te hacken: wie het geheime wachtwoord van een medespeler raadt, steelt 10–25 % van diens
-  munten. Op het bord: ranglijst en nieuws (wie hackte wie).
-- **Whodunit**: een logisch raadsel (bv. "wie deed wat op de 50 dagen?"). Elke juiste oefening
-  levert een hint op; met de hints vullen leerlingen een tabel in. Wie de tabel als eerste juist
-  heeft, wint. Het raadsel (verhaal, tabel met de oplossing, hints) stel je in onderaan de editor
-  van een vragenset.
-- Bij het quizbord kies je eerst wie antwoordt (een leerling, willekeurig of het hele team);
-  pas dan verschijnt de vraag. Wie alleen antwoordt, krijgt dubbele punten (instelbaar).
-- Escape room en whodunit kunnen ook per 2 of per 3 op één laptop.
-- Per spel kies je welke vragen meedoen (bv. geen open vragen), zonder de vragenset te wijzigen.
-- Op het scherm staan enkel voornamen (met initiaal bij dezelfde voornaam).
-- Na een spel: **Afsluiten** (resultaten bewaren) of **Afsluiten zonder opslaan**.
-- **Muziek en geluid** (knop 🔊 Geluid): wachtmuziek, achtergrondmuziek tijdens het spel en
-  geluidseffecten (juist, fout, antwoord, schijf, fanfare), allemaal gemaakt in de browser.
-- **Live quiz**: na elke vraag een tussenstand met wie gestegen of gedaald is en de punten erbij.
-- Vragensets kunnen een **coverafbeelding** krijgen en tonen hoe vaak ze gespeeld werden.
+## Spellen
 
-## Aan de slag
+**Op het bord, in teams** (projector):
+- **Quizbord**: categorieën × punten, 2–6 teams. Eerst kies je wie antwoordt (een leerling,
+  willekeurig of het hele team), dan verschijnt de vraag.
+- **Vier op een rij**: juist antwoord = een schijf laten vallen, 2 teams.
+- **Bom doorgeven**: juist antwoord = bom naar het volgende team; wie ze vasthoudt als ze
+  ontploft, verliest. Het team aan de beurt staat altijd op het bord.
 
-1. **Website online zetten (eenmalig)**: op GitHub in deze repository
-   **Settings → Pages → Build and deployment → Source: GitHub Actions**. Daarna
-   **Actions → Website publiceren → Run workflow**. Na een minuut staat de site op
-   `https://max-yousif.github.io/games/`.
-2. **Uitproberen zonder verdere installatie**: quizbord en vier op een rij werken meteen.
-   Live quiz en escape room werken als **demo**: open het leerlingenscherm
-   (`…/games/#/live`) in een tweede tabblad van dezelfde browser.
-3. **Live spelen met echte laptops**: maak een gratis Supabase-project en koppel het
-   (± 10 minuten): zie [supabase/README.md](supabase/README.md).
-4. **Eigen inhoud**: maak een klas (namen plakken) en vragensets (zelf typen of importeren).
-   Maak af en toe een **back-up** (startpagina): alles staat in de browser van je laptop.
+**Op de eigen laptop** (code op het bord, jij volgt live mee):
+- **Live quiz**: iedereen dezelfde vraag, met tussenstand.
+- **Escape room**: elk antwoord geeft een cijfer, juist of niet; een foute code geeft straftijd.
+- **Codekraker**: munten verdienen, kistjes openen en elkaars wachtwoord kraken.
+- **Territorium**: juist antwoord = even tekenen in je kleur; tegen elkaar of samen een
+  kleurplaat inkleuren.
 
-- **Klassen** met namen van leerlingen (plakken uit Excel/Smartschool of Excel importeren);
-  elke beurt wordt aan een leerling gekoppeld (of 🎲 willekeurig gekozen).
-- **Vragensets** zelf maken met 7 vraagtypes: open vraag, meerkeuze, waar/onwaar, getal (met
-  foutmarge), invullen, ordenen (bv. Python-lijnen) en koppelen. Formules in LaTeX (`$x^2$`),
-  Python-code in codeblokken, dupliceren en bewaren als bestand.
-- **Vragen importeren**: plak cellen uit Excel/Google Sheets, tekst uit Word of van een
-  AI-chatbot (snelformaat met `*`, `-` en `=`), of sleep een Excel-bestand. Je kiest zelf welke
-  kolom wat is en ziet elke vraag vooraf.
-- **Dark mode**: knop rechtsboven (donker, licht of zoals de computer).
-- **Resultaten** per leerling bekijken en **exporteren naar Excel**.
-- Spellen **pauzeren en hervatten**, laatste beurt **ongedaan maken**, timer, volledig scherm.
-- **Live quiz en escape room**: code op het bord, leerlingen kiezen hun naam (en eventueel een
-  bijnaam voor op het bord), je volgt alles live, automatisch nakijken (ook open vragen),
-  tussenstand en eindstand. Leerlingen kunnen het spel verlaten en terugkeren, reageren met
-  emoji (😠 😂 ❤️ 😢 💀 🐐) terwijl ze wachten, en antwoorden met een **wiskunde-editor**
-  (breuken, machten, wortels, maal). Eén browser is één leerling.
-- **Leerkrachtaccount**: meld je aan (rechtsboven) en je vragensets, klassen en resultaten staan
-  in Supabase en synchroniseren automatisch tussen al je toestellen. Enkel een aangemelde
-  leerkracht kan live spellen starten. Vereist een gratis
-  Supabase-project: zie [supabase/README.md](supabase/README.md). Zonder Supabase werkt een demo
-  in één browser.
-- **Back-up** van alles in één bestand. Klassen, sets en resultaten blijven in je browser.
-- Voorbeeldsets: 3e jaar algebra (5 u), 6e jaar Humane wetenschappen (statistiek, kansen,
-  groei) en 4e jaar Python basis.
+**Op de eigen laptop, met een verhaal** (voorbereiden bij de vragenset):
+- **Detectivezaak**: wie, waar en waarmee? Juiste antwoorden strepen kaarten weg; een foute
+  beschuldiging geeft straftijd.
+- **Whodunit**: elke juiste oefening geeft een hint voor een logisch raadsel.
 
-Sneltoetsen tijdens een vraag: **spatie** = antwoord tonen, **J** = juist, **F** = fout,
+In de laptopspellen krijgt elke leerling de vragen en meerkeuzeantwoorden in een eigen
+volgorde, en ziet bij een fout antwoord het juiste antwoord (behalve in de escape room). Open
+vragen negeren spaties en hoofdletters; wiskundige uitdrukkingen kunnen ook gelijkwaardig
+nagekeken worden. **Je laptop kijkt alles na**: laat het spel openstaan tot het einde.
+
+## Verder
+
+- **Leerkrachtaccount** (rechtsboven): vragensets, klassen en resultaten staan in de cloud en
+  zijn op elk toestel hetzelfde. Elk account ziet enkel zijn eigen gegevens.
+- **Klassen** per jaar, namen plakken uit Excel/Smartschool. Op het bord enkel voornamen.
+- **Vragensets** met 7 vraagtypes (open, meerkeuze, waar/onwaar, getal, invullen, ordenen,
+  koppelen), formules in LaTeX, Python-code, importeren uit Excel/Word.
+- **Resultaten** worden enkel bewaard als je op het einde **💾 Resultaten bewaren** kiest;
+  bekijken per leerling, per onderwerp en moeilijkste vragen, exporteren naar Excel.
+- **Muziek en geluid**, dark mode, volledig scherm, pauzeren en hervatten.
+
+Sneltoetsen bij een vraag op het bord: **spatie** = antwoord tonen, **J** = juist, **F** = fout,
 **W** = willekeurige leerling, **A–D** = meerkeuzeoptie, **Esc** = terug.
 
-Zie [PLAN.md](PLAN.md) voor het volledige plan en de volgende fases.
+Wensen voor nieuwe spellen en verbeteringen: [WENSEN.md](WENSEN.md). Afspraken voor wie aan de
+code werkt: [CLAUDE.md](CLAUDE.md).
+
+## Instellen
+
+- **Supabase** (database voor live spelen en accounts): zie [supabase/README.md](supabase/README.md).
+  De taak *Supabase wakker houden* voorkomt dat het gratis project na een vakantie gepauzeerd is.
+- **GitHub Pages**: elke push naar `main` publiceert de site (workflow *Website publiceren*).
 
 ## Lokaal ontwikkelen
 
 ```bash
 npm install
-npm run dev      # ontwikkelserver op http://localhost:5173
-npm test         # tests
+npm run dev      # ontwikkelserver op http://localhost:5173 (zonder Supabase: lokaal backend)
+npm test         # unit tests
 npm run test:e2e # browsertests (Playwright)
 npm run build    # productieversie in dist/
 ```
-
-## Online zetten (GitHub Pages)
-
-1. Op GitHub: **Settings → Pages → Source: GitHub Actions**.
-2. Elke push naar `main` publiceert automatisch de website op
-   `https://<gebruikersnaam>.github.io/games/`.

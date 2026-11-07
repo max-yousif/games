@@ -8,7 +8,7 @@ test('cluedo met meerkeuzevragen: kaarten uit de uitleg, elke keuze streept stil
   await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/cluedo-meerkeuze.json');
-  await kiesSpel(page, 'Cluedo meerkeuze (test)', 'Cluedo');
+  await kiesSpel(page, 'Cluedo meerkeuze (test)', 'Detectivezaak');
   await page.getByText(/Verdachten, locaties en wapens voor dit spel/).click();
   await page.getByRole('button', { name: /Namen uit de vragenset/ }).click();
   await expect(page.getByLabel('Elke kaart krijgt een eigen vraag', { exact: false })).toBeChecked();

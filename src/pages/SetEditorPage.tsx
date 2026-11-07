@@ -143,11 +143,11 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
       {set.cluedo && (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-lg font-semibold">🔎 Cluedo-thema</h2>
+            <h2 className="text-lg font-semibold">🔎 Detectivezaak</h2>
             <button
               type="button"
               className="ml-auto text-sm text-slate-500 underline"
-              onClick={() => confirm('Het eigen Cluedo-thema verwijderen? Dan wordt het standaardthema gebruikt.') && update((s) => ({ ...s, cluedo: undefined }))}
+              onClick={() => confirm('Het eigen thema van de detectivezaak verwijderen? Dan wordt het standaardthema gebruikt.') && update((s) => ({ ...s, cluedo: undefined }))}
             >
               Verwijderen (standaardthema gebruiken)
             </button>
@@ -159,7 +159,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
       )}
 
       <div className="mt-10 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
-        {/* Extra's die bij deze set horen (zelden nodig): een whodunit-verhaal of eigen Cluedo-kaarten. */}
+        {/* Extra's die bij deze set horen (zelden nodig): een whodunit-verhaal of eigen detectivekaarten. */}
         {!set.raadsel && (
           <Button variant="ghost" className="text-slate-500" onClick={() => update((s) => ({ ...s, raadsel: nieuwRaadsel() }))}>
             + Whodunit-verhaal
@@ -180,7 +180,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
               })
             }
           >
-            + Cluedo-kaarten
+            + Detectivezaak-kaarten
           </Button>
         )}
         <Button

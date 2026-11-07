@@ -28,7 +28,7 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   await maakKlas(page, '5B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
-  await kiesSpel(page, 'Codekraker test (test)', 'Cluedo');
+  await kiesSpel(page, 'Codekraker test (test)', 'Detectivezaak');
   // Enkel straftijd na een foute beschuldiging (geen wachten na een foute vraag).
   await expect(page.locator('label:text-is("Wachten na fout antwoord")')).toHaveCount(0);
   await page.getByLabel('Straftijd na foute beschuldiging').selectOption('30');
@@ -43,7 +43,7 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
 
   const anna = await leerling(page, code, 'Anna');
   const bert = await leerling(page, code, 'Bert');
-  await page.getByRole('button', { name: /Start Cluedo/ }).click();
+  await page.getByRole('button', { name: /Start Detectivezaak/ }).click();
   await expect(anna.getByText('🔎 Diefstal in het labo')).toBeVisible();
 
   // Fout antwoord: niets weg.

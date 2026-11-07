@@ -17,8 +17,8 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   live: 'Live quiz',
   escape: 'Escape room',
   whodunit: 'Whodunit',
-  codekraker: 'Crypto Hack',
-  cluedo: 'Cluedo',
+  codekraker: 'Codekraker',
+  cluedo: 'Detectivezaak',
   territorium: 'Territorium',
 };
 

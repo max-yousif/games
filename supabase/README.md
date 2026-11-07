@@ -1,12 +1,11 @@
 # Live spelen instellen (Supabase)
 
-Voor **Live quiz** en **Escape room** (elke leerling op de eigen laptop) is een kleine online
+Voor de spellen op de eigen laptop en voor de leerkrachtaccounts is een kleine online
 database nodig.
 Daarvoor gebruiken we [Supabase](https://supabase.com): het gratis plan volstaat ruim voor een klas.
 De website zelf blijft gewoon op GitHub Pages staan.
 
-Zonder Supabase werken ze enkel als **demo** in één browser (leerlingenscherm in een
-tweede tabblad), handig om alles uit te proberen.
+Zonder Supabase werken ze enkel lokaal in één browser (voor ontwikkelen en tests).
 
 ## Eenmalig instellen (± 10 minuten)
 

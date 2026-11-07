@@ -353,7 +353,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           aantal_vragen: input.aantalVragen,
           timer: input.timer,
           modus: input.modus ?? 'quiz',
-          // Whodunit, Crypto Hack en Cluedo: de vragen samen met het raadsel, de instellingen of het thema.
+          // Whodunit, Codekraker en detectivezaak: de vragen samen met het raadsel, de instellingen of het thema.
           vragen:
             input.raadsel || input.codekraker || input.cluedo || input.territorium
               ? {

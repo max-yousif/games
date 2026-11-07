@@ -10,7 +10,7 @@ import type { Beoordeling, LiveAntwoord, LiveSessie, LiveSpeler, Oplossing, Stan
  * snel mogelijk gebied in te kleuren op een gedeeld veld (ook over andermans gebied). Met een reeks
  * juiste antwoorden na elkaar wordt het penseel groter. Wie op het einde het meeste gebied heeft, wint.
  *
- * Zoals bij Crypto Hack: vragen hebben nummers 0, 1, 2 ..., tekenbeurten nummers vanaf
+ * Zoals bij Codekraker: vragen hebben nummers 0, 1, 2 ..., tekenbeurten nummers vanaf
  * ACTIE_BASIS. De laptop van de leerkracht kijkt na, schildert het veld en stuurt het (gecomprimeerd)
  * naar iedereen.
  */

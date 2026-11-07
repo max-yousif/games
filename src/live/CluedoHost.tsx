@@ -206,7 +206,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
           sessie={sessie}
           spelers={spelers}
           bezig={bezig}
-          startTekst="Start Cluedo"
+          startTekst="Start Detectivezaak"
           onStart={() => actie(() => be.startEscape(live.sessieId))}
           onOntkoppel={(id) => actie(() => be.ontkoppel(id))}
           onWisBijnaam={(id) => actie(() => be.wisBijnaam(id))}
@@ -224,7 +224,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
               🎉 {aantalOpgelost} / {stand.length} opgelost
             </span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Cluedo nu beëindigen? De oplossing wordt dan getoond.') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => confirm('Detectivezaak nu beëindigen? De oplossing wordt dan getoond.') && void actie(einde)}>
               ⏹ Beëindigen
             </Button>
           </div>

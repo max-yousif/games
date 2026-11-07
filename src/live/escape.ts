@@ -97,7 +97,7 @@ export function escapeStand(voortgang: readonly EscapeVoortgang[]): StandRij[] {
 // Elk antwoord op een slot geeft meteen een cijfer, ook een fout antwoord (dan een ander cijfer):
 // de leerling ziet dus niet of het juist was. Pas wie denkt alle cijfers te hebben, test de code.
 // Klopt die niet, dan volgt straftijd: vragen herbekijken mag, antwoorden niet.
-// Zoals bij Crypto Hack: elke actie heeft een nieuw nummer vanaf ACTIE_BASIS.
+// Zoals bij Codekraker: elke actie heeft een nieuw nummer vanaf ACTIE_BASIS.
 
 export interface SlotKeuze {
   soort: 'slot';
