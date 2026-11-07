@@ -76,7 +76,7 @@ export function leesGetal(invoer: string): number | null {
   const breuk = t.match(/^(-?)\\frac\{(.+?)\}\{(.+?)\}$/);
   if (breuk) t = `${breuk[1]}${breuk[2]}/${breuk[3]}`;
   t = t.replace(/(\d)\s+(?=\d{3}\b)/g, '$1').replace(/\s*(%|[a-zA-Zµ°²³]+)$/, '');
-  t = t.replace(',', '.').replace(/\s+/g, '').replace('−', '-');
+  t = t.replace(',', '.').replace(/\s+/g, '').replace(/[−–]/g, '-');
   const deel = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
   if (deel) {
     const n = Number(deel[2]);
