@@ -226,22 +226,31 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     };
     let bezig = false;
     let opnieuw = false;
+    // Wijzigingen die binnenkomen terwijl alles opgehaald wordt, zijn nieuwer dan dat overzicht:
+    // die mogen niet overschreven worden (anders staat een nagekeken antwoord weer open).
+    let tijdensOphalen: Map<string, T | null> | null = null;
     const verversen = async () => {
       if (bezig) {
         opnieuw = true;
         return;
       }
       bezig = true;
+      tijdensOphalen = new Map();
       try {
         const alles = await allesOphalen();
         rijen.clear();
         for (const r of alles) rijen.set(r.id, r);
+        for (const [id, r] of tijdensOphalen) {
+          if (r) rijen.set(id, r);
+          else rijen.delete(id);
+        }
         doorgeven();
         zetVerbinding('verbonden');
       } catch {
         zetVerbinding('verbinden');
       } finally {
         bezig = false;
+        tijdensOphalen = null;
         if (opnieuw && actief) {
           opnieuw = false;
           void verversen();
@@ -257,10 +266,14 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           .on('postgres_changes', { event: '*', schema: 'public', table: tabel, filter }, (p: { eventType: string; new: unknown; old: unknown }) => {
             if (p.eventType === 'DELETE') {
               const id = (p.old as { id?: string } | null)?.id;
-              if (id) rijen.delete(id);
+              if (id) {
+                rijen.delete(id);
+                tijdensOphalen?.set(id, null);
+              }
             } else if (p.new) {
               const r = uitRij(p.new);
               rijen.set(r.id, r);
+              tijdensOphalen?.set(r.id, r);
             }
             doorgeven();
           })

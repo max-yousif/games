@@ -130,6 +130,8 @@ function useBordStil(antwoorden: LiveAntwoord[], actief: boolean): boolean {
     return () => window.clearInterval(id);
   }, [open.length]);
   for (const a of open) if (!gezien.current.has(a.id)) gezien.current.set(a.id, Date.now());
+  // Wat intussen nagekeken is, vergeten: staat het (kort) weer open, dan telt de tijd opnieuw.
+  for (const id of gezien.current.keys()) if (!open.some((a) => a.id === id)) gezien.current.delete(id);
   return open.some((a) => nu - gezien.current.get(a.id)! > STIL_MS);
 }
 

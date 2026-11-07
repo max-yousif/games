@@ -21,6 +21,8 @@ interface Meting {
   wachttijden: number[];
   vast: number;
   bordStil: number;
+  /** Wat de leerling zag toen de melding "reageert even niet" verscheen. */
+  stilInfo: string[];
   fouten: string[];
 }
 
@@ -29,16 +31,22 @@ const pauze = (p: Page) => p.waitForTimeout(DENKTIJD * (0.5 + Math.random()));
 /** Eén leerling: speelt tot het einde zo goed als het scherm toelaat. */
 async function leerling(p: Page, einde: number, m: Meting) {
   let verstuurd: number | null = null;
+  // Sinds wanneer de leerling niets kan doen (wachten op nakijken).
+  let wachtSinds: number | null = null;
   let stilGezien = false;
   let vastGemeld = false;
   const klaar = () => {
     if (verstuurd !== null) m.wachttijden.push(Date.now() - verstuurd);
     verstuurd = null;
+    wachtSinds = null;
     vastGemeld = false;
   };
   while (Date.now() < einde) {
     const stil = (await p.locator('[data-bord-stil]').count()) > 0;
-    if (stil && !stilGezien) m.bordStil++;
+    if (stil && !stilGezien) {
+      m.bordStil++;
+      m.stilInfo.push(((await p.locator('main').textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').slice(0, 120));
+    }
     stilGezien = stil;
 
     const wachtwoord = p.locator('[data-wachtwoord]');
@@ -47,7 +55,7 @@ async function leerling(p: Page, einde: number, m: Meting) {
     const verder = p.getByRole('button', { name: /Volgende vraag ▶|Niet hacken/ });
     const raden = p.locator('main button.font-mono');
     try {
-      if (await wachtwoord.count()) {
+      if ((await wachtwoord.count()) && (await wachtwoord.first().isEnabled())) {
         klaar();
         await wachtwoord.first().click({ timeout: 3000 });
         verstuurd = Date.now();
@@ -70,15 +78,18 @@ async function leerling(p: Page, einde: number, m: Meting) {
       } else if (await verder.count()) {
         klaar();
         await verder.first().click({ timeout: 3000 });
-      } else if (await raden.count()) {
+      } else if ((await raden.count()) && (await raden.first().isEnabled())) {
         klaar();
         await raden.first().click({ timeout: 3000 });
         verstuurd = Date.now();
         m.acties++;
-      } else if (verstuurd !== null && Date.now() - verstuurd > VAST_MS && !vastGemeld) {
-        // Nog altijd "even geduld": vast.
-        m.vast++;
-        vastGemeld = true;
+      } else {
+        // Niets te doen ("even geduld" of het wachtwoord wordt nagekeken): te lang = vast.
+        wachtSinds ??= verstuurd ?? Date.now();
+        if (Date.now() - wachtSinds > VAST_MS && !vastGemeld) {
+          m.vast++;
+          vastGemeld = true;
+        }
       }
     } catch {
       // Het scherm veranderde net tijdens het klikken: opnieuw kijken.
@@ -135,7 +146,7 @@ test(`codekraker met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten`, async ({ pag
 
   const start = Date.now();
   const einde = start + MINUTEN * 60_000;
-  const metingen: Meting[] = leerlingen.map((l) => ({ antwoorden: 0, acties: 0, wachttijden: [], vast: 0, bordStil: 0, fouten: l.fouten }));
+  const metingen: Meting[] = leerlingen.map((l) => ({ antwoorden: 0, acties: 0, wachttijden: [], vast: 0, bordStil: 0, stilInfo: [], fouten: l.fouten }));
   await Promise.all(leerlingen.map((l, i) => leerling(l.p, einde, metingen[i])));
 
   // Samenvatting.
@@ -152,6 +163,7 @@ test(`codekraker met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten`, async ({ pag
     minste_antwoorden: Math.min(...metingen.map((m) => m.antwoorden)),
     vast: metingen.reduce((t, m) => t + m.vast, 0),
     bord_stil: metingen.reduce((t, m) => t + m.bordStil, 0),
+    bord_stil_schermen: metingen.flatMap((m) => m.stilInfo).slice(0, 5),
     paginafouten: [...hostFouten, ...metingen.flatMap((m) => m.fouten)].slice(0, 10),
   };
   console.log(JSON.stringify(totaal, null, 2));
@@ -162,6 +174,9 @@ test(`codekraker met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten`, async ({ pag
   await page.getByRole('button', { name: /Afsluiten \(niet bewaren\)/ }).click();
 
   expect(totaal.paginafouten).toEqual([]);
+  // Lokaal schrijven alle tabbladen in dezelfde browseropslag, en dat is niet bestand tegen
+  // gelijktijdig schrijven: daar enkel het script zelf testen. De echte meting is die met Supabase.
+  if (!SUPABASE) return;
   expect(totaal.vast, 'leerlingen die meer dan 20 s op nakijken wachtten').toBe(0);
   expect(totaal.minste_antwoorden, 'elke leerling kon blijven antwoorden').toBeGreaterThan(0);
 });
