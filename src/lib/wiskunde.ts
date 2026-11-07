@@ -359,6 +359,12 @@ export function leesUitdrukking(invoer: string): Knoop | null {
   return t && t.length ? new Lezer(t).lees() : null;
 }
 
+/** Het voorschrift als functie van x (bv. om een grafiek te tekenen); null als het niet te lezen is. */
+export function functieVan(invoer: string): ((x: number) => number) | null {
+  const k = leesUitdrukking(invoer);
+  return k && !bevat(k, 'C') ? (x) => reken(k, x) : null;
+}
+
 const PUNTEN = [-4.3, -3.1, -2.2, -1.7, -1.1, -0.73, -0.41, -0.17, 0.09, 0.23, 0.38, 0.57, 0.81, 1.13, 1.42, 1.9, 2.4, 3.3, 4.6, 6.2];
 const dichtbij = (a: number, b: number) => Math.abs(a - b) <= 1e-7 * Math.max(1, Math.abs(a), Math.abs(b));
 

@@ -20,6 +20,7 @@ export const SPEL_NAMEN: Record<Sessie['spelType'], string> = {
   codekraker: 'Codekraker',
   cluedo: 'Detectivezaak',
   territorium: 'Territorium',
+  grafiekjacht: 'Grafiekjacht',
 };
 
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const });

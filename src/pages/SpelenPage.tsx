@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { GeluidMenu } from '../components/GeluidMenu';
 import { Button, inputClass, labelClass, Notice, PageHeader, Section } from '../components/ui';
 import { backend, supabaseIngesteld } from '../live/config';
 import { AANTAL_NUMMERS } from '../live/codekraker';
 import { koppelVragen, metOpgaven, moderniseer, nodigeVragen, opgaveVragen, publiekThema, STANDAARD_THEMA, themaProblemen, trekOplossing } from '../live/cluedo';
 import { KLEURPLATEN, STANDAARD_SECONDEN, TEKENTIJDEN, type TerritoriumModus } from '../live/territorium';
+import { alsVragen, BASIS_IDS, BASISFUNCTIES, maakDoelen, publiek, TRANSFORMATIES, type BasisId, type Transformatie } from '../live/grafiekjacht';
 import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
@@ -16,7 +17,7 @@ import { shuffle } from '../lib/random';
 import { maakTeams, nieuweSessie, TEAM_KLEUREN } from '../lib/session';
 import { korteNamen, naamVolgordeVan } from '../lib/students';
 import type { Store } from '../lib/store';
-import type { CluedoThema, Leerling, SpelType, Team } from '../lib/types';
+import type { CluedoThema, Leerling, SpelType, Team, Vraag, Vragenset } from '../lib/types';
 import { VraagKeuze } from '../components/VraagKeuze';
 import { jarenVanSet, VAK_LABELS } from './SetsPage';
 import { klasJaar } from './KlassenPage';
@@ -30,17 +31,25 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer, juist of niet. Klopt de code? Dan ontsnap je, anders volgt straftijd.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
   { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
+  { type: 'grafiekjacht', icoon: '📈', naam: 'Grafiekjacht', tekst: 'Elke leerling zoekt het voorschrift bij een grafiek: transformaties van functies. Geen vragenset nodig.' },
   { type: 'cluedo', icoon: '🔎', naam: 'Detectivezaak', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
   { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
 ];
 
 const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
-const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'cluedo', 'whodunit'];
+const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'grafiekjacht', 'cluedo', 'whodunit'];
 /** Op de eigen laptop, met een verhaal dat niet bij elke set voorbereid is. */
 const VERHAAL_SPELLEN: SpelType[] = ['cluedo', 'whodunit'];
 const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
 
 const ESCAPE_MINUTEN = [null, 10, 15, 20, 30, 45, 60];
+const AANTAL_GRAFIEKEN = [5, 8, 10, 12, 15];
+
+/** Grafiekjacht heeft geen vragenset: de grafieken worden bij de start gemaakt. */
+function grafiekSet(vragen: Vraag[]): Vragenset {
+  const nu = new Date().toISOString();
+  return { id: 'grafiekjacht', titel: 'Grafiekjacht', beschrijving: '', vak: 'wiskunde', leerjaar: '', vragen, aangemaakt: nu, gewijzigd: nu };
+}
 const WACHTTIJDEN = [0, 10, 15, 30, 60];
 
 /** Welke vragen uit staan, onthouden per vragenset en klas (in deze browser). */
@@ -97,9 +106,13 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
-  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium';
+  const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht';
+  const zonderSet = spel === 'grafiekjacht';
+  const [aantalGrafieken, setAantalGrafieken] = useState(8);
+  const [basissen, setBasissen] = useState<BasisId[]>(['kwadraat', 'abs', 'wortel']);
+  const [transformaties, setTransformaties] = useState<Transformatie[]>(['verschuiven', 'uitrekken', 'spiegelen']);
   // Cluedo: het thema voor dit spel (start van het thema van de vragenset, of het standaardthema).
   const [cluedoThema, setCluedoThema] = useState<CluedoThema>(() => moderniseer(store.sets.find((s) => s.id === (setId ?? store.sets[0]?.id))?.cluedo ?? STANDAARD_THEMA));
   const [cluedoSleutel, setCluedoSleutel] = useState(0);
@@ -173,19 +186,19 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   }
 
   function start() {
-    if (!set || !spel) return;
+    if (!(set || zonderSet) || !spel) return;
     if (isLive) {
       void startLive();
       return;
     }
-    const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
+    const sessie = nieuweSessie({ spelType: spel, set: set!, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
     if (spel === 'bom') sessie.bom = nieuweBom(teams.length, bomTijdKeuze);
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
   }
 
   async function startLive() {
-    if (!set || !spel) return;
+    if (!spel || (!set && !zonderSet)) return;
     setBezig(true);
     setFout(null);
     try {
@@ -197,6 +210,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const codekraker = spel === 'codekraker';
       const cluedo = spel === 'cluedo';
       const territorium = spel === 'territorium';
+      const grafiekjacht = spel === 'grafiekjacht';
+      const doelen = grafiekjacht ? maakDoelen(aantalGrafieken, basissen, transformaties) : [];
+      const spelSet = grafiekjacht ? grafiekSet(alsVragen(doelen)) : set!;
       const kleurplaat = territorium && territoriumModus === 'samen' ? kleurplaatKeuze || KLEURPLATEN[Math.floor(Math.random() * KLEURPLATEN.length)].id : undefined;
       // Escape room: een (willekeurige) selectie van de vragen als sloten, in vaste volgorde.
       // Cluedo: de oplossing nu al trekken. Met een vraag per kaart krijgt nu elke kaart (behalve de
@@ -209,8 +225,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const spelThema = koppeling ? koppeling.thema : cluedoThema;
       const cluedoOplossing = cluedo ? (koppeling ? koppeling.oplossing : trekOplossing(cluedoThema)) : undefined;
       const metKaartOpgaven = cluedo && metOpgaven(spelThema);
-      const gekozen = metKaartOpgaven
-        ? shuffle(opgaveVragen(spelThema, cluedoOplossing!, set.vragen))
+      const gekozen = grafiekjacht
+        ? spelSet.vragen
+        : metKaartOpgaven
+        ? shuffle(opgaveVragen(spelThema, cluedoOplossing!, spelSet.vragen))
         : spel === 'escape'
           ? aantalSloten > 0 && aantalSloten < escapeVragen.length
             ? shuffle(escapeVragen).slice(0, aantalSloten)
@@ -221,23 +239,25 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
       const namen: Record<string, string[]> = metNamen ? Object.fromEntries(leerlingen.map((l) => [kortNaam(l), [l.id]])) : {};
       const server = await backend(soort).maakSessie({
-        titel: set.titel,
+        titel: spelSet.titel,
         namen: Object.keys(namen),
         vrijeNaam: !metNamen || vrijeNaam,
         // Codekraker: de vragen komen steeds opnieuw; nummers vanaf ACTIE_BASIS zijn acties.
         aantalVragen: codekraker || cluedo || territorium || spel === 'escape' ? AANTAL_NUMMERS : gekozen.length,
         timer: spelTimer,
         modus: escape ? 'escape' : 'quiz',
-        vragen: escape ? gekozen.map(publiekeVraag) : undefined,
-        wachttijd: spel === 'escape' || spel === 'cluedo' ? strafTijd : escape ? wachttijd : 0,
-        raadsel: whodunit && set.raadsel ? publiekRaadsel(set.raadsel) : undefined,
+        // Grafiekjacht: geen vragen, enkel de punten van de grafieken (het voorschrift blijft hier).
+        vragen: grafiekjacht ? [] : escape ? gekozen.map(publiekeVraag) : undefined,
+        wachttijd: spel === 'escape' || spel === 'cluedo' ? strafTijd : grafiekjacht ? 0 : escape ? wachttijd : 0,
+        raadsel: whodunit && spelSet.raadsel ? publiekRaadsel(spelSet.raadsel) : undefined,
         codekraker: codekraker ? { hacken } : undefined,
         cluedo: cluedo ? publiekThema(spelThema) : undefined,
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
+        grafiekjacht: grafiekjacht ? publiek(doelen) : undefined,
       });
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : escape ? 'escape' : 'live',
-        set,
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : escape ? 'escape' : 'live',
+        set: spelSet,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
         teams: [{ naam: klas?.naam ?? 'Spelers', kleur: TEAM_KLEUREN[0], leerlingen: metNamen ? leerlingen : [] }],
@@ -246,7 +266,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       });
       const sessie = {
         ...basis,
-        ...(whodunit && set.raadsel ? { raadsel: set.raadsel } : {}),
+        ...(whodunit && spelSet.raadsel ? { raadsel: spelSet.raadsel } : {}),
         // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
         ...(cluedo ? { cluedo: { thema: spelThema, oplossing: cluedoOplossing! } } : {}),
         vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
@@ -259,6 +279,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           escapeCode,
           ...(codekraker ? { hacken } : {}),
           ...(territorium ? { tekenSeconden, ...(kleurplaat ? { kleurplaat } : {}) } : {}),
+          ...(grafiekjacht ? { doelen } : {}),
           ...(metNamen ? { namen } : {}),
         },
       } as const;
@@ -289,7 +310,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     setSpel(type);
     verdeel(klas?.leerlingen, type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : aantal, afwezig);
     if (type === 'live' && timer === null) setTimer(30);
-    setStap(klasGekozen ? (set ? 4 : 3) : 2);
+    setStap(klasGekozen ? (set || type === 'grafiekjacht' ? 4 : 3) : 2);
   }
 
   function kiesSet(id: string) {
@@ -308,7 +329,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     // Vragensets meteen gefilterd op het jaar van de klas.
     setJaar(k ? (klasJaar(k) ?? 0) : 0);
     if (gekozenSet) setUit(leesVraagKeuze(gekozenSet, id));
-    setStap(set ? 4 : 3);
+    setStap(set || zonderSet ? 4 : 3);
   }
 
   // Vragensets: zoeken op titel, leerjaar of vak; recent gewijzigde eerst.
@@ -322,11 +343,13 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const stappen: { nr: Stap; titel: string; waarde: string | null; kan: boolean }[] = [
     { nr: 1, titel: 'Spel', waarde: spelInfo ? `${spelInfo.icoon} ${spelInfo.naam}` : null, kan: true },
     { nr: 2, titel: 'Klas', waarde: klasGekozen ? (klas ? `${klas.naam} (${klas.leerlingen.length})` : 'Zonder klas') : null, kan: spel !== null },
-    { nr: 3, titel: 'Vragenset', waarde: set?.titel ?? null, kan: spel !== null && klasGekozen },
-    { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && set !== null && klasGekozen },
+    { nr: 3, titel: 'Vragenset', waarde: zonderSet ? 'niet nodig' : (set?.titel ?? null), kan: spel !== null && klasGekozen && !zonderSet },
+    { nr: 4, titel: 'Instellingen en start', waarde: null, kan: spel !== null && (set !== null || zonderSet) && klasGekozen },
   ];
 
-  const kanStarten = spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+  const kanStarten = zonderSet
+    ? klasGekozen && basissen.length > 0 && !bezig && !(!demo && !store.account.leerkracht)
+    : spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
     <div className="space-y-6">
@@ -490,15 +513,21 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         </Section>
       )}
 
-      {stap === 4 && spel && set && klasGekozen && (
+      {stap === 4 && spel && (set || zonderSet) && klasGekozen && (
         <>
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-4">
-            {set.cover ? <img src={set.cover} alt="" className="aspect-video w-28 rounded-lg object-cover" /> : <span className="text-5xl">{spelInfo?.icoon}</span>}
+            {set?.cover && !zonderSet ? <img src={set.cover} alt="" className="aspect-video w-28 rounded-lg object-cover" /> : <span className="text-5xl">{spelInfo?.icoon}</span>}
             <div className="min-w-0 flex-1 text-lg">
               <strong>
                 {spelInfo?.icoon} {spelInfo?.naam}
               </strong>{' '}
-              met <strong>“{set.titel}”</strong> ({spel === 'cluedo' && cluedoThema.metVragen ? `${nodigeVragen(cluedoThema)} opgaven` : spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set.vragen).length} opgaven` : `${vragen.length} vragen`}) voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+              {zonderSet ? (
+                <>met <strong>{aantalGrafieken} grafieken</strong></>
+              ) : (
+                <>
+              met <strong>“{set!.titel}”</strong> ({spel === 'cluedo' && cluedoThema.metVragen ? `${nodigeVragen(cluedoThema)} opgaven` : spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set!.vragen).length} opgaven` : `${vragen.length} vragen`})
+                </>
+              )} voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
             </div>
             <div className="flex flex-col items-end gap-1">
               <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
@@ -554,6 +583,20 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   ))}
                 </select>
               </div>
+              {spel === 'grafiekjacht' && (
+                <div className="w-40">
+                  <label className={labelClass} htmlFor="grafieken">
+                    Aantal grafieken
+                  </label>
+                  <select id="grafieken" className={inputClass} value={aantalGrafieken} onChange={(e) => setAantalGrafieken(Number(e.target.value))}>
+                    {AANTAL_GRAFIEKEN.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {spel === 'territorium' && (
                 <div className="w-40">
                   <label className={labelClass} htmlFor="tekentijd">
@@ -581,7 +624,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     ))}
                   </select>
                 </div>
-              ) : (
+              ) : spel === 'grafiekjacht' ? null : (
                 <div className="w-48">
                   <label className={labelClass}>{spel === 'whodunit' ? 'Straftijd na een fout' : 'Wachten na fout antwoord'}</label>
                   <select className={inputClass} value={wachttijd} onChange={(e) => setWachttijd(Number(e.target.value))}>
@@ -660,6 +703,33 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     ))}
                   </div>
                 )}
+              </div>
+            ) : spel === 'grafiekjacht' ? (
+              <div className="space-y-3">
+                <div>
+                  <div className={labelClass}>Basisfuncties</div>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Basisfuncties">
+                    {BASIS_IDS.map((b) => (
+                      <Chip key={b} aan={basissen.includes(b)} onClick={() => setBasissen((l) => (l.includes(b) ? l.filter((x) => x !== b) : [...l, b]))}>
+                        {BASISFUNCTIES[b].naam}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className={labelClass}>Transformaties: y = a·f(b(x − c)) + d</div>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Transformaties">
+                    {TRANSFORMATIES.map((t) => (
+                      <Chip key={t.id} aan={transformaties.includes(t.id)} onClick={() => setTransformaties((l) => (l.includes(t.id) ? l.filter((x) => x !== t.id) : [...l, t.id]))}>
+                        {t.naam}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-slate-600">
+                  Elke leerling zoekt in eigen tempo het voorschrift bij dezelfde reeks grafieken en ziet de eigen grafiek meteen over de doelgrafiek. Eerste poging juist = 3
+                  punten, tweede = 2, daarna 1. Na 2 foute pogingen mag een leerling de oplossing zien en verdergaan.
+                </p>
               </div>
             ) : spel === 'cluedo' ? (
               <>
@@ -840,7 +910,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         )}
           </Section>
 
-          {alleVragen.length > 1 && (
+          {set && !zonderSet && alleVragen.length > 1 && (
             <Section title="Vragen">
               <p className="mb-2 text-sm text-slate-500">
                 {alleVragen.length} speelbare vragen
@@ -864,5 +934,18 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       )}
 
     </div>
+  );
+}
+
+function Chip({ aan, onClick, children }: { aan: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={aan}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-sm font-medium transition ${aan ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
+    >
+      {children}
+    </button>
   );
 }

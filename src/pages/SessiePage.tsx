@@ -19,6 +19,7 @@ import { bomWinnaar, nieuweBom } from '../lib/bom';
 import { CodekrakerHost } from '../live/CodekrakerHost';
 import { CluedoHost } from '../live/CluedoHost';
 import { TerritoriumHost } from '../live/TerritoriumHost';
+import { GrafiekjachtHost } from '../live/GrafiekjachtHost';
 import { useWakker } from '../lib/useWakker';
 
 /** Maakt de laatste handeling ongedaan (bij vier op een rij eerst de laatste schijf). */
@@ -80,7 +81,7 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
 
   const vierWinnaar =
     sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
-  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo' || sessie.spelType === 'territorium';
+  const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo' || sessie.spelType === 'territorium' || sessie.spelType === 'grafiekjacht';
   const liveLoopt = isLive && !!sessie.live && !sessie.live.afgesloten;
   // Bij de bom niet: de ontploffingen en de houder zouden niet mee teruggaan.
   const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
@@ -119,7 +120,9 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       </header>
 
-      {sessie.spelType === 'territorium' ? (
+      {sessie.spelType === 'grafiekjacht' ? (
+        <GrafiekjachtHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
+      ) : sessie.spelType === 'territorium' ? (
         <TerritoriumHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
       ) : sessie.spelType === 'cluedo' ? (
         <CluedoHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />

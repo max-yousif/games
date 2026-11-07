@@ -135,7 +135,7 @@ export interface CluedoOplossing {
   wapen: string;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium' | 'grafiekjacht';
 
 export interface Team {
   naam: string;
@@ -184,6 +184,8 @@ export interface LiveInfo {
   eindstand?: { naam: string; punten: number; juist: number; kleur?: number }[];
   /** Codekraker: hacken toegestaan. */
   hacken?: boolean;
+  /** Grafiekjacht: de doelgrafieken (het voorschrift blijft op deze laptop). */
+  doelen?: { basis: string; a: number; b: number; c: number; d: number }[];
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */
   namen?: Record<string, string[]>;
   /** Bijnamen per leerlingnaam (voor op het scherm). */

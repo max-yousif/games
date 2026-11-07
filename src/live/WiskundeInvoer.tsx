@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { MathfieldElement } from 'mathlive';
 
 /** Knoppen voor wat leerlingen het vaakst nodig hebben (#@ = de selectie, #? = een leeg vakje). */
-const KNOPPEN: { label: string; titel: string; latex: string }[] = [
+export type Knop = { label: string; titel: string; latex: string };
+
+const KNOPPEN: Knop[] = [
   { label: 'a⁄b', titel: 'Breuk (of typ /)', latex: '\\frac{#@}{#?}' },
   { label: 'xⁿ', titel: 'Macht (of typ ^)', latex: '#@^{#?}' },
   { label: 'x²', titel: 'Kwadraat', latex: '#@^{2}' },
@@ -25,6 +27,7 @@ export function WiskundeInvoer({
   autoFocus = false,
   label,
   kleur,
+  extra = [],
 }: {
   onChange: (waarde: string) => void;
   /** Enter: krijgt de actuele waarde mee (de state kan een toetsaanslag achterlopen). */
@@ -32,6 +35,8 @@ export function WiskundeInvoer({
   autoFocus?: boolean;
   label: string;
   kleur?: string;
+  /** Extra knoppen na de gewone (bv. |x| en sin bij grafieken). */
+  extra?: Knop[];
 }) {
   const houder = useRef<HTMLDivElement>(null);
   const veld = useRef<MathfieldElement | null>(null);
@@ -90,7 +95,7 @@ export function WiskundeInvoer({
       {fout && <div className="rounded-xl border-2 border-red-300 px-4 py-3 text-red-600">De wiskunde-editor kon niet geladen worden. Zet hem uit en typ je antwoord gewoon.</div>}
       {geladen && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {KNOPPEN.map((k) => (
+          {[...KNOPPEN, ...extra].map((k) => (
             <button
               key={k.label}
               type="button"

@@ -75,7 +75,7 @@ export function Beantwoord({ vraag: v, zaad, onVerstuur }: { vraag: PubliekeVraa
   );
 }
 
-const invoerKlasse = 'rounded-xl border-2 border-slate-300 px-4 py-3 font-mono text-2xl outline-none focus:border-[var(--accent)]';
+export const invoerKlasse = 'rounded-xl border-2 border-slate-300 px-4 py-3 font-mono text-2xl outline-none focus:border-[var(--accent)]';
 
 function VerstuurKnop({ disabled }: { disabled: boolean }) {
   return (
@@ -88,7 +88,7 @@ function VerstuurKnop({ disabled }: { disabled: boolean }) {
 const EDITOR_SLEUTEL = 'klasspelen.wiskunde-editor';
 
 /** Wiskunde-editor aan of uit; de keuze van de leerling wordt onthouden op deze laptop. */
-function useWiskundeEditor(): [boolean, (aan: boolean) => void] {
+export function useWiskundeEditor(): [boolean, (aan: boolean) => void] {
   const [aan, setAan] = useState(() => {
     try {
       return localStorage.getItem(EDITOR_SLEUTEL) === '1';
@@ -107,7 +107,7 @@ function useWiskundeEditor(): [boolean, (aan: boolean) => void] {
   return [aan, zet];
 }
 
-function EditorSchakelaar({ aan, onWissel }: { aan: boolean; onWissel: (aan: boolean) => void }) {
+export function EditorSchakelaar({ aan, onWissel }: { aan: boolean; onWissel: (aan: boolean) => void }) {
   return (
     <button
       type="button"

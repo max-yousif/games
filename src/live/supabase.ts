@@ -48,6 +48,7 @@ function sessieUit(r: any): LiveSessie {
     codekraker: Array.isArray(r.vragen) ? null : (r.vragen?.codekraker ?? null),
     cluedo: Array.isArray(r.vragen) ? null : (r.vragen?.cluedo ?? null),
     territorium: Array.isArray(r.vragen) ? null : (r.vragen?.territorium ?? null),
+    grafiekjacht: Array.isArray(r.vragen) ? null : (r.vragen?.grafiekjacht ?? null),
     wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
@@ -353,15 +354,16 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           aantal_vragen: input.aantalVragen,
           timer: input.timer,
           modus: input.modus ?? 'quiz',
-          // Whodunit, Codekraker en detectivezaak: de vragen samen met het raadsel, de instellingen of het thema.
+          // Whodunit, Codekraker, detectivezaak, Territorium en Grafiekjacht: de vragen samen met wat het spel nodig heeft.
           vragen:
-            input.raadsel || input.codekraker || input.cluedo || input.territorium
+            input.raadsel || input.codekraker || input.cluedo || input.territorium || input.grafiekjacht
               ? {
                   vragen: input.vragen ?? [],
                   ...(input.raadsel ? { raadsel: input.raadsel } : {}),
                   ...(input.codekraker ? { codekraker: input.codekraker } : {}),
                   ...(input.cluedo ? { cluedo: input.cluedo } : {}),
                   ...(input.territorium ? { territorium: input.territorium } : {}),
+                  ...(input.grafiekjacht ? { grafiekjacht: input.grafiekjacht } : {}),
                 }
               : (input.vragen ?? null),
           wachttijd: input.wachttijd ?? 0,

@@ -2,6 +2,7 @@ import type { CluedoThema, VraagType } from '../lib/types';
 import type { CodekrakerInstellingen } from './codekraker';
 import type { PubliekRaadsel } from './whodunit';
 import type { TerritoriumModus } from './territorium';
+import type { GrafiekjachtPubliek } from './grafiekjacht';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -42,6 +43,8 @@ export interface StandRij {
   /** Territorium: kleurnummer en huidige reeks juiste antwoorden. */
   kleur?: number;
   reeks?: number;
+  /** Grafiekjacht: aantal afgewerkte rondes. */
+  klaar?: number;
   /** Codekraker: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
   gehackt?: number;
   melding?: { tekst: string; tijdMs: number };
@@ -73,6 +76,8 @@ export interface LiveSessie {
   cluedo?: CluedoThema | null;
   /** Territorium (escape-modus): ingesteld = dit spel. */
   territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string } | null;
+  /** Grafiekjacht (escape-modus): per ronde de punten van de doelgrafiek. */
+  grafiekjacht?: GrafiekjachtPubliek | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -206,6 +211,7 @@ export interface LiveBackend {
     codekraker?: CodekrakerInstellingen;
     cluedo?: CluedoThema;
     territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string };
+    grafiekjacht?: GrafiekjachtPubliek;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;

@@ -21,6 +21,7 @@ const SPEL_ICONEN: Record<Sessie['spelType'], string> = {
   codekraker: '🔐',
   cluedo: '🔎',
   territorium: '🖌️',
+  grafiekjacht: '📈',
 };
 
 /** Kerncijfers van één spel voor de lijst. */
