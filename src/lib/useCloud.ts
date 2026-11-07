@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { cloud } from '../live/config';
 import { LiveFout } from '../live/types';
 import { naUpload, teUploaden, verwerkDownload, type Gesync, type Lokaal, type ServerItem } from './cloudSync';
+import { VOORSTEL } from './voorstel';
 
 const sleutel = (uid: string) => `games.v1.cloud.${uid}`;
 
@@ -107,6 +108,8 @@ export function useCloud(uid: string | null, lokaal: Lokaal, zet: (l: Lokaal) =>
     }
 
     async function opsturen() {
+      // De testversie van een voorstel past niets aan in de cloud.
+      if (VOORSTEL) return;
       const u = teUploaden(lokaalRef.current, toestand.gesync);
       if (!u.bewaren.length && !u.wissen.length) return;
       const rijen = [

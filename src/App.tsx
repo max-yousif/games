@@ -4,6 +4,7 @@ import { ThemaKnop } from './components/ThemaKnop';
 import { StartPage } from './pages/StartPage';
 import { href, useRoute, type Route } from './lib/route';
 import { useStore } from './lib/store';
+import { VOORSTEL } from './lib/voorstel';
 
 // Pagina's worden pas geladen wanneer ze nodig zijn, zodat de startpagina snel opent.
 const KlassenPage = lazy(() => import('./pages/KlassenPage').then((m) => ({ default: m.KlassenPage })));
@@ -67,6 +68,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
+      {VOORSTEL && (
+        <div className="bg-amber-100 px-6 py-1.5 text-center text-sm text-amber-900" data-voorstel>
+          🧪 Testversie van een voorstel: wat je hier wijzigt, wordt niet in de cloud bewaard.
+        </div>
+      )}
       <header className="border-b border-slate-200 bg-surface">
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-6 py-3">
           <a href={href({ pagina: 'start' })} className="mr-4 text-lg font-bold">

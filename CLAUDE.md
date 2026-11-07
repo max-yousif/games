@@ -41,4 +41,9 @@ Alleen na **expliciete goedkeuring van de leerkracht** naar `main` pushen
 (`git push origin HEAD:main && git push origin HEAD:claude/live-spelen`). Voorstellen van de
 wekelijkse agent staan eerst op de branch `agent/voorstel`.
 
+Na een push naar `agent/voorstel` draaien alle tests op GitHub; slagen ze, dan staat het voorstel
+na een paar minuten als testversie op https://max-yousif.github.io/games/voorstel/ (eigen kopie
+van de browseropslag, niets naar de cloud; zie `src/lib/voorstel.ts`). Vermeld die link in de
+samenvatting voor de leerkracht. Na publiceren naar `main` verdwijnt de testversie vanzelf.
+
 Wensen en ideeën van de leerkracht staan in `WENSEN.md`.

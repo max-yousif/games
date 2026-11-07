@@ -1,8 +1,12 @@
 name: Website publiceren
 
+# Publiceert main op /games/. Heeft de branch agent/voorstel nieuwe commits, dan staat die als
+# testversie op /games/voorstel/ (eigen opslag, niets naar de cloud; zie src/lib/voorstel.ts).
+# Een push naar agent/voorstel test die branch en start daarna de publicatie van main opnieuw
+# (enkel main mag naar GitHub Pages publiceren).
 on:
   push:
-    branches: [main]
+    branches: [main, agent/voorstel]
   workflow_dispatch:
 
 permissions:
@@ -35,17 +39,39 @@ jobs:
           name: playwright-resultaten
           path: test-results
           retention-days: 7
-      - run: npm run build
+      - uses: actions/checkout@v5
+        if: github.ref == 'refs/heads/main'
+        with:
+          ref: main
+          path: site
+          fetch-depth: 0
+      - name: Site en testversie bouwen
+        if: github.ref == 'refs/heads/main'
+        working-directory: site
         env:
           # Instellen onder Settings → Secrets and variables → Actions → Variables (zie supabase/README.md).
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          npm ci
+          npm run build
+          rm -rf ../dist && mv dist ../dist
+          # Testversie enkel als agent/voorstel iets heeft wat nog niet op main staat.
+          if git fetch -q origin agent/voorstel && [ -n "$(git rev-list origin/main..FETCH_HEAD)" ]; then
+            git checkout -q FETCH_HEAD
+            npm ci
+            VITE_VOORSTEL=1 npm run build
+            mv dist ../dist/voorstel
+            echo "Testversie van agent/voorstel staat op /games/voorstel/"
+          fi
       - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/main'
         with:
           path: dist
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -53,3 +79,15 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  voorstel:
+    needs: build
+    if: github.ref == 'refs/heads/agent/voorstel'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Site opnieuw publiceren met de testversie
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main --repo "$GITHUB_REPOSITORY"
