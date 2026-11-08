@@ -23,8 +23,11 @@ wens eerst; staat er niets, dan kiest hij zelf een verbetering of een nieuw, ori
 
 ## Gedaan
 
-- Belastingstest: `npm run test:belasting` (lokaal) en de workflow *Belastingstest* (echte
-  database, leerkracht als Gast).
+- Belastingstest voor alle live spellen met "onnozele" leerlingen (spammen, onzin typen, herladen,
+  offline, tweede tabblad, verlaten): `npm run test:belasting` (lokaal) en de workflow
+  *Belastingstest* (echte database, leerkracht als Gast). Alle spellen geslaagd, ook
+  Codekraker 60 min, escape room en detectivezaak 50 min met 20 leerlingen. Dataverkeer per drukke
+  les (25 leerlingen, 50 min): Codekraker ~290 MB, Territorium ~470 MB, de rest 90–125 MB.
 - Nieuw spel Puzzel (foto bij de vragenset, stukjes verdienen en leggen). Het bord toont per
   leerling de verdiende stukjes en wie klaar is (niet hoeveel er al gelegd zijn).
 - Nieuw spel Grafiekjacht (transformaties van functies). Mogelijke uitbreiding: per leerling
