@@ -1,0 +1,305 @@
+{
+ "soort": "games-vragenset",
+ "versie": 1,
+ "set": {
+  "id": "test-whodunit-set",
+  "titel": "Whodunit: de nacht van de 50 dagen (test)",
+  "vak": "wiskunde",
+  "leerjaar": "5e–6e jaar",
+  "beschrijving": "Rijen en goniometrie. Elke juiste oefening geeft een roddel; wie vindt als eerste wie wat uitgestoken heeft?",
+  "vragen": [
+   {
+    "id": "whodunit-50-1",
+    "antwoord": "$y=\\frac{\\pi}{2}$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "De evenwichtsstand is $y = d$.",
+    "categorie": "Reeks 1",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Geef de vergelijking van de evenwichtsstand van $y = 2\\sin(5x-3)+\\frac{\\pi}{2}$."
+   },
+   {
+    "id": "whodunit-50-2",
+    "antwoord": "130",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$u_{10} = 67 + 9 \\cdot 7$",
+    "categorie": "Reeks 1",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Geef de tiende term van $u_n = u_{n-1}+7$ met $u_1 = 67$.",
+    "alternatieven": [
+     "u_{10}=130"
+    ]
+   },
+   {
+    "id": "whodunit-50-3",
+    "antwoord": "-1",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "",
+    "categorie": "Reeks 1",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Bepaal de cotangens van $\\alpha = \\frac{3\\pi}{4}$."
+   },
+   {
+    "id": "whodunit-50-4",
+    "antwoord": "$\\frac{7\\pi}{60}$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$21 \\cdot \\frac{\\pi}{180}$",
+    "categorie": "Reeks 1",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Zet om in radialen en vereenvoudig zo ver mogelijk: $21^\\circ$.",
+    "alternatieven": [
+     "7π/60",
+     "7/60 π"
+    ]
+   },
+   {
+    "id": "whodunit-50-5",
+    "antwoord": "$u_n = 4n-10$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$v = \\frac{90-10}{20} = 4$ en $u_1 = 10 - 4 \\cdot 4 = -6$",
+    "categorie": "Reeks 2",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Geef het expliciet voorschrift van de rekenkundige rij met $u_5 = 10$ en $u_{25} = 90$.",
+    "alternatieven": [
+     "4n-10",
+     "u_n=-6+4(n-1)",
+     "-6+4(n-1)",
+     "u_n=-6+(n-1)\\cdot 4",
+     "-6+(n-1)\\cdot 4"
+    ]
+   },
+   {
+    "id": "whodunit-50-6",
+    "antwoord": "Ja, n = 8",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$3 \\cdot 2^8 = 768$",
+    "categorie": "Reeks 2",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Komt het getal 768 voor in de rij $u_n = 3 \\cdot 2^n$?",
+    "alternatieven": [
+     "ja",
+     "ja n=8",
+     "n=8",
+     "ja, u_8 = 768",
+     "ja, u_8"
+    ]
+   },
+   {
+    "id": "whodunit-50-7",
+    "antwoord": "$\\frac{3}{5}$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "In het tweede kwadrant is de sinus positief.",
+    "categorie": "Reeks 2",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Voor de hoek $\\alpha \\in II$ geldt dat $\\cos\\alpha = -\\frac{4}{5}$. Bepaal $\\sin\\alpha$.",
+    "alternatieven": [
+     "0,6"
+    ]
+   },
+   {
+    "id": "whodunit-50-8",
+    "antwoord": "2",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$p = \\frac{2\\pi}{\\pi}$",
+    "categorie": "Reeks 2",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Bepaal de periode van $y = 3\\sin(\\pi x - 4)+2$."
+   },
+   {
+    "id": "whodunit-50-9",
+    "antwoord": "247500",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$S_{450} = \\frac{450 \\cdot (101 + 999)}{2}$",
+    "categorie": "Reeks 3",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Bepaal de som van alle oneven getallen met 3 cijfers."
+   },
+   {
+    "id": "whodunit-50-10",
+    "antwoord": "$[-9, -1]$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "",
+    "categorie": "Reeks 3",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Wat is het bereik van de functie $f$ met voorschrift $f(x) = 4\\sin(2x+1)-5$?",
+    "alternatieven": [
+     "[-9;-1]"
+    ]
+   },
+   {
+    "id": "whodunit-50-11",
+    "antwoord": "$y = \\sin\\left(6\\left(x+\\frac{2+\\pi}{6}\\right)\\right)-1$",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "$-\\sin t = \\sin(t \\pm \\pi)$",
+    "categorie": "Reeks 3",
+    "punten": 100,
+    "type": "open",
+    "tekst": "Herleid naar de algemene sinusfunctie: $y = -\\sin(6x+2)-1$.",
+    "alternatieven": [
+     "$y = \\sin\\left(6\\left(x+\\frac{2-\\pi}{6}\\right)\\right)-1$",
+     "y = sin(6x+2+π)-1",
+     "y = sin(6x+2-π)-1"
+    ]
+   },
+   {
+    "id": "whodunit-50-12",
+    "antwoord": "-3",
+    "opties": [
+     "",
+     "",
+     "",
+     ""
+    ],
+    "juisteOptie": 0,
+    "uitleg": "Terugrekenen: $z = 1$, $y = -1$, $x = 2$, $w = -3$.",
+    "categorie": "Reeks 3",
+    "punten": 100,
+    "type": "open",
+    "tekst": "In de rij $\\ldots, w, x, y, z, 0, 1, 1, 2, 3, 5, 8, 13, \\ldots$ is elke term de som van de vorige twee termen. Bepaal $w$.",
+    "alternatieven": [
+     "w=-3"
+    ]
+   }
+  ],
+  "aangemaakt": "2026-10-25T00:00:00.000Z",
+  "gewijzigd": "2026-10-25T00:00:00.000Z",
+  "raadsel": {
+   "titel": "50 dagen om nooit te vergeten!",
+   "verhaal": "De nacht van de 50 dagen was plezant! Iedereen heeft zich geamuseerd, er werd gedanst en gelachen, maar er waren 4 vrienden die toch weer speciaal moesten doen... Ze hebben alle 4 iets uitgestoken en zijn 1 voor 1 gecrasht. Gelukkig waren er ook enkele leerkrachten ter plaatse om een oogje in het zeil te houden.\n\nDe volgende dag werd de beruchte avond uitvoerig besproken. Alleen was het voor iedereen wel een vage avond, dus weten we niet meer precies hoe hij is afgelopen... We hebben rondgevraagd en een heleboel roddels verzameld. Apart zijn we er niet zo veel mee, maar samen leveren ze wat meer informatie op.\n\nKun jij achterhalen wie wat precies heeft uitgestoken?",
+   "kolomTitel": "Deze leerling is gecrasht als...",
+   "kolommen": [
+    "1e",
+    "2e",
+    "3e",
+    "4e"
+   ],
+   "categorieen": [
+    {
+     "naam": "Naam",
+     "oplossing": [
+      "Fien",
+      "Lars",
+      "Mats",
+      "Noor"
+     ]
+    },
+    {
+     "naam": "Drankje",
+     "oplossing": [
+      "Cava",
+      "Bier",
+      "Cocktails",
+      "Wijn"
+     ]
+    },
+    {
+     "naam": "Outfit",
+     "oplossing": [
+      "Dierenonesie",
+      "Overall",
+      "Bontjas",
+      "Geruit hemd"
+     ]
+    },
+    {
+     "naam": "Stunt",
+     "oplossing": [
+      "Gevochten met de turnleraar",
+      "Gepaaldanst met de leraar Frans",
+      "Midnightsnack met de directeur",
+      "In slaap gevallen in de lerarenkamer"
+     ]
+    }
+   ],
+   "hints": [
+    "De bierdrinker hing heel de avond aan de paal.",
+    "Het vechtersbaasje is ofwel als eerste gecrasht, ofwel als allerlaatste.",
+    "De wijnliefhebber viel in slaap in de lerarenkamer.",
+    "De wijndrinker is ofwel als eerste, ofwel als laatste gecrasht.",
+    "De persoon in de dierenonesie is vlak voor of vlak na Lars gecrasht.",
+    "Fien was een varkentje.",
+    "De cavafanaat was er ofwel als eerste, ofwel als laatste helemaal aan.",
+    "De dierenvriend dronk heel de avond cava.",
+    "De persoon met de overall is gecrasht vlak voor of vlak na de snacker.",
+    "De snacker crashte vlak voor of vlak na het geruite hemd.",
+    "Het geruite hemdje was de last one standing.",
+    "Mats is de voorlaatste die gecrasht is."
+   ]
+  }
+ }
+}

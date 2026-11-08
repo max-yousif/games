@@ -305,17 +305,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     }
   }
 
-  if (store.sets.length === 0) {
-    return (
-      <div>
-        <PageHeader title="Spelen" />
-        <Notice>
-          Maak eerst een <a className="underline" href={href({ pagina: 'sets' })}>vragenset</a>.
-        </Notice>
-      </div>
-    );
-  }
-
   const spelInfo = SPELLEN.find((s) => s.type === spel) ?? null;
   const klasGekozen = klasId !== null;
 
@@ -484,7 +473,13 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 </button>
               );
             })}
-            {sets.length === 0 && <p className="text-slate-500">Geen vragenset gevonden voor “{zoek}”.</p>}
+            {store.sets.length === 0 ? (
+              <Notice>
+                Maak eerst een <a className="underline" href={href({ pagina: 'sets' })}>vragenset</a>.
+              </Notice>
+            ) : (
+              sets.length === 0 && <p className="text-slate-500">Geen vragenset gevonden voor “{zoek}”.</p>
+            )}
           </div>
         </Section>
       )}

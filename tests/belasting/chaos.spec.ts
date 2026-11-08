@@ -232,14 +232,17 @@ async function zetKlaar(page: Page) {
     quiz: 'Live quiz',
   };
   if (!naam[SPEL]) throw new Error(`Onbekend spel: ${SPEL}`);
+  // Vaste testsets, onafhankelijk van wat er in het account staat.
   if (SPEL === 'escape') await testset('escape-set.json');
+  else if (SPEL === 'whodunit') await testset('whodunit-set.json');
+  else if (SPEL === 'quiz') await testset('quiz-set.json');
   else if (['codekraker', 'detectivezaak', 'territorium', 'puzzel'].includes(SPEL)) await testset('codekraker-set.json');
   await page.goto('#/spelen');
   await page.getByRole('button', { name: naam[SPEL], exact: true }).click();
   await zonderKlas();
   if (SPEL === 'escape') await kiesSet('Ontsnap uit het wiskundelokaal (test)');
-  else if (SPEL === 'whodunit') await kiesSet('Whodunit: de nacht van de 50 dagen (5e–6e jaar)');
-  else if (SPEL === 'quiz') await kiesSet('Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))');
+  else if (SPEL === 'whodunit') await kiesSet('Whodunit: de nacht van de 50 dagen (test) (5e–6e jaar)');
+  else if (SPEL === 'quiz') await kiesSet('Algebra: merkwaardige producten en ontbinden (test) (3e jaar (5 u))');
   else if (SPEL !== 'grafiekjacht') await kiesSet('Codekraker test (test)');
   if (await select('Totale tijd').count()) await select('Totale tijd').selectOption('');
   if (await select('Wachten na fout antwoord').count()) await select('Wachten na fout antwoord').selectOption('0');
