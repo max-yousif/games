@@ -178,7 +178,7 @@ export const FOUT_TEKST: Record<FoutCode, string> = {
   geen_vraag: 'Deze vraag is al afgesloten.',
   al_geantwoord: 'Je hebt deze vraag al beantwoord.',
   te_laat: 'Te laat: de tijd was om.',
-  al_opgelost: 'Dit slot is al open.',
+  al_opgelost: 'Dit is al beantwoord.',
   wacht: 'Even wachten voor je opnieuw probeert.',
   bijnaam_bezet: 'Die bijnaam kan niet: het is de naam van een klasgenoot of iemand anders gebruikt hem al.',
   geen_speler: 'Je bent niet (meer) aangemeld in dit spel.',
