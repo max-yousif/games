@@ -155,6 +155,8 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
    */
   // Stand die nog doorgestuurd moet worden, per sessie (zie wijzigSessie).
   const STAND_MS = 3000;
+  /** Territorium: het veld iets sneller (anderen zien je tekening dan vlotter), maar het is groot. */
+  const VELD_MS = 2500;
   const standWacht = new Map<string, { patch: Partial<Pick<LiveSessie, 'status' | 'oplossing' | 'stand'>>; timer: number }>();
   const standLaatst = new Map<string, number>();
 
@@ -438,8 +440,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
         w.patch = { ...w.patch, ...patch };
         return;
       }
-      // Met het veld (Territorium) iets sneller: anderen zien je tekening dan vlotter.
-      const wacht = Math.max(0, (standLaatst.get(sessieId) ?? 0) + ('oplossing' in patch ? STAND_MS / 2 : STAND_MS) - Date.now());
+      const wacht = Math.max(0, (standLaatst.get(sessieId) ?? 0) + ('oplossing' in patch ? VELD_MS : STAND_MS) - Date.now());
       const nieuw = {
         patch,
         timer: window.setTimeout(() => {
