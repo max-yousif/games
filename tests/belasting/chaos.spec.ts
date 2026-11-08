@@ -316,7 +316,19 @@ test(`${SPEL} met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten, chaos ${CHAOS}`,
       bord.push(await meetBord(page, start).catch(() => ({ t: -1, beeldMs: -1, geheugenMb: -1, meldingen: -1 })));
     }
   })();
-  await Promise.all([bordMeten, ...spelers.map((s) => leerling(s.ctx, s.p, code, s.naam, einde, s.m))]);
+  // Optioneel: een CPU-profiel van het bord in de laatste 20 seconden (PROFIEL=bestand.json).
+  const profiel = process.env.PROFIEL
+    ? (async () => {
+        await page.waitForTimeout(Math.max(0, einde - Date.now() - 20_000));
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send('Profiler.enable');
+        await cdp.send('Profiler.start');
+        await page.waitForTimeout(18_000);
+        const { profile } = await cdp.send('Profiler.stop');
+        writeFileSync(process.env.PROFIEL!, JSON.stringify(profile));
+      })()
+    : Promise.resolve();
+  await Promise.all([bordMeten, profiel, ...spelers.map((s) => leerling(s.ctx, s.p, code, s.naam, einde, s.m))]);
 
   const som = (f: (m: Meting) => number) => spelers.reduce((t, s) => t + f(s.m), 0);
   const meldingen: Record<string, number> = {};

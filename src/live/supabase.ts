@@ -148,10 +148,23 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
   const { sb, uid } = supabaseClient(url, key);
 
   /**
-   * Volgt een tabel: haalt alles opnieuw op bij elke wijziging (en elke 15 seconden als vangnet,
-   * voor het geval een realtime-bericht verloren gaat).
+   * Volgt een tabel: haalt alles op bij het starten, na een onderbreking en elke minuut als vangnet
+   * (voor het geval een realtime-bericht verloren gaat). Bij een wijziging wordt de meegestuurde rij
+   * gebruikt als dat kan (`uitBericht`), anders wordt alles opnieuw opgehaald: zo gaat niet bij elke
+   * wijziging alles opnieuw naar elke laptop.
    */
-  function volg<T>(tabel: string, filter: string, ophalen: () => Promise<T>, cb: (t: T) => void): () => void {
+  // Stand die nog doorgestuurd moet worden, per sessie (zie wijzigSessie).
+  const STAND_MS = 3000;
+  const standWacht = new Map<string, { patch: Partial<Pick<LiveSessie, 'status' | 'oplossing' | 'stand'>>; timer: number }>();
+  const standLaatst = new Map<string, number>();
+
+  function volg<T>(
+    tabel: string,
+    filter: string,
+    ophalen: () => Promise<T>,
+    cb: (t: T) => void,
+    uitBericht?: (p: { eventType: string; new: unknown }) => T | undefined,
+  ): () => void {
     let actief = true;
     let bezig = false;
     let opnieuw = false;
@@ -182,7 +195,11 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
         if (!actief) return;
         kanaal = c
           .channel(`${tabel}:${filter}:${Math.random().toString(36).slice(2)}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: tabel, filter }, () => void verversen())
+          .on('postgres_changes', { event: '*', schema: 'public', table: tabel, filter }, (p: { eventType: string; new: unknown }) => {
+            const t = uitBericht?.(p);
+            if (t === undefined) void verversen();
+            else if (actief) cb(t);
+          })
           .subscribe((status) => {
             if (status === 'SUBSCRIBED') void verversen();
             else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') zetVerbinding('verbinden');
@@ -197,7 +214,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     };
     window.addEventListener('online', wakker);
     document.addEventListener('visibilitychange', wakker);
-    const interval = window.setInterval(() => void verversen(), 15000);
+    const interval = window.setInterval(() => void verversen(), 60_000);
     return () => {
       actief = false;
       window.clearInterval(interval);
@@ -210,7 +227,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
   /**
    * Een lange lijst rijen volgen (bv. de antwoorden): de wijzigingen komen één per één binnen via
    * realtime en worden in de lijst verwerkt, zonder telkens alles op te halen. Bij het starten, na een
-   * onderbreking en elke minuut wordt alles opnieuw opgehaald (in blokken, zonder grens) als controle.
+   * onderbreking en elke 5 minuten wordt alles opnieuw opgehaald (in blokken, zonder grens) als controle.
    */
   function volgRijen<T extends { id: string }>(tabel: string, filter: string, allesOphalen: () => Promise<T[]>, uitRij: (r: unknown) => T, cb: (t: T[]) => void): () => void {
     let actief = true;
@@ -290,7 +307,8 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     };
     window.addEventListener('online', wakker);
     document.addEventListener('visibilitychange', wakker);
-    const interval = window.setInterval(() => void verversen(), 60000);
+    // Alles opnieuw ophalen is duur bij een lang spel (duizenden rijen): enkel als vangnet.
+    const interval = window.setInterval(() => void verversen(), 5 * 60_000);
     return () => {
       actief = false;
       window.clearTimeout(gepland);
@@ -400,8 +418,37 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     },
 
     async wijzigSessie(sessieId, patch) {
-      const { error } = await (await sb()).from('live_sessies').update(patch).eq('id', sessieId);
-      if (error) vertaal(error);
+      // Enkel de stand (en het veld): samenvoegen en hoogstens om de STAND_MS doorsturen. Elke
+      // wijziging gaat naar elke laptop, dus na elk nagekeken antwoord zou dat te veel verkeer geven.
+      const alleenStand = Object.keys(patch).every((k) => k === 'stand' || k === 'oplossing');
+      const w = standWacht.get(sessieId);
+      if (!alleenStand) {
+        // Iets anders (bv. het einde): meteen, samen met wat nog wachtte.
+        if (w) {
+          window.clearTimeout(w.timer);
+          standWacht.delete(sessieId);
+          patch = { ...w.patch, ...patch };
+        }
+        standLaatst.set(sessieId, Date.now());
+        const { error } = await (await sb()).from('live_sessies').update(patch).eq('id', sessieId);
+        if (error) vertaal(error);
+        return;
+      }
+      if (w) {
+        w.patch = { ...w.patch, ...patch };
+        return;
+      }
+      // Met het veld (Territorium) iets sneller: anderen zien je tekening dan vlotter.
+      const wacht = Math.max(0, (standLaatst.get(sessieId) ?? 0) + ('oplossing' in patch ? STAND_MS / 2 : STAND_MS) - Date.now());
+      const nieuw = {
+        patch,
+        timer: window.setTimeout(() => {
+          standWacht.delete(sessieId);
+          standLaatst.set(sessieId, Date.now());
+          void sb().then((c) => c.from('live_sessies').update(nieuw.patch).eq('id', sessieId));
+        }, wacht),
+      };
+      standWacht.set(sessieId, nieuw);
     },
 
     async beoordeel(sessieId, items) {
@@ -504,15 +551,28 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
     },
 
     volgSessie(sessieId, cb) {
+      // De laatst bekende rij zoals de database ze gaf.
+      let ruw: Record<string, unknown> | null = null;
       return volg(
         'live_sessies',
         `id=eq.${sessieId}`,
         async () => {
           const { data, error } = await (await sb()).from('live_sessies').select('*').eq('id', sessieId).maybeSingle();
           if (error) vertaal(error);
+          ruw = data;
           return data ? sessieUit(data) : null;
         },
         cb,
+        (p) => {
+          if (p.eventType === 'DELETE') return null;
+          // Grote kolommen die niet veranderden (bv. de vragen), stuurt de database niet altijd mee:
+          // de meegestuurde kolommen samenvoegen met wat er al was. Nog niets? Dan alles ophalen.
+          if (!ruw || !p.new) return undefined;
+          const samen: Record<string, unknown> = { ...ruw };
+          for (const [k, v] of Object.entries(p.new as Record<string, unknown>)) if (v !== undefined && v !== 'unchanged_toast') samen[k] = v;
+          ruw = samen;
+          return sessieUit(samen);
+        },
       );
     },
   };

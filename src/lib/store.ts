@@ -41,12 +41,22 @@ export function useStore(): Store {
   useEffect(() => saveVoorbeelden([...new Set([...(loadVoorbeelden() ?? []), ...VOORBEELDSETS.map((v) => v.voorbeeld!)])]), []);
   useEffect(() => saveSets(sets), [sets]);
   useEffect(() => saveKlassen(klassen), [klassen]);
-  useEffect(() => saveSessies(sessies), [sessies]);
+  // Tijdens een live spel verandert dit na elk antwoord en wordt het steeds groter: niet telkens
+  // meteen bewaren, wel bij het sluiten van de pagina.
+  const sessiesRef = useRef(sessies);
+  sessiesRef.current = sessies;
+  useEffect(() => {
+    const t = window.setTimeout(() => saveSessies(sessies), 1000);
+    return () => window.clearTimeout(t);
+  }, [sessies]);
+  useEffect(() => {
+    const bewaar = () => saveSessies(sessiesRef.current);
+    window.addEventListener('pagehide', bewaar);
+    return () => window.removeEventListener('pagehide', bewaar);
+  }, []);
 
   // "Resultaten bewaren" op het eindscherm: het spel komt bij de resultaten en telt mee in de
   // statistiek van zijn vragenset (anders niet).
-  const sessiesRef = useRef(sessies);
-  sessiesRef.current = sessies;
   const telGespeeld = useCallback((id: string) => {
     const s = sessiesRef.current.find((x) => x.id === id);
     if (!s) return;

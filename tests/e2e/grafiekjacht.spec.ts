@@ -3,10 +3,14 @@ import { geenFouten, leerling, maakKlas, startLive } from './helpers';
 
 /** De voorschriften van de doelgrafieken, uit de sessie op de laptop van de leerkracht. */
 async function voorschriften(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const sessies = JSON.parse(localStorage.getItem('games.v1.sessies') ?? '[]') as { spelType: string; vragen: { antwoord: string }[] }[];
-    return sessies.find((s) => s.spelType === 'grafiekjacht')!.vragen.map((v) => v.antwoord);
-  });
+  // De sessie wordt na een seconde bewaard.
+  const lees = () =>
+    page.evaluate(() => {
+      const sessies = JSON.parse(localStorage.getItem('games.v1.sessies') ?? '[]') as { spelType: string; vragen: { antwoord: string }[] }[];
+      return sessies.find((s) => s.spelType === 'grafiekjacht')?.vragen.map((v) => v.antwoord) ?? [];
+    });
+  await expect.poll(lees).not.toEqual([]);
+  return lees();
 }
 
 async function dienIn(p: Page, voorschrift: string) {
