@@ -262,6 +262,17 @@ export function bijnamenVan(spelers: readonly LiveSpeler[]): Record<string, stri
  * Excel-export werken zoals bij de klassikale spellen. Spelers die niet op de klaslijst
  * staan (vrije naam) worden aan het team toegevoegd.
  */
+/** Zijn de beurten hetzelfde? Sneller dan alles als tekst vergelijken (bij een lang spel duizenden beurten). */
+export function beurtenGelijk(a: readonly Beurt[], b: readonly Beurt[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.vraagId !== y.vraagId || x.leerlingId !== y.leerlingId || x.juist !== y.juist || x.punten !== y.punten || x.team !== y.team) return false;
+  }
+  return true;
+}
+
 export function synchroniseer(sessie: Sessie, spelers: readonly LiveSpeler[], antwoorden: readonly LiveAntwoord[], volgorde: readonly string[]): Sessie {
   const team = sessie.teams[0];
   const leerlingen: Leerling[] = [...team.leerlingen];

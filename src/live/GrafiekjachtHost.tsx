@@ -9,7 +9,7 @@ import { backend } from './config';
 import { afgewerkt, grafiekBeoordelingen, grafiekStand, publiek, voorschrift, type Doel } from './grafiekjacht';
 import { Oplossingen } from './GrafiekjachtSpeler';
 import { Wachtruimte } from './LiveHost';
-import { synchroniseer } from './logic';
+import { beurtenGelijk, synchroniseer } from './logic';
 import { ReactiesOpBord } from './Reacties';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
 
@@ -101,7 +101,7 @@ function GrafiekjachtActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) 
   useEffect(() => {
     const huidig = sessieRef.current;
     const s = synchroniseer(huidig, spelers, eindAntwoorden(spelers, bekend), huidig.vraagVolgorde);
-    if (JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) || s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length) onUpdate(s);
+    if (!beurtenGelijk(s.beurten, huidig.beurten) || s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length) onUpdate(s);
   }, [spelers, bekend, onUpdate]);
 
   useMuziek(server?.status === 'lobby' ? 'wacht' : server?.status === 'bezig' ? 'spel' : null);

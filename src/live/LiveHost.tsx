@@ -10,20 +10,7 @@ import type { Sessie, Vraag } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS, tekstMetGaten } from '../lib/vraagtypes';
 import { backend } from './config';
 import { ReactiesOpBord } from './Reacties';
-import {
-  antwoordWeergave,
-  automatischeBeoordelingen,
-  berekenStand,
-  groepeerAntwoorden,
-  oplossingVan,
-  publiekeVraag,
-  puntenVoor,
-  schermNaam,
-  synchroniseer,
-  type AntwoordGroep,
-  tussenstand,
-  type TussenstandRij,
-} from './logic';
+import { type AntwoordGroep, antwoordWeergave, automatischeBeoordelingen, berekenStand, beurtenGelijk, groepeerAntwoorden, oplossingVan, publiekeVraag, puntenVoor, schermNaam, synchroniseer, tussenstand, type TussenstandRij } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 import { speel, useMuziek } from '../lib/geluid';
 
@@ -64,7 +51,7 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
     const huidig = sessieRef.current;
     const s = synchroniseer(huidig, spelers, antwoorden, huidig.vraagVolgorde);
     if (
-      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      !beurtenGelijk(s.beurten, huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
       JSON.stringify(s.live?.bijnamen ?? {}) !== JSON.stringify(huidig.live?.bijnamen ?? {})
     ) {

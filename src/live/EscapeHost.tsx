@@ -10,7 +10,7 @@ import { escapeActieBeoordelingen, escapeAlsAntwoorden, escapeStaat, escapeStaat
 import { whodunitBeoordelingen } from './whodunit';
 import { OplossingTabel } from './Whodunit';
 import { Wachtruimte } from './LiveHost';
-import { leerlingenVan, schermNaam, synchroniseer } from './logic';
+import { beurtenGelijk, leerlingenVan, schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 import { speel, useMuziek } from '../lib/geluid';
 
@@ -92,7 +92,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
     const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, staat), huidig.vraagVolgorde);
     const ontsnapt = ontsnaptPerNaam(huidig, klaar);
     if (
-      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      !beurtenGelijk(s.beurten, huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
       JSON.stringify(ontsnapt) !== JSON.stringify(huidig.live?.ontsnapt ?? {}) ||
       JSON.stringify(s.live?.bijnamen ?? {}) !== JSON.stringify(huidig.live?.bijnamen ?? {})

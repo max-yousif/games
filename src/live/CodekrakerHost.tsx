@@ -9,7 +9,7 @@ import { codekrakerBeoordelingen, codekrakerStand, codekrakerToestand, isActie, 
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
-import { leerlingenVan, synchroniseer } from './logic';
+import { beurtenGelijk, leerlingenVan, synchroniseer } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
 
 const fmt = (n: number) => n.toLocaleString('nl-BE');
@@ -109,7 +109,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
     const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, vragen.length), huidig.vraagVolgorde);
     const munten = muntenPerNaam(huidig, toestand);
     if (
-      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      !beurtenGelijk(s.beurten, huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
       JSON.stringify(munten) !== JSON.stringify(huidig.live?.munten ?? {})
     ) {

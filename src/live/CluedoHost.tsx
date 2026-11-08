@@ -11,7 +11,7 @@ import { isActie, vraagIndex } from './codekraker';
 import { ReactiesOpBord } from './Reacties';
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
-import { leerlingenVan, synchroniseer } from './logic';
+import { beurtenGelijk, leerlingenVan, synchroniseer } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
@@ -127,7 +127,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
     const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, vragen), huidig.vraagVolgorde);
     const ontsnapt = opgelostPerNaam(huidig, toestand);
     if (
-      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      !beurtenGelijk(s.beurten, huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
       JSON.stringify(ontsnapt) !== JSON.stringify(huidig.live?.ontsnapt ?? {})
     ) {

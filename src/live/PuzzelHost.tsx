@@ -8,7 +8,7 @@ import type { Sessie, Vraag } from '../lib/types';
 import { isActie, vraagIndex } from './codekraker';
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
-import { synchroniseer } from './logic';
+import { beurtenGelijk, synchroniseer } from './logic';
 import { puzzelBeoordelingen, puzzelStand } from './puzzel';
 import { useFoto } from './PuzzelSpeler';
 import { ReactiesOpBord } from './Reacties';
@@ -104,7 +104,7 @@ function PuzzelActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
   useEffect(() => {
     const huidig = sessieRef.current;
     const s = synchroniseer(huidig, spelers, alsBeurten(bekend, vragen.length), huidig.vraagVolgorde);
-    if (JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) || s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length) onUpdate(s);
+    if (!beurtenGelijk(s.beurten, huidig.beurten) || s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length) onUpdate(s);
   }, [spelers, bekend, vragen.length, onUpdate]);
 
   useMuziek(server?.status === 'lobby' ? 'wacht' : server?.status === 'bezig' ? 'spel' : null);

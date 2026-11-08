@@ -331,11 +331,13 @@ export function codekrakerBeoordelingen(
   const bekend = new Set(spelers.map((s) => s.id));
   const open = antwoorden.filter((a) => a.juist === null && bekend.has(a.spelerId)).sort((a, b) => a.tijdMs - b.tijdMs || a.vraagNr - b.vraagNr);
   const uit: Beoordeling[] = [];
+  // Eén keer de toestand opbouwen en daarna elke beslissing erop toepassen (niet telkens alles
+  // opnieuw: bij een lang spel zijn dat duizenden antwoorden).
+  const t = codekrakerToestand(spelers, beoordeeldeLijst);
   for (const a of open) {
-    const t = codekrakerToestand(spelers, beoordeeldeLijst);
     const b = beslis(a, t, vragen, instellingen, rand);
     uit.push(b);
-    beoordeeldeLijst.push({ ...a, juist: b.juist, punten: b.punten, beloning: b.beloning ?? null });
+    pasToe(t, { ...a, juist: b.juist, punten: b.punten, beloning: b.beloning ?? null });
   }
   return uit;
 }

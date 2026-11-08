@@ -8,7 +8,7 @@ import type { Sessie, Vraag } from '../lib/types';
 import { isActie, vraagIndex } from './codekraker';
 import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
-import { leerlingenVan, synchroniseer } from './logic';
+import { beurtenGelijk, leerlingenVan, synchroniseer } from './logic';
 import { ReactiesOpBord } from './Reacties';
 import {
   aantalVakjes,
@@ -132,7 +132,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
     const s = synchroniseer(huidig, spelers, alsBeurten(antwoorden, vragen.length), huidig.vraagVolgorde);
     const gebied = gebiedPerNaam(huidig, toestand);
     if (
-      JSON.stringify(s.beurten) !== JSON.stringify(huidig.beurten) ||
+      !beurtenGelijk(s.beurten, huidig.beurten) ||
       s.teams[0].leerlingen.length !== huidig.teams[0].leerlingen.length ||
       JSON.stringify(gebied) !== JSON.stringify(huidig.live?.gebied ?? {}) ||
       JSON.stringify(kleuren) !== JSON.stringify(huidig.live?.kleuren ?? {})
