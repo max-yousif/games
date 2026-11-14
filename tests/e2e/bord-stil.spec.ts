@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 test('laptop van de leerkracht weg: leerlingen zien een melding, daarna wordt alles nagekeken', async ({ page }) => {
   test.setTimeout(90_000);
-  const vragen: string[] = [];
-  page.on('dialog', (d) => {
-    vragen.push(d.message());
-    void d.accept();
-  });
   await maakKlas(page, '4B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/escape-set.json');
@@ -20,7 +15,7 @@ test('laptop van de leerkracht weg: leerlingen zien een melding, daarna wordt al
   // Pauzeren tijdens een live spel: eerst bevestigen, dan kijkt niemand na.
   const sessie = page.url();
   await page.getByRole('button', { name: '⏸ Pauzeren' }).click();
-  expect(vragen.at(-1)).toMatch(/niets nagekeken/);
+  await bevestig(page, /niets nagekeken/);
 
   await anna.locator('main button', { hasText: 'Slot 1' }).click();
   if (await anna.getByLabel('Je antwoord').count()) {

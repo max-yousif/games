@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEigenNummers, verwijderNummer, voegNummerToe } from '../lib/eigenMuziek';
 import { beluister, MUZIEK_NAMEN, speel, speeltMuziek, useGeluid, type MuziekStijl } from '../lib/geluid';
 import { inputClass, labelClass, useUitklap } from './ui';
+import { bevestig } from '../lib/bevestig';
 
 const INGEBOUWD = Object.keys(MUZIEK_NAMEN) as MuziekStijl[];
 
@@ -125,7 +126,7 @@ export function GeluidMenu({ className = '' }: { className?: string }) {
                     type="button"
                     className="text-slate-400 hover:text-red-600"
                     aria-label={`${n.naam} verwijderen`}
-                    onClick={() => confirm(`"${n.naam}" verwijderen?`) && void verwijderNummer(n.id)}
+                    onClick={() => void bevestig(`"${n.naam}" verwijderen?`, { ja: 'Verwijderen', gevaarlijk: true }).then((ok) => { if (ok) void verwijderNummer(n.id); })}
                   >
                     ✕
                   </button>

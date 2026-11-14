@@ -6,6 +6,7 @@ import { datumTekst, SPEL_NAMEN } from '../lib/exportResults';
 import { href } from '../lib/route';
 import { isBewaard } from '../lib/session';
 import type { Store } from '../lib/store';
+import { bevestig } from '../lib/bevestig';
 
 const TEGELS = [
   { href: href({ pagina: 'spelen' }), icoon: '🎮', titel: 'Spelen', tekst: 'Kies een vragenset, een spel en een klas.' },
@@ -63,7 +64,7 @@ export function StartPage({ store }: { store: Store }) {
                 </a>
                 <Button
                   onClick={async () => {
-                    if (confirm(`"${s.setTitel}" (${s.klasNaam}) beëindigen? De resultaten blijven bewaard onder Resultaten.`)) store.bewaarSessie(await beeindigSpel(s));
+                    if (await bevestig(`"${s.setTitel}" (${s.klasNaam}) beëindigen? De resultaten blijven bewaard onder Resultaten.`, { ja: 'Beëindigen' })) store.bewaarSessie(await beeindigSpel(s));
                   }}
                 >
                   Beëindigen

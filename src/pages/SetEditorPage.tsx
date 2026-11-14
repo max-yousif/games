@@ -17,6 +17,7 @@ import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vraag, VraagType, Vragenset } from '../lib/types';
 import { isKeuzeVraag, VRAAG_TYPES } from '../lib/vraagtypes';
+import { bevestig } from '../lib/bevestig';
 
 export function SetEditorPage({ id, store }: { id: string; store: Store }) {
   const set = store.sets.find((s) => s.id === id);
@@ -147,7 +148,7 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
             <button
               type="button"
               className="ml-auto text-sm text-slate-500 underline"
-              onClick={() => confirm('Het eigen thema van de detectivezaak verwijderen? Dan wordt het standaardthema gebruikt.') && update((s) => ({ ...s, cluedo: undefined }))}
+              onClick={() => void bevestig('Het eigen thema van de detectivezaak verwijderen? Dan wordt het standaardthema gebruikt.', { ja: 'Verwijderen', gevaarlijk: true }).then((ok) => ok && update((s) => ({ ...s, cluedo: undefined })))}
             >
               Verwijderen (standaardthema gebruiken)
             </button>
@@ -186,8 +187,8 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
         <Button
           variant="ghost"
           className="ml-auto text-red-600 hover:bg-red-50"
-          onClick={() => {
-            if (!confirm(`Vragenset "${set.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`)) return;
+          onClick={async () => {
+            if (!(await bevestig(`Vragenset "${set.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`, { ja: 'Verwijderen', gevaarlijk: true }))) return;
             store.setSets((all) => all.filter((x) => x.id !== set.id));
             ga({ pagina: 'sets' });
           }}

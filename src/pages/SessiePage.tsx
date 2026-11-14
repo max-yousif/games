@@ -22,6 +22,7 @@ import { TerritoriumHost } from '../live/TerritoriumHost';
 import { GrafiekjachtHost } from '../live/GrafiekjachtHost';
 import { PuzzelHost } from '../live/PuzzelHost';
 import { useWakker } from '../lib/useWakker';
+import { bevestig } from '../lib/bevestig';
 
 /** Maakt de laatste handeling ongedaan (bij vier op een rij eerst de laatste schijf). */
 export function ongedaanMaken(s: Sessie): Sessie {
@@ -109,14 +110,14 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
           </ToolKnop>
           {!sessie.beeindigd && (
             <ToolKnop
-              onClick={() => (!liveLoopt || confirm('Pauzeren? Tot je terugkeert, wordt er niets nagekeken en wachten de leerlingen.')) && ga({ pagina: 'start' })}
+              onClick={async () => (!liveLoopt || (await bevestig('Pauzeren? Tot je terugkeert, wordt er niets nagekeken en wachten de leerlingen.', { ja: 'Pauzeren' }))) && ga({ pagina: 'start' })}
               title="Het spel blijft bewaard; je kan het later hervatten"
             >
               ⏸ Pauzeren
             </ToolKnop>
           )}
           {!sessie.beeindigd && !isLive && (
-            <ToolKnop onClick={() => confirm('Het spel beëindigen en de eindstand tonen?') && store.bewaarSessie(beeindig(sessie))}>⏹ Stoppen</ToolKnop>
+            <ToolKnop onClick={() => void bevestig('Het spel beëindigen en de eindstand tonen?', { ja: 'Beëindigen' }).then((ok) => ok && store.bewaarSessie(beeindig(sessie)))}>⏹ Stoppen</ToolKnop>
           )}
         </div>
       </header>

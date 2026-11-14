@@ -21,7 +21,6 @@ async function dienIn(p: Page, voorschrift: string) {
 test('grafiekjacht: voorschrift zoeken, eigen grafiek, fout, overslaan en einde', async ({ page }) => {
   test.setTimeout(90_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '5A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/spelen');
   await page.getByRole('button', { name: 'Grafiekjacht', exact: true }).click();

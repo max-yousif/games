@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { geenFouten, kiesSpel, maakKlas } from './helpers';
+import { bevestig, geenFouten, kiesSpel, maakKlas } from './helpers';
 
 test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé', 'Mertens Dries']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Quizbord');
   await page.getByRole('button', { name: /Start het spel/ }).click();
@@ -31,6 +30,7 @@ test('quizbord: klas, meerkeuze juist, open vraag fout, eindstand en Excel', asy
   await page.keyboard.press('f');
 
   await page.getByRole('button', { name: /Stoppen/ }).click();
+  await bevestig(page);
   await expect(page.getByText(/wint!|Gelijkspel/)).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /Resultaten exporteren/ }).click();

@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Live quiz');
   const code = await startLive(page);
@@ -17,7 +16,6 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(page.getByText('Pi', { exact: true })).toBeVisible();
 
   const bert = await leerling(page, code, 'Bert');
-  bert.on('dialog', (d) => void d.accept());
   // De naam van een klasgenoot mag geen bijnaam zijn.
   await bert.getByLabel('Bijnaam').fill('Anna');
   await bert.getByRole('button', { name: 'Opslaan' }).click();
@@ -35,6 +33,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
 
   // Bert verlaat het spel en keert terug met dezelfde naam.
   await bert.getByRole('button', { name: 'Verlaten' }).click();
+  await bevestig(bert);
   await expect(bert.getByText(/Je hebt het spel verlaten/)).toBeVisible();
   await bert.getByRole('button', { name: 'Bert', exact: true }).click();
   await expect(bert.getByText('Vraag 1 / 16')).toBeVisible();
@@ -78,6 +77,7 @@ test('live quiz: bijnaam, antwoorden, verlaten en terugkeren, nieuw spel', async
   await expect(anna.getByText('Helaas, fout')).toBeVisible();
 
   await page.getByRole('button', { name: /Nu stoppen/ }).click();
+  await bevestig(page);
   await expect(page.getByRole('button', { name: 'Afsluiten (niet bewaren)' })).toBeVisible();
   await expect(anna.getByText(/Je eindigde op plaats/)).toBeVisible();
   await anna.getByRole('button', { name: 'Nieuw spel meespelen' }).click();

@@ -6,6 +6,7 @@ import { dupliceerSet, nieuweSet, speelbareVragen, vakkenVan } from '../lib/ques
 import { ga, href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { Vak, Vragenset } from '../lib/types';
+import { bevestig } from '../lib/bevestig';
 
 export const VAK_LABELS: Record<Vak, string> = { wiskunde: 'Wiskunde', python: 'Python', ict: 'ICT', andere: 'Andere' };
 
@@ -108,8 +109,8 @@ export function SetsPage({ store }: { store: Store }) {
     }
   }
 
-  function verwijder(s: Vragenset) {
-    if (confirm(`Vragenset "${s.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`)) {
+  async function verwijder(s: Vragenset) {
+    if (await bevestig(`Vragenset "${s.titel}" verwijderen? Gespeelde resultaten blijven bewaard.`, { ja: 'Verwijderen', gevaarlijk: true })) {
       store.setSets((all) => all.filter((x) => x.id !== s.id));
     }
   }

@@ -13,6 +13,7 @@ import { plaatsVan, schermNaam } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveBackend, type LiveSessie, type LiveSpeler, type SessieInfo } from './types';
 import { ReactieKnoppen } from './Reacties';
 import { VerbindingsBolletje } from './VerbindingsBolletje';
+import { bevestig } from '../lib/bevestig';
 
 const BEWAARD = 'klasspelen.live-deelname';
 
@@ -69,7 +70,7 @@ export function LiveSpelerPage({ code: startCode, demo }: { code?: string; demo:
   );
 
   async function verlaat() {
-    if (!deelname || !confirm('Het spel verlaten? Je kan later terugkeren met dezelfde naam; je punten blijven bewaard.')) return;
+    if (!deelname || !(await bevestig('Het spel verlaten? Je kan later terugkeren met dezelfde naam; je punten blijven bewaard.', { ja: 'Verlaten' }))) return;
     // Eerst het spelscherm sluiten, dan pas de server verwittigen: zo meldt het spelscherm niet
     // nog "losgekoppeld" wanneer de server de naam vrijgeeft.
     weg('Je hebt het spel verlaten. Kies opnieuw je naam om terug te keren, of geef een andere code in.');

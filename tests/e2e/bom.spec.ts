@@ -3,7 +3,6 @@ import { geenFouten, kiesSpel, maakKlas } from './helpers';
 
 test('bom doorgeven: vragen kiezen, juist geeft door, ontploffing beslist', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await page.clock.install();
   await maakKlas(page, '3A', ['Peeters Anna', 'Claes Bert', 'Janssens Chloé', 'Mertens Dries']);
   await kiesSpel(page, 'Algebra: merkwaardige producten en ontbinden (3e jaar (5 u))', 'Bom doorgeven');

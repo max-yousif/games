@@ -13,6 +13,7 @@ import { Wachtruimte } from './LiveHost';
 import { beurtenGelijk, leerlingenVan, schermNaam, synchroniseer } from './logic';
 import { LiveFout, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 import { speel, useMuziek } from '../lib/geluid';
+import { bevestig } from '../lib/bevestig';
 
 /** Escape room en whodunit: elke leerling werkt in eigen tempo; de leerkracht volgt de voortgang. */
 /** Antwoorden per vraag in plaats van per slot (elke leerling heeft de vragen in een andere volgorde). */
@@ -213,7 +214,7 @@ function EscapeHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie:
             ) : (
               <Button onClick={() => setToonCode((t) => !t)}>{toonCode ? `Geheime code: ${code}` : 'Toon geheime code'}</Button>
             )}
-            <Button variant="primary" disabled={bezig} onClick={() => confirm(`${spelNaam} nu beëindigen?`) && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig(`${spelNaam} nu beëindigen?`, { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

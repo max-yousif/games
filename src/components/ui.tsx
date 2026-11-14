@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, type ComponentProps, type ReactNode } from 'react';
 
 /**
  * Uitklapmenu: sluit bij een klik ernaast of met Esc. Zet de ref op het element met de knop én
@@ -41,16 +41,17 @@ export function Section({ step, title, children, aside }: { step?: number; title
   );
 }
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'rood' | 'ghost';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-[var(--accent)] text-white hover:brightness-110',
   secondary: 'border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50',
   danger: 'border border-red-200 bg-surface text-red-700 hover:bg-red-50',
+  rood: 'bg-red-600 text-white hover:bg-red-700',
   ghost: 'text-slate-600 hover:bg-slate-100',
 };
 
-export function Button({ variant = 'secondary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+export function Button({ variant = 'secondary', className = '', ...props }: ComponentProps<'button'> & { variant?: Variant }) {
   return (
     <button
       type="button"

@@ -3,6 +3,7 @@ import { href } from '../lib/route';
 import type { Store } from '../lib/store';
 import type { CloudStatus } from '../lib/useCloud';
 import { Button, useUitklap } from './ui';
+import { bevestig } from '../lib/bevestig';
 
 const STATUS: Record<CloudStatus, { icoon: string; tekst: string }> = {
   uit: { icoon: '', tekst: '' },
@@ -61,8 +62,8 @@ export function AccountKnop({ store }: { store: Store }) {
           <Button
             variant="danger"
             className="w-full"
-            onClick={() => {
-              if (confirm('Afmelden en alles van deze computer wissen? Je vragensets, klassen en resultaten blijven in de cloud staan.')) {
+            onClick={async () => {
+              if (await bevestig('Afmelden en alles van deze computer wissen? Je vragensets, klassen en resultaten blijven in de cloud staan.', { ja: 'Afmelden', gevaarlijk: true })) {
                 setOpen(false);
                 void store.afmelden(true);
               }

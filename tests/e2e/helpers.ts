@@ -49,3 +49,11 @@ export function geenFouten(page: Page) {
   page.on('pageerror', (e) => fouten.push(e.message));
   return () => expect(fouten).toEqual([]);
 }
+
+/** Bevestigt het eigen bevestigingsvenster van de site (optioneel: controleert de vraag). */
+export async function bevestig(page: Page, vraag?: RegExp) {
+  const venster = page.getByRole('alertdialog');
+  if (vraag) await expect(venster).toContainText(vraag);
+  await venster.getByRole('button').last().click();
+  await expect(venster).toBeHidden();
+}

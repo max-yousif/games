@@ -1,10 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 test('territorium samen: een tekening samen inkleuren, enkel lege vakjes', async ({ page }) => {
   test.setTimeout(90_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '5C', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
@@ -39,6 +38,7 @@ test('territorium samen: een tekening samen inkleuren, enkel lege vakjes', async
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-bord.png') });
 
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByText(/Samen [\d,.]+ % ingekleurd/)).toBeVisible();
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK });
   await page.getByRole('button', { name: '💾 Resultaten bewaren' }).click();

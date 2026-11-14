@@ -13,6 +13,7 @@ import { puzzelBeoordelingen, puzzelStand } from './puzzel';
 import { useFoto } from './PuzzelSpeler';
 import { ReactiesOpBord } from './Reacties';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
+import { bevestig } from '../lib/bevestig';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
 
@@ -194,7 +195,7 @@ function PuzzelActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
               {stand.filter((r) => r.tijdMs != null).length} / {stand.length} af
             </span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('De puzzel nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig('De puzzel nu beëindigen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

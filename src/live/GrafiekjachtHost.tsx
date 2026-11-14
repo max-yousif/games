@@ -12,6 +12,7 @@ import { Wachtruimte } from './LiveHost';
 import { beurtenGelijk, synchroniseer } from './logic';
 import { ReactiesOpBord } from './Reacties';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
+import { bevestig } from '../lib/bevestig';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
 
@@ -191,7 +192,7 @@ function GrafiekjachtActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) 
               {stand.filter((r) => (r.klaar ?? 0) >= doelen.length).length} / {stand.length} klaar
             </span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Grafiekjacht nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig('Grafiekjacht nu beëindigen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

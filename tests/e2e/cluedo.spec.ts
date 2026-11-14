@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STANDAARD_THEMA, type KaartSoort } from '../../src/live/cluedo';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist en bekijkt welke kaart wegvalt. */
 async function juist(p: Page) {
@@ -24,7 +24,6 @@ async function kaarten(page: Page, soort: KaartSoort, namen: string[]) {
 
 test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oplossing', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '5B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
@@ -77,6 +76,7 @@ test('cluedo: eigen thema, kaarten wegstrepen, beschuldigen, ranglijst en oploss
   await expect(page.locator('li', { hasText: 'Anna' }).getByText(/^🎉 \d+:\d\d$/)).toBeVisible();
 
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByText('De oplossing', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('de dader')).toBeVisible();
   await expect(bert.getByText('Het spel is gedaan!')).toBeVisible();

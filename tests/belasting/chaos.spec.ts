@@ -75,8 +75,8 @@ function bewaak(p: Page, m: Meting) {
   telVerkeer(p, m);
   p.on('pageerror', (e) => m.paginafouten.push(e.message.slice(0, 200)));
   p.on('dialog', (d) => {
-    // Bevestigen (verlaten) is normaal; een alert zou betekenen dat ingetypte code uitgevoerd werd.
-    if (d.type() !== 'confirm') m.dialogen.push(`${d.type()}: ${d.message().slice(0, 80)}`);
+    // De site gebruikt geen browservensters meer; een alert zou betekenen dat ingetypte code uitgevoerd werd.
+    m.dialogen.push(`${d.type()}: ${d.message().slice(0, 80)}`);
     void d.accept();
   });
 }
@@ -197,6 +197,7 @@ async function leerling(ctx: BrowserContext, p: Page, code: string, naam: string
         m.tabbladen++;
       } else if (kans(0.001)) {
         await p.getByRole('button', { name: 'Verlaten' }).click({ timeout: 2000 });
+        await p.getByRole('alertdialog').getByRole('button', { name: 'Verlaten' }).click({ timeout: 2000 });
         m.verlaten++;
       } else await doeIets(p, m);
       for (const t of tabs) await doeIets(t, m).catch(() => {});
@@ -283,7 +284,6 @@ test(`${SPEL} met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten, chaos ${CHAOS}`,
   const hostVerkeer = { bytes: 0 };
   telVerkeer(page, hostVerkeer);
   page.on('pageerror', (e) => hostFouten.push(e.message.slice(0, 200)));
-  page.on('dialog', (d) => void d.accept());
   await page.goto('./');
   if (SUPABASE) {
     test.skip(!process.env.GAST_WACHTWOORD, 'GAST_WACHTWOORD ontbreekt');

@@ -4,7 +4,6 @@ import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 test('cluedo met opgaven per kaart: een gelijkwaardige uitkomst streept die kaart weg', async ({ page }) => {
   test.setTimeout(90_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/cluedo-integralen.json');

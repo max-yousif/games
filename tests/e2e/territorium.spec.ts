@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist en tekent een lijn op het veld (van links naar rechts op hoogte y). */
 async function juistEnTeken(p: Page, y: number) {
@@ -27,7 +27,6 @@ async function juistEnTeken(p: Page, y: number) {
 test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde', async ({ page }) => {
   test.setTimeout(90_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '5C', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
@@ -71,6 +70,7 @@ test('territorium: juist antwoord, tekenen, gebied op het bord, streak en einde'
   }
 
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByRole('cell', { name: 'Anna' })).toBeVisible();
   await expect(bert.getByText('Het spel is gedaan!')).toBeVisible();
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK });

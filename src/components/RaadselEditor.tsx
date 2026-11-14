@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { hintsVoorOefening, raadselProblemen } from '../live/whodunit';
 import type { Raadsel } from '../lib/types';
 import { Button, inputClass, labelClass, Notice } from './ui';
+import { bevestig } from '../lib/bevestig';
 
 /** Het raadsel van een vragenset voor het spel Whodunit: verhaal, tabel met de oplossing en hints. */
 export function RaadselEditor({ raadsel: r, aantalOefeningen, onChange, onVerwijder }: { raadsel: Raadsel; aantalOefeningen: number; onChange: (f: (r: Raadsel) => Raadsel) => void; onVerwijder: () => void }) {
@@ -161,7 +162,7 @@ export function RaadselEditor({ raadsel: r, aantalOefeningen, onChange, onVerwij
 
       {problemen.length > 0 && <Notice tone="warn">Nog te doen: {problemen.join(' ')}</Notice>}
       <div className="flex justify-end">
-        <Button variant="danger" onClick={() => confirm('Het raadsel verwijderen? De oefeningen blijven staan.') && onVerwijder()}>
+        <Button variant="danger" onClick={() => void bevestig('Het raadsel verwijderen? De oefeningen blijven staan.', { ja: 'Verwijderen', gevaarlijk: true }).then((ok) => ok && onVerwijder())}>
           Raadsel verwijderen
         </Button>
       </div>

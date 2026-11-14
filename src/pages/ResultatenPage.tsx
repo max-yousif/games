@@ -10,6 +10,7 @@ import { aantalSpelers, isBewaard, leerlingNaam, overzichtPerLeerling, procentJu
 import type { Store } from '../lib/store';
 import type { Sessie } from '../lib/types';
 import { jaarVanKlas, klasJaar } from './KlassenPage';
+import { bevestig } from '../lib/bevestig';
 
 const SPEL_ICONEN: Record<Sessie['spelType'], string> = {
   quizbord: '🟦',
@@ -239,9 +240,9 @@ export function ResultatenPage({ store }: { store: Store }) {
                           {open === s.id && (
                             <SessieDetail
                               sessie={s}
-                              onDelete={() => confirm('Dit resultaat verwijderen?') && store.setSessies((all) => all.filter((x) => x.id !== s.id))}
+                              onDelete={() => void bevestig('Dit resultaat verwijderen?', { ja: 'Verwijderen', gevaarlijk: true }).then((ok) => ok && store.setSessies((all) => all.filter((x) => x.id !== s.id)))}
                               onBeeindig={async () => {
-                                if (confirm('Dit spel beëindigen? De resultaten blijven bewaard.')) store.bewaarSessie(await beeindigSpel(s));
+                                if (await bevestig('Dit spel beëindigen? De resultaten blijven bewaard.', { ja: 'Beëindigen' })) store.bewaarSessie(await beeindigSpel(s));
                               }}
                             />
                           )}

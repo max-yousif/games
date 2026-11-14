@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Een slot openen en een antwoord kiezen (de vraag staat bij elke leerling achter een ander slot). */
 async function kies(p: Page, slot: number, antwoorden: Record<string, string>) {
@@ -18,7 +18,6 @@ async function kies(p: Page, slot: number, antwoorden: Record<string, string>) {
 test('escape room: elk antwoord geeft een cijfer, foute code = straftijd, juiste code = ontsnapt', async ({ page }) => {
   test.setTimeout(90_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '4B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/escape-set.json');
@@ -59,6 +58,7 @@ test('escape room: elk antwoord geeft een cijfer, foute code = straftijd, juiste
   await expect(page.locator('tr', { hasText: 'Anna' }).getByText('✗1')).toBeVisible();
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-bord.png') });
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByText(/ontsnapt!/).first()).toBeVisible();
   controleer();
 });

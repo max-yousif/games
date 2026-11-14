@@ -13,6 +13,7 @@ import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
 import { beurtenGelijk, leerlingenVan, synchroniseer } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
+import { bevestig } from '../lib/bevestig';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
 
@@ -224,7 +225,7 @@ function CluedoActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
               🎉 {aantalOpgelost} / {stand.length} opgelost
             </span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Detectivezaak nu beëindigen? De oplossing wordt dan getoond.') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig('Detectivezaak nu beëindigen? De oplossing wordt dan getoond.', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

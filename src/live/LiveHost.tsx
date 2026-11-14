@@ -13,6 +13,7 @@ import { ReactiesOpBord } from './Reacties';
 import { type AntwoordGroep, antwoordWeergave, automatischeBeoordelingen, berekenStand, beurtenGelijk, groepeerAntwoorden, oplossingVan, publiekeVraag, puntenVoor, schermNaam, synchroniseer, tussenstand, type TussenstandRij } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler } from './types';
 import { speel, useMuziek } from '../lib/geluid';
+import { bevestig } from '../lib/bevestig';
 
 
 /** Link die leerlingen openen op hun laptop. */
@@ -270,7 +271,7 @@ function LiveHostActief({ sessie, onUpdate, onBewaar, onVerwijder }: { sessie: S
                 {toonStand ? '← Terug naar het antwoord' : '📊 Tussenstand'}
               </Button>
               {nr + 1 < sessie.vraagVolgorde.length && (
-                <Button className="ml-auto" disabled={bezig} onClick={() => confirm('De quiz nu beëindigen en de eindstand tonen?') && void actie(einde)}>
+                <Button className="ml-auto" disabled={bezig} onClick={() => void bevestig('De quiz nu beëindigen en de eindstand tonen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
                   ⏹ Nu stoppen
                 </Button>
               )}
@@ -367,7 +368,7 @@ export function SpelersRaster({
                   type="button"
                   className="ml-1 hidden rounded-full px-1 text-sm opacity-60 group-hover:inline hover:opacity-100"
                   title={`Bijnaam van ${s.naam} wissen`}
-                  onClick={() => confirm(`De bijnaam "${s.bijnaam}" van ${s.naam} wissen?`) && onWisBijnaam(s.id)}
+                  onClick={() => void bevestig(`De bijnaam "${s.bijnaam}" van ${s.naam} wissen?`, { ja: 'Wissen' }).then((ok) => ok && onWisBijnaam(s.id))}
                 >
                   🚫
                 </button>
@@ -376,7 +377,7 @@ export function SpelersRaster({
                 type="button"
                 className="ml-1 hidden rounded-full px-1 text-sm opacity-60 group-hover:inline hover:opacity-100"
                 title="Loskoppelen (bv. als de leerling van laptop wisselt)"
-                onClick={() => confirm(`${s.naam} loskoppelen? De leerling kan zich daarna opnieuw aanmelden (ook op een andere laptop).`) && onOntkoppel(s.id)}
+                onClick={() => void bevestig(`${s.naam} loskoppelen? De leerling kan zich daarna opnieuw aanmelden (ook op een andere laptop).`, { ja: 'Loskoppelen' }).then((ok) => ok && onOntkoppel(s.id))}
               >
                 ✕
               </button>

@@ -6,6 +6,7 @@ import { readSpreadsheet, UnsupportedFileError } from '../lib/importFile';
 import type { Store } from '../lib/store';
 import { inkorten, isIngekort, korteNamen, naamKandidaten, naamVolgordeVan, raadNaamVolgorde, naarLeerlingen, plakNaarRijen, raadKlaslijst, sorteerOpNaam, type KlaslijstKeuze, type NaamKandidaat } from '../lib/students';
 import type { Klas, NaamVolgorde } from '../lib/types';
+import { bevestig } from '../lib/bevestig';
 
 /** Het leerjaar uit de naam van een klas: "3A" en "3 LAT" = 3, "6HW" = 6; anders null. */
 export function jaarVanKlas(naam: string): number | null {
@@ -38,8 +39,8 @@ export function KlassenPage({ store }: { store: Store }) {
           key={klas.id}
           klas={klas}
           onChange={(f) => store.setKlassen((all) => all.map((k) => (k.id === klas.id ? f(k) : k)))}
-          onDelete={() => {
-            if (confirm(`Klas "${klas.naam}" verwijderen? Gespeelde resultaten blijven bewaard.`)) {
+          onDelete={async () => {
+            if (await bevestig(`Klas "${klas.naam}" verwijderen? Gespeelde resultaten blijven bewaard.`, { ja: 'Verwijderen', gevaarlijk: true })) {
               store.setKlassen((all) => all.filter((k) => k.id !== klas.id));
               setGekozen(null);
             }
@@ -214,8 +215,8 @@ function KlasEditor({
             </div>
             <Button
               title="Bewaar enkel de voornaam en de initiaal van de achternaam (privacy)"
-              onClick={() =>
-                confirm('Alle namen inkorten tot voornaam en initiaal (bv. Peeters Anna → Anna P.)? De volledige namen worden niet meer bewaard.') &&
+              onClick={async () =>
+                (await bevestig('Alle namen inkorten tot voornaam en initiaal (bv. Peeters Anna → Anna P.)? De volledige namen worden niet meer bewaard.', { ja: 'Inkorten', gevaarlijk: true })) &&
                 onChange((k) => {
                   const kort = inkorten(
                     k.leerlingen.map((l) => l.naam),
@@ -246,7 +247,7 @@ function KlasEditor({
             <button
               type="button"
               className="ml-auto text-xs text-red-600 hover:underline"
-              onClick={() => confirm('Alle leerlingen uit deze klas verwijderen?') && onChange((k) => ({ ...k, leerlingen: [] }))}
+              onClick={() => void bevestig('Alle leerlingen uit deze klas verwijderen?', { ja: 'Verwijderen', gevaarlijk: true }).then((ok) => ok && onChange((k) => ({ ...k, leerlingen: [] })))}
             >
               alles wissen
             </button>

@@ -18,7 +18,6 @@ async function beantwoord(p: Page, juist: boolean) {
 test('puzzel: foto kiezen, stukjes verdienen, leggen, verkeerd en juist, einde met de foto', async ({ page }) => {
   test.setTimeout(120_000);
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '4B', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/escape-set.json');

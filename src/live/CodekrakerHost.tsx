@@ -11,6 +11,7 @@ import { backend } from './config';
 import { Wachtruimte } from './LiveHost';
 import { beurtenGelijk, leerlingenVan, synchroniseer } from './logic';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
+import { bevestig } from '../lib/bevestig';
 
 const fmt = (n: number) => n.toLocaleString('nl-BE');
 
@@ -208,7 +209,7 @@ function CodekrakerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             </span>
             <span className="text-3xl font-semibold">🔐 Codekraker</span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Codekraker nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig('Codekraker nu beëindigen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

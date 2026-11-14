@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '6A', ['Peeters Anna', 'Claes Bert']);
   await kiesSpel(page, 'Whodunit: de nacht van de 50 dagen (5e–6e jaar)', 'Whodunit');
   await page.locator('div', { has: page.locator('label', { hasText: 'Straftijd na een fout' }) }).locator('select').last().selectOption('0');
@@ -41,6 +40,7 @@ test('whodunit: oefening geeft een roddel, foute en juiste tabel', async ({ page
 
   await expect(page.getByText('🕵️ 1 / 1 opgelost')).toBeVisible();
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByText('Iedereen loste het raadsel op!')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'De oplossing' })).toBeVisible();
   await expect(anna.getByText(/Opgelost in/)).toBeVisible();

@@ -28,6 +28,7 @@ import {
 } from './territorium';
 import { LiveFout, type Beoordeling, type LiveAntwoord, type LiveSessie, type LiveSpeler, type StandRij } from './types';
 import { VeldBeeld } from './Veld';
+import { bevestig } from '../lib/bevestig';
 
 type Props = { sessie: Sessie; onUpdate: (s: Sessie) => void; onBewaar: () => void; onVerwijder: () => void };
 
@@ -225,7 +226,7 @@ function TerritoriumActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             </span>
             <span className="text-3xl font-semibold">{masker ? `🤝 Samen inkleuren: ${kleurplaatVan(live.kleurplaat)?.naam}` : '🖌️ Territorium'}</span>
             <span className="ml-auto font-mono text-slate-500">code {live.code}</span>
-            <Button variant="primary" disabled={bezig} onClick={() => confirm('Territorium nu beëindigen?') && void actie(einde)}>
+            <Button variant="primary" disabled={bezig} onClick={() => void bevestig('Territorium nu beëindigen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })}>
               ⏹ Beëindigen
             </Button>
           </div>

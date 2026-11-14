@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 /** Beantwoordt een vraag juist, opent een kistje en gaat door (hackkans overslaan). */
 async function ronde(p: Page) {
@@ -16,7 +16,6 @@ async function ronde(p: Page) {
 
 test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await maakKlas(page, '5A', ['Peeters Anna', 'Claes Bert']);
   await page.goto('#/sets');
   await page.locator('label:has-text("Openen uit bestand") input').setInputFiles('tests/e2e/fixtures/codekraker-set.json');
@@ -65,6 +64,7 @@ test('codekraker: wachtwoord, vragen, kistjes, ranglijst en einde', async ({ pag
   await expect(page.locator('li', { hasText: 'Bert' }).getByText('1 ✓')).toBeVisible();
 
   await page.getByRole('button', { name: /Beëindigen/ }).click();
+  await bevestig(page);
   await expect(page.getByText(/Meeste juiste antwoorden: Anna/)).toBeVisible();
   await expect(anna.getByText('Het spel is gedaan!')).toBeVisible();
   await page.getByRole('button', { name: '💾 Resultaten bewaren' }).click();

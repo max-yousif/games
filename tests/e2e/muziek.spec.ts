@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { geenFouten } from './helpers';
+import { bevestig, geenFouten } from './helpers';
 
 /** Een kort wav-bestand (0,2 s stilte). */
 function wav(): Buffer {
@@ -22,7 +22,6 @@ function wav(): Buffer {
 
 test('muziek: stijlen kiezen, beluisteren, eigen nummer toevoegen en verwijderen', async ({ page }) => {
   const controleer = geenFouten(page);
-  page.on('dialog', (d) => void d.accept());
   await page.goto('#/spelen');
   await page.getByRole('button', { name: /Geluid/ }).click();
   const wacht = page.getByLabel('Wachtmuziek (wachtruimte)');
@@ -51,6 +50,7 @@ test('muziek: stijlen kiezen, beluisteren, eigen nummer toevoegen en verwijderen
   await expect(page.getByText('notities.txt is geen muziekbestand.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Mijn klasnummer verwijderen' }).click();
+  await bevestig(page);
   await expect(page.getByText('Nog geen eigen nummers.')).toBeVisible();
   controleer();
 });
