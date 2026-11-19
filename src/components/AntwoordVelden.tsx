@@ -39,12 +39,8 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
           </Button>
           <label className="mt-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={v.gelijkwaardig ?? false} onChange={(e) => onChange((x) => ({ ...x, gelijkwaardig: e.target.checked || undefined }))} />
-            Elke gelijkwaardige uitdrukking is juist (bv. bij integralen: <code>Bgtan(ln x)+C</code> = <code>arctan(ln(x))</code>)
+            Elke gelijkwaardige uitdrukking is juist
           </label>
-          <p className="mt-1 text-xs text-slate-500">
-            Voeg andere schrijfwijzen toe die ook juist zijn (bv. <code>x=6</code> en <code>6</code>, of <code>dalparabool</code> en <code>parabool met top onderaan</code>). Bij een live quiz
-            wordt automatisch nagekeken (spaties, hoofdletters en $…$ maken niet uit); jij kan afwijkende antwoorden nog goedkeuren.
-          </p>
         </div>
       );
     }
@@ -65,7 +61,6 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
               onChange={(e) => onChange((x) => ({ ...x, tolerantie: Math.abs(Number(e.target.value.replace(',', '.'))) || 0 }))}
             />
           </div>
-          <p className="w-full text-xs text-slate-500">Leerlingen mogen een komma of punt gebruiken, een breuk (3/4) of “x = …”. Met foutmarge 0,1 is 12,4 tot 12,6 juist.</p>
         </div>
       );
     case 'waaronwaar':
@@ -125,7 +120,6 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
             <input type="checkbox" checked={v.alsCode ?? false} onChange={(e) => onChange((x) => ({ ...x, alsCode: e.target.checked }))} />
             Toon als code (inspringing blijft zichtbaar, handig voor Python)
           </label>
-          <p className="mt-1 text-xs text-slate-500">De leerlingen zien de items door elkaar.</p>
         </div>
       );
     case 'koppelen': {
@@ -158,7 +152,6 @@ export function AntwoordVelden({ vraag: v, onChange }: { vraag: Vraag; onChange:
               + paar
             </Button>
           )}
-          <p className="mt-1 text-xs text-slate-500">De rechterkolom wordt door elkaar getoond.</p>
         </div>
       );
     }

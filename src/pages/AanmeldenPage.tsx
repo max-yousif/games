@@ -41,7 +41,6 @@ export function AanmeldenPage({ store }: { store: Store }) {
   return (
     <form onSubmit={verstuur} className="mx-auto max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
       <h1 className="text-2xl font-bold">Aanmelden als leerkracht</h1>
-      <p className="text-sm text-slate-600">Na het aanmelden staan je vragensets, klassen en resultaten op elk toestel, en kan je live spellen starten.</p>
       <div>
         <label className={labelClass} htmlFor="login-naam">
           Gebruikersnaam
@@ -66,7 +65,6 @@ export function AanmeldenPage({ store }: { store: Store }) {
       <Button type="submit" variant="primary" className="w-full" disabled={bezig}>
         {bezig ? 'Bezig…' : 'Aanmelden'}
       </Button>
-      <p className="text-xs text-slate-500">Leerlingen hoeven niet aan te melden: zij gebruiken de spelcode.</p>
     </form>
   );
 }

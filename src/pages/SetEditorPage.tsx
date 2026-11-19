@@ -122,7 +122,6 @@ export function SetEditorPage({ id, store }: { id: string; store: Store }) {
           📥 Vragen importeren (plakken, Excel, AI)
         </a>
       </div>
-      <p className="mt-3 text-sm text-slate-500">Wijzigingen worden automatisch bewaard.</p>
 
       {/* Het raadsel verschijnt enkel als de set er een heeft (toevoegen onderaan of via Spelen → Whodunit). */}
       {set.raadsel && (

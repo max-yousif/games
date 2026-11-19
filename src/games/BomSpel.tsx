@@ -155,8 +155,7 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         {fase === 'klaar' && (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <p className="max-w-xl text-xl text-slate-600">
-              Beantwoord de vraag juist om de bom door te geven. Fout? Dan krijg je een nieuwe vraag, terwijl de bom verder tikt. Niemand weet wanneer ze ontploft… Het team met
-              de minste ontploffingen wint, als alle vragen gesteld zijn.
+              Juist = bom doorgeven. Fout = nieuwe vraag, de bom tikt verder. De minste ontploffingen wint.
             </p>
             <button type="button" onClick={nieuweRonde} className="mt-6 rounded-2xl bg-red-600 px-10 py-4 text-3xl font-bold text-white hover:bg-red-500">
               🔥 Steek de lont aan <span className="text-base opacity-70">(spatie)</span>

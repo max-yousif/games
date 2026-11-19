@@ -92,7 +92,6 @@ export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }
         <Button onClick={onOpnieuw}>↻ Opnieuw spelen met dezelfde teams</Button>
         <AfsluitKnoppen onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
-      <p className="mt-4 text-center text-sm text-slate-500">Afsluiten bewaart de resultaten onder Resultaten; zonder opslaan worden ze gewist.</p>
     </div>
   );
 }

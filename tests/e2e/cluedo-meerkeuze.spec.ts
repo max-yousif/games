@@ -11,7 +11,7 @@ test('cluedo met meerkeuzevragen: kaarten uit de uitleg, elke keuze streept stil
   await kiesSpel(page, 'Cluedo meerkeuze (test)', 'Detectivezaak');
   await page.getByText(/Verdachten, locaties en wapens voor dit spel/).click();
   await page.getByRole('button', { name: /Namen uit de vragenset/ }).click();
-  await expect(page.getByLabel('Elke kaart krijgt een eigen vraag', { exact: false })).toBeChecked();
+  await expect(page.getByLabel('Elke kaart een eigen vraag', { exact: false })).toBeChecked();
   // Alle kaarten ingeven en per soort de oplossing aanduiden; de andere kaarten krijgen een vraag.
   for (const [soort, titel, naam] of [['verdachte', 'Verdachten', 'Bob'], ['locatie', 'Locaties', 'Tuin'], ['wapen', 'Wapens', 'Touw']]) {
     await page.getByRole('button', { name: `+ ${soort}`, exact: true }).click();

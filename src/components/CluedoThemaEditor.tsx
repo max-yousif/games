@@ -130,15 +130,15 @@ export function CluedoThemaEditor({
           </div>
         ))}
       </div>
-      <p className="text-sm text-slate-500">Duid per soort de oplossing aan met het rondje; zonder aanduiding kiest de laptop bij elk spel zelf. Je kan ook een lijst plakken.</p>
+      <p className="text-sm text-slate-500">◯ = oplossing. Zonder aanduiding kiest de laptop zelf.</p>
 
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" className="mt-0.5" checked={metVragen} onChange={(e) => onChange({ ...thema, metVragen: e.target.checked || undefined, opgaven: undefined })} />
         <span>
-          Elke kaart krijgt een eigen vraag uit de set (behalve de oplossing): het juiste antwoord streept die kaart weg, een fout antwoord stil een andere.
+          Elke kaart een eigen vraag uit de set
           {metVragen && (
             <span className={`block ${vragen.length >= nodig ? 'text-slate-500' : 'font-semibold text-red-600'}`}>
-              Nodig: {nodig} vragen, de set heeft er {vragen.length}. Een vraag met “Wie? Naam” in de uitleg hoort bij die kaart; de andere worden willekeurig verdeeld.
+              Nodig: {nodig} vragen, de set heeft er {vragen.length}.
             </span>
           )}
         </span>

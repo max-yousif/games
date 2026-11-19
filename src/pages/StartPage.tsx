@@ -8,10 +8,10 @@ import { isBewaard } from '../lib/session';
 import type { Store } from '../lib/store';
 
 const TEGELS = [
-  { href: href({ pagina: 'spelen' }), icoon: '🎮', titel: 'Spelen', tekst: 'Kies een vragenset, een spel en een klas.' },
-  { href: href({ pagina: 'sets' }), icoon: '📝', titel: 'Vragensets', tekst: 'Maak, bewerk en bewaar je vragen.' },
-  { href: href({ pagina: 'klassen' }), icoon: '👥', titel: 'Klassen', tekst: 'Leerlingenlijsten per klas.' },
-  { href: href({ pagina: 'resultaten' }), icoon: '📊', titel: 'Resultaten', tekst: 'Gespeelde spellen bekijken en exporteren.' },
+  { href: href({ pagina: 'spelen' }), icoon: '🎮', titel: 'Spelen' },
+  { href: href({ pagina: 'sets' }), icoon: '📝', titel: 'Vragensets' },
+  { href: href({ pagina: 'klassen' }), icoon: '👥', titel: 'Klassen' },
+  { href: href({ pagina: 'resultaten' }), icoon: '📊', titel: 'Resultaten' },
 ];
 
 export function StartPage({ store }: { store: Store }) {
@@ -42,7 +42,6 @@ export function StartPage({ store }: { store: Store }) {
       <div className="flex flex-wrap items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold">Klasspelen</h1>
-          <p className="mt-1 text-slate-600">Klassikale spelletjes met je eigen vragen: wiskunde en Python.</p>
         </div>
         <a href={href({ pagina: 'live', demo: false })} className="ml-auto rounded-xl border-2 border-[var(--accent)] px-5 py-3 font-semibold text-[var(--accent-tekst)] hover:bg-[var(--accent-soft)]">
           💻 Leerling? Live meespelen
@@ -79,7 +78,6 @@ export function StartPage({ store }: { store: Store }) {
           <a key={t.titel} href={t.href} className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <div className="text-4xl">{t.icoon}</div>
             <div className="mt-3 text-lg font-semibold">{t.titel}</div>
-            <div className="mt-1 text-sm text-slate-600">{t.tekst}</div>
           </a>
         ))}
       </div>
@@ -92,17 +90,15 @@ export function StartPage({ store }: { store: Store }) {
           <p className="mb-4 text-sm text-slate-600">
             {aangemeld ? (
               <>
-                ☁️ Je vragensets, klassen en resultaten staan in je account en worden automatisch bewaard. Een back-upbestand is niet meer
-                nodig; af en toe één bewaren (bv. op het einde van een trimester) is een extra zekerheid.
+                ☁️ Alles staat al in je account; dit is een extra kopie.
               </>
             ) : (
               <>
-                Alles wordt bewaard in deze browser op deze laptop. Maak regelmatig een back-upbestand: zo verlies je niets als de
-                browsergegevens gewist worden, en kan je alles overzetten naar een andere laptop.
+                Alles staat enkel in deze browser.
                 {store.account.beschikbaar && (
                   <>
                     {' '}
-                    Of <a className="font-semibold text-[var(--accent-tekst)] underline" href={href({ pagina: 'aanmelden' })}>meld je aan</a>: dan staat alles automatisch in je account.
+                    <a className="font-semibold text-[var(--accent-tekst)] underline" href={href({ pagina: 'aanmelden' })}>meld je aan</a>
                   </>
                 )}
               </>

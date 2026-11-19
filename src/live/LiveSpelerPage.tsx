@@ -449,7 +449,7 @@ function Bijnaam({ be, sessieId, ik }: { be: LiveBackend; sessieId: string; ik: 
   return (
     <div className="mx-auto mt-8 max-w-md rounded-xl bg-slate-50 p-4 text-left">
       <div className="font-semibold">Bijnaam (optioneel)</div>
-      <p className="text-sm text-slate-500">Op het bord verschijnt je bijnaam in plaats van je echte naam. De leerkracht ziet wie je bent.</p>
+      <p className="text-sm text-slate-500">Op het bord verschijnt je bijnaam in plaats van je naam.</p>
       {huidig && (
         <p className="mt-2">
           Op het bord: <strong>{schermNaam({ naam: ik!.naam, bijnaam: huidig })}</strong>{' '}

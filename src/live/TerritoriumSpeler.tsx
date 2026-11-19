@@ -161,7 +161,7 @@ export function TerritoriumSpeler({
         <div>
           <VeldBeeld veld={veld} masker={masker} />
           <p className="mt-1 text-sm text-slate-500">
-            {masker ? 'Kleur samen de tekening in. ' : ''}Juist antwoord = {seconden} seconden tekenen. Meerdere juist na elkaar = een groter penseel.
+            Juist = {seconden} s tekenen. Meer juist na elkaar = groter penseel.
           </p>
         </div>
       </div>

@@ -440,9 +440,6 @@ function KlaslijstVoorbeeld({
             {v === 'voornaam' ? 'Voornaam Achternaam' : 'Achternaam Voornaam'}
           </label>
         ))}
-        <p className="mt-1 text-xs text-slate-500">
-          Achter elke naam zie je hoe de leerling bewaard wordt: enkel voornaam en initiaal van de achternaam (privacy). Op het scherm verschijnt de voornaam.
-        </p>
       </div>
 
       <div className="flex items-center justify-between text-sm">
