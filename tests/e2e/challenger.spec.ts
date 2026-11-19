@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
+import { bevestig, geenFouten, kiesSpel, leerling, maakKlas, startLive } from './helpers';
 
 const JUIST: Record<string, [string, string]> = { '2^5': ['32', '16'], sqrt: ['Waar', 'Onwaar'], '3+4': ['7', '999'] };
 
@@ -81,6 +81,7 @@ test('challenger: GET OUT, hart kwijt, comeback, hulplijnen en einde', async ({ 
   await page.getByRole('button', { name: 'Tussenstand ▶' }).click();
   await expect(page.getByRole('heading', { name: 'Tussenstand' })).toBeVisible();
   await page.getByRole('button', { name: '🏁 Spel beëindigen' }).click();
+  await bevestig(page, /beëindigen/);
   await expect(page.locator('[data-weetjes]')).toContainText('Meeste GET OUTs in één beurt');
   await expect(bert.getByText(/Plaats 1/)).toBeVisible();
   controleer();

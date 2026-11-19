@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { bevestig } from '../lib/bevestig';
 import { AfsluitKnoppen } from '../components/AfsluitKnoppen';
 import { RichText } from '../components/RichText';
 import { Button, Notice } from '../components/ui';
@@ -317,7 +318,7 @@ function ChallengerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
       {server.status !== 'lobby' && server.status !== 'einde' && (scherm === 'kiezen' || scherm === 'wacht') && <Kiezen spelers={verbonden} geweest={vroegereChallengers} bezig={bezig} onKies={kies} />}
 
       {server.status !== 'lobby' && server.status !== 'einde' && scherm === 'tussenstand' && (
-        <Tussenstand stand={maakStand(spelers, toestand)} uitslag={laatste?.uitslag ?? null} onVolgende={() => setScherm('kiezen')} onEinde={() => confirm('Het spel beëindigen?') && void actie(einde)} />
+        <Tussenstand stand={maakStand(spelers, toestand)} uitslag={laatste?.uitslag ?? null} onVolgende={() => setScherm('kiezen')} onEinde={() => void bevestig('Het spel beëindigen?', { ja: 'Beëindigen' }).then((ok) => { if (ok) void actie(einde); })} />
       )}
 
       {(server.status === 'vraag' || server.status === 'antwoord') && scherm === 'spel' && vraag && cv && toestand.challengerId && (
@@ -331,7 +332,7 @@ function ChallengerActief({ sessie, onUpdate, onBewaar, onVerwijder }: Props) {
             <Button disabled={bezig} onClick={() => void overslaan()}>
               ⏭ Overslaan
             </Button>
-            <Button disabled={bezig} onClick={() => confirm('De beurt van de challenger stoppen?') && beurtStoppen()}>
+            <Button disabled={bezig} onClick={() => void bevestig('De beurt van de challenger stoppen?', { ja: 'Stoppen' }).then((ok) => ok && beurtStoppen())}>
               ⏹ Beurt stoppen
             </Button>
           </div>
