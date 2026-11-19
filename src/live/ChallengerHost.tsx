@@ -657,25 +657,31 @@ function Groepen({ toestand, spelers }: { toestand: Toestand; spelers: LiveSpele
   );
 }
 
-/** "GET OUT, NAAM!" en "COMEBACK, NAAM!" groot in beeld, na elkaar. */
-export function Uitroepen({ uitslag, namen }: { uitslag: Uitslag; namen: Record<string, string> }) {
+/** "GET OUT, NAAM!" en "COMEBACK, NAAM!" als meldingen die langs de zijkant binnenkomen (zonder het bord te storen). */
+function Uitroepen({ uitslag, namen }: { uitslag: Uitslag; namen: Record<string, string> }) {
   const lijst = useMemo(
     () => [...uitslag.getOut.map((id) => ({ tekst: `GET OUT, ${namen[id] ?? '?'}!`, uit: true })), ...uitslag.comeback.map((id) => ({ tekst: `COMEBACK, ${namen[id] ?? '?'}!`, uit: false }))],
     [uitslag, namen],
   );
-  const [i, setI] = useState(0);
+  // Na elkaar binnenkomen, en na een tijdje weer weg.
+  const [aantal, setAantal] = useState(0);
+  const [weg, setWeg] = useState(false);
   useEffect(() => {
-    if (i >= lijst.length) return;
-    const t = window.setTimeout(() => setI((x) => x + 1), lijst.length > 6 ? 900 : 1500);
+    if (aantal < lijst.length) {
+      const t = window.setTimeout(() => setAantal((x) => x + 1), 350);
+      return () => window.clearTimeout(t);
+    }
+    const t = window.setTimeout(() => setWeg(true), 6000);
     return () => window.clearTimeout(t);
-  }, [i, lijst.length]);
-  const nu = lijst[i];
-  if (!nu) return null;
+  }, [aantal, lijst.length]);
+  if (weg || lijst.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" data-uitroep>
-      <div key={i} className={`pop rounded-3xl px-12 py-8 text-center text-7xl font-black text-white shadow-2xl ${nu.uit ? 'bg-red-600' : 'bg-emerald-600'}`}>
-        {nu.tekst}
-      </div>
+    <div className="pointer-events-none fixed right-4 bottom-20 z-40 flex max-h-[70vh] flex-col items-end gap-2 overflow-hidden" data-uitroep>
+      {lijst.slice(0, aantal).map((m, i) => (
+        <div key={i} className={`melding rounded-xl px-4 py-2 text-lg font-bold text-white shadow-lg ${m.uit ? 'bg-red-600' : 'bg-emerald-600'}`}>
+          {m.tekst}
+        </div>
+      ))}
     </div>
   );
 }

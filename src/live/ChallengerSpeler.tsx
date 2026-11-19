@@ -198,8 +198,8 @@ function GroteUitroep({ tekst, uit }: { tekst: string; uit: boolean }) {
   }, []);
   if (!zichtbaar) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" data-uitroep>
-      <div className={`pop rounded-3xl px-10 py-8 text-center text-6xl font-black text-white shadow-2xl ${uit ? 'bg-red-600' : 'bg-emerald-600'}`}>{tekst}</div>
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4" data-uitroep>
+      <div className={`pop text-center text-[11vw] leading-none font-black drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)] ${uit ? 'text-red-600' : 'text-emerald-500'}`}>{tekst}</div>
     </div>
   );
 }
