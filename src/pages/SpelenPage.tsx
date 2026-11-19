@@ -25,6 +25,27 @@ import { jarenVanSet, VAK_LABELS } from './SetsPage';
 import { klasJaar } from './KlassenPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
+/** Speluitleg bij stap 4, standaard ingeklapt. */
+const SPELUITLEG: Record<SpelType, string> = {
+  quizbord: 'Een bord met categorieën en punten. De teams kiezen om beurt een vak en beantwoorden de vraag; juist = de punten. Met dubbele punten verdient een leerling die alleen antwoordt (zonder overleggen) het dubbele.',
+  vieropeenrij: 'Twee teams beantwoorden om beurt een vraag. Juist = een schijf laten vallen. Wie eerst vier op een rij heeft, wint.',
+  bom: 'De bom tikt bij het team aan de beurt. Juist = de bom naar het volgende team; fout = een nieuwe vraag terwijl de bom verder tikt. Niemand weet wanneer ze ontploft. Alle vragen komen aan bod; de minste ontploffingen wint.',
+  live: 'Elke leerling beantwoordt dezelfde vraag op de eigen laptop; jij volgt live mee op het bord en kan afwijkende antwoorden nog goedkeuren. Met de snelheidsbonus levert sneller juist meer punten op.',
+  escape: 'Elk antwoord geeft een cijfer van de code, juist of niet. Wie denkt de code te hebben, test ze: juist = ontsnapt, fout = straftijd.',
+  codekraker:
+    'Elke leerling kiest een geheim wachtwoord en beantwoordt vragen in eigen tempo (de vragen komen steeds opnieuw). Na een juist antwoord kiest de leerling een kistje: munten (1.000 tot 25.000), een vermenigvuldiger, een firewall, pech of een kans om te hacken (iemand uit de top 3). Wie het wachtwoord raadt, steelt een deel van diens munten. De meeste munten op het einde wint.',
+  territorium: 'Juist antwoord = even tekenen in je eigen kleur; meer juist na elkaar = een groter penseel. 1 tegen allen: het meeste gebied wint, je mag over anderen kleuren. Samen inkleuren: samen één tekening inkleuren, elk in de eigen kleur.',
+  challenger:
+    'Eén leerling is de challenger, de rest is de klas. De klas antwoordt eerst, dan de challenger alleen. Juist? Wie in de klas fout was, vliegt naar de Comeback Zone (GET OUT!) en komt terug met twee juiste antwoorden na elkaar. Fout? Een hart minder. Hulplijnen, elk één keer per leerling in het hele spel: 📊 Wat denkt de klas?, 🐱 Copycat en 🎯 Tweede kans. Eén keer per beurt: 💰 inzet ×2.',
+  puzzel: 'Elk juist antwoord geeft een stukje van de foto; de leerling sleept het naar de juiste plaats. Wie de puzzel als eerste af heeft, wint. De foto blijft bij de vragenset.',
+  grafiekjacht:
+    'Elke leerling zoekt in eigen tempo het voorschrift bij dezelfde reeks grafieken en ziet de eigen grafiek meteen over de doelgrafiek. Eerste poging juist = 3 punten, tweede = 2, daarna 1. Na 2 foute pogingen mag een leerling de oplossing zien en verdergaan.',
+  cluedo:
+    'De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo; elk juist antwoord streept een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = straftijd. Wie het snelst oplost, wint.',
+  whodunit:
+    'Leerlingen lezen het verhaal, lossen de oefeningen op en krijgen voor elk juist antwoord een hint. Met de hints vullen ze de tabel in; wie de tabel als eerste volledig juist heeft, wint. Het raadsel stel je in onderaan de editor van de vragenset.',
+};
+
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
   { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Teams kiezen om beurt een vak. 2 tot 6 teams.' },
   { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist = een schijf laten vallen. 2 teams.' },
@@ -547,6 +568,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           </div>
 
           <Section step={4} title={isLive ? 'Instellingen' : 'Instellingen en teams'}>
+        <details className="mb-4 text-sm">
+          <summary className="cursor-pointer text-slate-500 hover:text-slate-700">📖 Speluitleg</summary>
+          <p className="mt-2 max-w-3xl text-slate-600">{SPELUITLEG[spel]}</p>
+        </details>
         <div className="mb-4 flex flex-wrap items-end gap-4">
           {(spel === 'quizbord' || spel === 'bom') && (
             <div className="w-36">

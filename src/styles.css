@@ -3,6 +3,7 @@
 /* Achtergrond van kaarten en velden (wit, of donker in dark mode). */
 @theme {
   --color-surface: #fff;
+  --font-sans: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
