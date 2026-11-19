@@ -1,3 +1,4 @@
+import type { Toestand as ChallengerToestand, Uitslag as ChallengerUitslag } from '../live/challenger';
 export type Vak = 'wiskunde' | 'python' | 'ict' | 'andere';
 
 export type VraagType = 'open' | 'meerkeuze' | 'waaronwaar' | 'getal' | 'invullen' | 'ordenen' | 'koppelen';
@@ -137,7 +138,7 @@ export interface CluedoOplossing {
   wapen: string;
 }
 
-export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium' | 'grafiekjacht' | 'puzzel';
+export type SpelType = 'quizbord' | 'vieropeenrij' | 'bom' | 'live' | 'escape' | 'whodunit' | 'codekraker' | 'cluedo' | 'territorium' | 'grafiekjacht' | 'puzzel' | 'challenger';
 
 export interface Team {
   naam: string;
@@ -188,6 +189,8 @@ export interface LiveInfo {
   hacken?: boolean;
   /** Grafiekjacht: de doelgrafieken (het voorschrift blijft op deze laptop). */
   doelen?: { basis: string; a: number; b: number; c: number; d: number }[];
+  /** Challenger: de toestand van het spel en per gespeelde vraag de uitslag (null = overgeslagen). */
+  challenger?: { toestand: ChallengerToestand; log: { q: number; vraagId: string; uitslag: ChallengerUitslag | null }[] };
   /** Puzzel: aantal stukjes (de foto zelf staat enkel op de server en in de vragenset). */
   stukjes?: number;
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */

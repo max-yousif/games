@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs';
 
 /**
  * Belastingstest met "onnozele" leerlingen, voor elk live spel. Instellingen via omgeving:
- *   SPEL        codekraker | escape | detectivezaak | territorium | puzzel | grafiekjacht | whodunit | quiz
+ *   SPEL        codekraker | escape | detectivezaak | territorium | puzzel | grafiekjacht | whodunit | quiz | challenger
  *   LEERLINGEN  aantal leerlingen (standaard 5)
  *   MINUTEN     duur (standaard 1)
  *   TEMPO       gemiddelde ms tussen twee acties van een leerling (standaard 3000)
@@ -230,13 +230,14 @@ async function zetKlaar(page: Page) {
     grafiekjacht: 'Grafiekjacht',
     whodunit: 'Whodunit',
     quiz: 'Live quiz',
+    challenger: 'Challenger',
   };
   if (!naam[SPEL]) throw new Error(`Onbekend spel: ${SPEL}`);
   // Vaste testsets, onafhankelijk van wat er in het account staat.
   if (SPEL === 'escape') await testset('escape-set.json');
   else if (SPEL === 'whodunit') await testset('whodunit-set.json');
   else if (SPEL === 'quiz') await testset('quiz-set.json');
-  else if (['codekraker', 'detectivezaak', 'territorium', 'puzzel'].includes(SPEL)) await testset('codekraker-set.json');
+  else if (['codekraker', 'detectivezaak', 'territorium', 'puzzel', 'challenger'].includes(SPEL)) await testset('codekraker-set.json');
   await page.goto('#/spelen');
   await page.getByRole('button', { name: naam[SPEL], exact: true }).click();
   await zonderKlas();
@@ -252,6 +253,7 @@ async function zetKlaar(page: Page) {
   }
   if (SPEL === 'grafiekjacht') await page.getByLabel('Aantal grafieken').selectOption('15');
   if (SPEL === 'quiz') await select('Timer per vraag').selectOption('30');
+  if (SPEL === 'challenger') await page.getByLabel('Tijd voor de klas').selectOption('15');
   await page.getByRole('button', { name: /Start het spel/ }).click();
   await expect(page.getByText('en geef deze code in:')).toBeVisible({ timeout: 30_000 });
   return (await page.locator('.tracking-\\[0\\.2em\\]').textContent())!.trim();
@@ -331,7 +333,19 @@ test(`${SPEL} met ${LEERLINGEN} leerlingen, ${MINUTEN} minuten, chaos ${CHAOS}`,
         writeFileSync(process.env.PROFIEL!, JSON.stringify(profile));
       })()
     : Promise.resolve();
-  await Promise.all([bordMeten, profiel, ...spelers.map((s) => leerling(s.ctx, s.p, code, s.naam, einde, s.m))]);
+  // Challenger: de leerkracht kiest challengers, gebruikt soms een hulplijn en gaat steeds verder.
+  const challengerLeiden =
+    SPEL === 'challenger'
+      ? (async () => {
+          const knoppen = /^(🔦 Spotlicht|▶ Eerste vraag|Volgende vraag ▶|Tussenstand ▶|Volgende challenger ▶)$/;
+          while (Date.now() < einde) {
+            if (Math.random() < 0.15) await page.getByRole('button', { name: /Wat denkt de klas\?|Copycat|Tweede kans|Inzet ×2/ }).and(page.locator(':enabled')).first().click({ timeout: 1000 }).catch(() => {});
+            await page.getByRole('button', { name: knoppen }).first().click({ timeout: 1000 }).catch(() => {});
+            await page.waitForTimeout(2000);
+          }
+        })()
+      : Promise.resolve();
+  await Promise.all([bordMeten, profiel, challengerLeiden, ...spelers.map((s) => leerling(s.ctx, s.p, code, s.naam, einde, s.m))]);
 
   const som = (f: (m: Meting) => number) => spelers.reduce((t, s) => t + f(s.m), 0);
   const meldingen: Record<string, number> = {};

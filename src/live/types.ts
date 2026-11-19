@@ -4,6 +4,7 @@ import type { PubliekRaadsel } from './whodunit';
 import type { TerritoriumModus } from './territorium';
 import type { GrafiekjachtPubliek } from './grafiekjacht';
 import type { PuzzelPubliek } from './puzzel';
+import type { ChallengerInstellingen, ChallengerVraag, Uitslag } from './challenger';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -20,6 +21,8 @@ export interface PubliekeVraag {
   alsCode: boolean;
   punten: number;
   categorie: string;
+  /** Challenger: fase, wie de challenger is en de hulplijnen. */
+  challenger?: ChallengerVraag;
 }
 
 export interface Oplossing {
@@ -27,6 +30,8 @@ export interface Oplossing {
   juisteOptie: number | null;
   antwoord: string;
   uitleg: string;
+  /** Challenger: wie eruit vloog, wie terugkwam, punten. */
+  challenger?: Uitslag;
 }
 
 export interface StandRij {
@@ -44,6 +49,9 @@ export interface StandRij {
   /** Territorium: kleurnummer en huidige reeks juiste antwoorden. */
   kleur?: number;
   reeks?: number;
+  /** Challenger: rol en harten (van de challenger). */
+  rol?: 'klas' | 'zone' | 'challenger';
+  harten?: number;
   /** Grafiekjacht: aantal afgewerkte rondes. */
   klaar?: number;
   /** Codekraker: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */
@@ -81,6 +89,8 @@ export interface LiveSessie {
   grafiekjacht?: GrafiekjachtPubliek | null;
   /** Puzzel (escape-modus): het raster; de foto komt apart (bijlage). */
   puzzel?: PuzzelPubliek | null;
+  /** Challenger (quiz-modus): de instellingen. */
+  challenger?: ChallengerInstellingen | null;
   vraagStart: string | null;
   timer: number | null;
   oplossing: Oplossing | null;
@@ -216,6 +226,7 @@ export interface LiveBackend {
     territorium?: { versie: 1; seconden?: number; modus?: TerritoriumModus; kleurplaat?: string };
     grafiekjacht?: GrafiekjachtPubliek;
     puzzel?: PuzzelPubliek;
+    challenger?: ChallengerInstellingen;
   }): Promise<LiveSessie>;
   startVraag(sessieId: string, nr: number, vraag: PubliekeVraag): Promise<void>;
   startEscape(sessieId: string): Promise<void>;

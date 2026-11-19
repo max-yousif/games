@@ -23,6 +23,7 @@ wens eerst; staat er niets, dan kiest hij zelf een verbetering of een nieuw spel
 
 ## Gedaan
 
+- Nieuw spel Challenger (één tegen de klas, GET OUT, Comeback Zone, hulplijnen, inzet).
 - Belastingstest voor alle live spellen met "onnozele" leerlingen (spammen, onzin typen, herladen,
   offline, tweede tabblad, verlaten): `npm run test:belasting` (lokaal) en de workflow
   *Belastingstest* (echte database, leerkracht als Gast). Alle spellen geslaagd, ook

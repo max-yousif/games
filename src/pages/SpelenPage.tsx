@@ -33,6 +33,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
   { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer, juist of niet. Klopt de code? Dan ontsnap je, anders volgt straftijd.' },
   { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
   { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
+  { type: 'challenger', icoon: '⚔️', naam: 'Challenger', tekst: 'Eén leerling tegen de klas. Juist? Wie in de klas fout was: GET OUT! Fout? Een hart minder.' },
   { type: 'puzzel', icoon: '🧩', naam: 'Puzzel', tekst: 'Elk juist antwoord geeft een stukje van een foto. Wie de puzzel als eerste af heeft, wint.' },
   { type: 'grafiekjacht', icoon: '📈', naam: 'Grafiekjacht', tekst: 'Elke leerling zoekt het voorschrift bij een grafiek: transformaties van functies. Geen vragenset nodig.' },
   { type: 'cluedo', icoon: '🔎', naam: 'Detectivezaak', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
@@ -40,7 +41,7 @@ const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] 
 ];
 
 const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
-const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'puzzel', 'grafiekjacht', 'cluedo', 'whodunit'];
+const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'challenger', 'territorium', 'puzzel', 'grafiekjacht', 'cluedo', 'whodunit'];
 /** Op de eigen laptop, met een verhaal dat niet bij elke set voorbereid is. */
 const VERHAAL_SPELLEN: SpelType[] = ['cluedo', 'whodunit'];
 const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
@@ -109,12 +110,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel' || spel === 'challenger';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
   const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
   const zonderSet = spel === 'grafiekjacht';
   const [aantalGrafieken, setAantalGrafieken] = useState(8);
   const [stukjes, setStukjes] = useState(12);
+  const [harten, setHarten] = useState(3);
+  const [perBeurt, setPerBeurt] = useState(10);
+  const [klasTijd, setKlasTijd] = useState(30);
   const [fotoFout, setFotoFout] = useState<string | null>(null);
   // De foto van de puzzel staat bij de vragenset (anders de cover).
   const puzzelFoto = set?.puzzelFoto ?? set?.cover ?? null;
@@ -219,6 +223,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const territorium = spel === 'territorium';
       const grafiekjacht = spel === 'grafiekjacht';
       const puzzel = spel === 'puzzel';
+      const challenger = spel === 'challenger';
       const verhouding = puzzel ? await verhoudingVan(puzzelFoto!) : 1;
       const doelen = grafiekjacht ? maakDoelen(aantalGrafieken, basissen, transformaties) : [];
       const spelSet = grafiekjacht ? grafiekSet(alsVragen(doelen)) : set!;
@@ -244,7 +249,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             : escapeVragen
           : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
-      const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
+      // Challenger: geen timer op de server; de klas krijgt haar tijd per vraag van het bord.
+      const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : challenger ? null : timer;
       // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
       const namen: Record<string, string[]> = metNamen ? Object.fromEntries(leerlingen.map((l) => [kortNaam(l), [l.id]])) : {};
       const server = await backend(soort).maakSessie({
@@ -264,11 +270,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
         grafiekjacht: grafiekjacht ? publiek(doelen) : undefined,
         puzzel: puzzel ? { versie: 1, ...raster(stukjes, verhouding), verhouding } : undefined,
+        challenger: challenger ? { versie: 1, harten, perBeurt, klasTijd } : undefined,
       });
       // De foto apart, zodat ze maar één keer naar elke laptop gaat.
       if (puzzel) await backend(soort).zetBijlage(server.id, puzzelFoto!);
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : puzzel ? 'puzzel' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : puzzel ? 'puzzel' : challenger ? 'challenger' : escape ? 'escape' : 'live',
         set: spelSet,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -281,7 +288,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         ...(whodunit && spelSet.raadsel ? { raadsel: spelSet.raadsel } : {}),
         // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
         ...(cluedo ? { cluedo: { thema: spelThema, oplossing: cluedoOplossing! } } : {}),
-        vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
+        vraagVolgorde: (willekeurig || challenger) && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
           sessieId: server.id,
@@ -672,6 +679,45 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 </select>
               </div>
             </>
+          ) : spel === 'challenger' ? (
+            <>
+              <div className="w-36">
+                <label className={labelClass} htmlFor="harten">
+                  Harten
+                </label>
+                <select id="harten" className={inputClass} value={harten} onChange={(e) => setHarten(Number(e.target.value))}>
+                  {[2, 3, 4].map((n) => (
+                    <option key={n} value={n}>
+                      {'❤️'.repeat(n)} {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-44">
+                <label className={labelClass} htmlFor="perbeurt">
+                  Vragen per beurt
+                </label>
+                <select id="perbeurt" className={inputClass} value={perBeurt} onChange={(e) => setPerBeurt(Number(e.target.value))}>
+                  {[5, 10, 0].map((n) => (
+                    <option key={n} value={n}>
+                      {n ? n : 'tot de harten op zijn'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-44">
+                <label className={labelClass} htmlFor="klastijd">
+                  Tijd voor de klas
+                </label>
+                <select id="klastijd" className={inputClass} value={klasTijd} onChange={(e) => setKlasTijd(Number(e.target.value))}>
+                  {[15, 20, 30, 45, 60, 90].map((n) => (
+                    <option key={n} value={n}>
+                      {n} seconden
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           ) : (
             <div className="w-44">
               <label className={labelClass}>Timer per vraag</label>
@@ -863,6 +909,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             ) : spel === 'escape' ? (
               <p className="text-slate-600">
                 Elk antwoord geeft een cijfer, juist of niet. Wie denkt de code te hebben, test ze; een foute code geeft straftijd.
+              </p>
+            ) : spel === 'challenger' ? (
+              <p className="text-slate-600">
+                Eén leerling is de challenger, de rest is de klas. De klas antwoordt eerst, dan de challenger alleen. Juist? Wie in de klas fout was, vliegt
+                naar de Comeback Zone en komt terug met twee juiste antwoorden na elkaar. Fout? Een hart minder. Hulplijnen (elk één keer per leerling in het
+                hele spel): 📊 Wat denkt de klas?, 🐱 Copycat en 🎯 Tweede kans; één keer per beurt 💰 inzet ×2.
               </p>
             ) : (
               <>
