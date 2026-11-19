@@ -165,7 +165,7 @@ function TekstInvoer({ getal, bezig, onVerstuur }: { getal: boolean; bezig: bool
           ? 'Typ / voor een breuk en ^ voor een macht, of gebruik de knoppen. Enter = versturen.'
           : getal
             ? 'Een kommagetal (12,5) of breuk (3/4) mag.'
-            : 'Tip: schrijf machten als x^2, breuken als 1/2 en decimalen met een komma, of zet de wiskunde-editor aan.'}
+            : 'Tip: x^2, 1/2, 12,5.'}
       </p>
     </>
   );

@@ -71,7 +71,6 @@ export function AccountKnop({ store }: { store: Store }) {
           >
             Afmelden en deze computer leegmaken
           </Button>
-          <p className="text-xs text-slate-500">Gebruik dit laatste op een gedeelde computer, zodat de namen van je leerlingen er niet blijven staan.</p>
         </div>
       )}
     </div>

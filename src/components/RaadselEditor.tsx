@@ -65,7 +65,7 @@ export function RaadselEditor({ raadsel: r, aantalOefeningen, onChange, onVerwij
       <div>
         <span className={labelClass}>Tabel met de oplossing</span>
         <p className="mb-2 text-sm text-slate-500">
-          Elke rij is een categorie (bv. Naam, Drankje, Outfit). Vul in elke kolom de juiste waarde in. Leerlingen kiezen per vakje uit dezelfde waarden, alfabetisch.
+          Eén rij per categorie (bv. Naam, Drankje), per kolom de juiste waarden.
         </p>
         <div className="overflow-x-auto">
           <table className="text-sm">
@@ -156,7 +156,7 @@ export function RaadselEditor({ raadsel: r, aantalOefeningen, onChange, onVerwij
           }}
         />
         <p className="mt-1 text-sm text-slate-500">
-          Leerlingen verdienen de hints in deze volgorde met de oefeningen hierboven (oefening 1 geeft hint 1 ...). {verdeling}
+          Oefening 1 geeft hint 1, enzovoort. {verdeling}
         </p>
       </div>
 

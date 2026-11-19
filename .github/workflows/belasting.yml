@@ -14,7 +14,7 @@ on:
         description: Spel
         type: choice
         default: codekraker
-        options: [codekraker, escape, detectivezaak, territorium, puzzel, grafiekjacht, whodunit, quiz]
+        options: [codekraker, escape, detectivezaak, territorium, puzzel, grafiekjacht, whodunit, quiz, challenger]
       leerlingen:
         description: Aantal leerlingen
         default: '25'

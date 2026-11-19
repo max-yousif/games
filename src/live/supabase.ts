@@ -50,6 +50,7 @@ function sessieUit(r: any): LiveSessie {
     territorium: Array.isArray(r.vragen) ? null : (r.vragen?.territorium ?? null),
     grafiekjacht: Array.isArray(r.vragen) ? null : (r.vragen?.grafiekjacht ?? null),
     puzzel: Array.isArray(r.vragen) ? null : (r.vragen?.puzzel ?? null),
+    challenger: Array.isArray(r.vragen) ? null : (r.vragen?.challenger ?? null),
     wachttijd: r.wachttijd ?? 0,
     vraagStart: r.vraag_start,
     timer: r.timer,
@@ -390,7 +391,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
           modus: input.modus ?? 'quiz',
           // Whodunit, Codekraker, detectivezaak, Territorium en Grafiekjacht: de vragen samen met wat het spel nodig heeft.
           vragen:
-            input.raadsel || input.codekraker || input.cluedo || input.territorium || input.grafiekjacht || input.puzzel
+            input.raadsel || input.codekraker || input.cluedo || input.territorium || input.grafiekjacht || input.puzzel || input.challenger
               ? {
                   vragen: input.vragen ?? [],
                   ...(input.raadsel ? { raadsel: input.raadsel } : {}),
@@ -399,6 +400,7 @@ export function supabaseBackend(url: string, key: string): LiveBackend {
                   ...(input.territorium ? { territorium: input.territorium } : {}),
                   ...(input.grafiekjacht ? { grafiekjacht: input.grafiekjacht } : {}),
                   ...(input.puzzel ? { puzzel: input.puzzel } : {}),
+                  ...(input.challenger ? { challenger: input.challenger } : {}),
                 }
               : (input.vragen ?? null),
           wachttijd: input.wachttijd ?? 0,

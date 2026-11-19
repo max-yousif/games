@@ -133,6 +133,7 @@ export function lokaalBackend(uid: string = tabbladId(), opslag: Opslag = browse
           territorium: input.territorium ?? null,
           grafiekjacht: input.grafiekjacht ?? null,
           puzzel: input.puzzel ?? null,
+          challenger: input.challenger ?? null,
           wachttijd: input.wachttijd ?? 0,
           vraagStart: null,
           timer: input.timer,

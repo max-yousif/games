@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cloud } from '../live/config';
 import { LiveFout } from '../live/types';
+import { vergeetCloud } from './useCloud';
 
 const SLEUTEL = 'games.v1.leerkracht';
 
@@ -68,7 +69,12 @@ export function useAccount(): Account {
     let actief = true;
     c.gebruiker().then(
       (g) => {
-        if (actief && (!g || g.anoniem || g.id !== lees()?.uid)) zet(null);
+        if (actief && (!g || g.anoniem || g.id !== lees()?.uid)) {
+          // Sessie verlopen: ook vergeten wat gesynchroniseerd was (zoals bij afmelden).
+          const oud = lees()?.uid;
+          if (oud) vergeetCloud(oud);
+          zet(null);
+        }
       },
       () => {
         // offline: aangemeld blijven, de synchronisatie probeert later opnieuw

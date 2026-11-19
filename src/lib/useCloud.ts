@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cloud } from '../live/config';
 import { LiveFout } from '../live/types';
-import { naUpload, teUploaden, verwerkDownload, type Gesync, type Lokaal, type ServerItem } from './cloudSync';
+import { beschermLokaal, naUpload, teUploaden, verdachtWissen, verwerkDownload, type Gesync, type Lokaal, type ServerItem } from './cloudSync';
 import { VOORSTEL } from './voorstel';
 
 const sleutel = (uid: string) => `games.v1.cloud.${uid}`;
@@ -97,7 +97,9 @@ export function useCloud(uid: string | null, lokaal: Lokaal, zet: (l: Lokaal) =>
         if (data.length < PAGINA) break;
       }
       if (!actief) return;
-      const r = verwerkDownload(lokaalRef.current, items, toestand.gesync);
+      // Vangnet: wat per vergissing op de server gewist werd, opnieuw opsturen in plaats van hier te wissen.
+      const veilig = beschermLokaal(lokaalRef.current, items, toestand.gesync);
+      const r = verwerkDownload(lokaalRef.current, veilig.server, veilig.gesync);
       if (r.gewijzigd) {
         lokaalRef.current = r.lokaal;
         zetRef.current(r.lokaal);
@@ -110,7 +112,15 @@ export function useCloud(uid: string | null, lokaal: Lokaal, zet: (l: Lokaal) =>
     async function opsturen() {
       // De testversie van een voorstel past niets aan in de cloud.
       if (VOORSTEL) return;
-      const u = teUploaden(lokaalRef.current, toestand.gesync);
+      let u = teUploaden(lokaalRef.current, toestand.gesync);
+      if (verdachtWissen(u, toestand.gesync)) {
+        // Veel tegelijk wissen is een vergissing (bv. lege lokale gegevens): niets wissen en de
+        // volgende keer alles opnieuw ophalen.
+        u = { ...u, wissen: [] };
+        toestand = { laatstePull: null, gesync: Object.fromEntries(Object.entries(toestand.gesync).filter(([k]) => u.bewaren.some((b) => `${b.soort}:${b.id}` === k))) };
+        bewaar(uid!, toestand);
+        opnieuw = true;
+      }
       if (!u.bewaren.length && !u.wissen.length) return;
       const rijen = [
         ...u.bewaren.map((b) => ({ eigenaar: uid, soort: b.soort, id: b.id, data: b.data, verwijderd: false })),

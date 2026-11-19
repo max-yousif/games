@@ -448,7 +448,6 @@ function Antwoorden({
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-slate-500">Antwoorden die automatisch als fout gemarkeerd werden, kan je met ✓ alsnog goedkeuren.</p>
             {groepeerAntwoorden(antwoorden).map((g) => (
               <div key={g.sleutel} className={`flex items-center gap-3 rounded-xl border-2 bg-surface px-4 py-2 ${g.juist ? 'border-emerald-400' : 'border-red-200'}`}>
                 <span className="font-mono text-xl font-bold">{g.antwoorden.length}×</span>
@@ -584,9 +583,6 @@ function LiveEinde({ sessie, stand, onAfsluiten, onBewaar, onVerwijder }: { sess
         </Button>
         <AfsluitKnoppen serverWissen={onAfsluiten} onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
-      <p className="mt-3 text-center text-sm text-slate-500">
-        Afsluiten bewaart de resultaten onder Resultaten.{onAfsluiten && ' De gegevens op de server (namen en antwoorden) worden in beide gevallen gewist.'}
-      </p>
     </div>
   );
 }

@@ -191,7 +191,7 @@ function Ronde({
         <p className="text-sm text-slate-500">
           {tekst.trim() && !f
             ? 'Dit voorschrift kan ik nog niet lezen.'
-            : 'Je eigen grafiek verschijnt oranje. Tip: |x| voor absolute waarde, sqrt(x) of √ voor een wortel, 2^x voor een macht.'}
+            : 'Tip: |x|, sqrt(x) of √x, 2^x.'}
         </p>
         {fouten > 0 && !wacht && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700" data-nog-niet>

@@ -18,7 +18,6 @@ Stack: React 19 + TypeScript + Vite + Tailwind 4, Vitest (unit, `tests/`), Playw
 - Bij een fout antwoord ziet de leerling het juiste antwoord (behalve waar het spel dat bewust verbergt, zoals de escape room).
 - Open vragen: spaties en hoofdletters negeren.
 - Menu's sluiten bij klik ernaast of Esc; klikbare elementen tonen het handje.
-- Nieuwe spellen zijn **origineel**: geen namaak van een bestaand (commercieel) spel, ook niet hernoemd.
 
 ## Privacy en veiligheid
 

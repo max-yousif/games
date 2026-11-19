@@ -7,6 +7,7 @@ import { CluedoSpeler } from './CluedoSpeler';
 import { TerritoriumSpeler } from './TerritoriumSpeler';
 import { GrafiekjachtSpeler } from './GrafiekjachtSpeler';
 import { PuzzelSpeler } from './PuzzelSpeler';
+import { ChallengerSpeler } from './ChallengerSpeler';
 import { CodekrakerSpeler } from './CodekrakerSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
@@ -334,6 +335,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
+  if (sessie.challenger) return <ChallengerSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape' && sessie.puzzel) return metMelding(bordStil, <PuzzelSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.grafiekjacht) return metMelding(bordStil, <GrafiekjachtSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.territorium) return metMelding(bordStil, <TerritoriumSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
@@ -448,7 +450,7 @@ function Bijnaam({ be, sessieId, ik }: { be: LiveBackend; sessieId: string; ik: 
   return (
     <div className="mx-auto mt-8 max-w-md rounded-xl bg-slate-50 p-4 text-left">
       <div className="font-semibold">Bijnaam (optioneel)</div>
-      <p className="text-sm text-slate-500">Op het bord verschijnt je bijnaam in plaats van je echte naam. De leerkracht ziet wie je bent.</p>
+      <p className="text-sm text-slate-500">Op het bord verschijnt je bijnaam in plaats van je naam.</p>
       {huidig && (
         <p className="mt-2">
           Op het bord: <strong>{schermNaam({ naam: ik!.naam, bijnaam: huidig })}</strong>{' '}

@@ -26,21 +26,22 @@ import { klasJaar } from './KlassenPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
 
 const SPELLEN: { type: SpelType; icoon: string; naam: string; tekst: string }[] = [
-  { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Categorieën × punten. Teams kiezen om beurt een vak. 2 tot 6 teams.' },
-  { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist antwoord = een schijf laten vallen. Precies 2 teams.' },
-  { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist antwoord = bom naar het volgende team. Alle vragen komen aan bod; de minste ontploffingen wint.' },
-  { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Elke leerling speelt op de eigen laptop; jij volgt live mee op het bord.' },
-  { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer, juist of niet. Klopt de code? Dan ontsnap je, anders volgt straftijd.' },
-  { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Elke leerling verdient munten met juiste antwoorden, opent kistjes en hackt elkaars wachtwoord.' },
-  { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist antwoord = even tekenen in je eigen kleur. Tegen elkaar het meeste gebied, of samen een tekening inkleuren.' },
-  { type: 'puzzel', icoon: '🧩', naam: 'Puzzel', tekst: 'Elk juist antwoord geeft een stukje van een foto. Wie de puzzel als eerste af heeft, wint.' },
-  { type: 'grafiekjacht', icoon: '📈', naam: 'Grafiekjacht', tekst: 'Elke leerling zoekt het voorschrift bij een grafiek: transformaties van functies. Geen vragenset nodig.' },
-  { type: 'cluedo', icoon: '🔎', naam: 'Detectivezaak', tekst: 'Wie, waar en waarmee? Elk juist antwoord streept een verdachte, plaats of wapen weg. Wie lost de moord als eerste op?' },
-  { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Een logisch raadsel: elke juiste oefening geeft een hint. Wie vult als eerste de tabel juist in?' },
+  { type: 'quizbord', icoon: '🟦', naam: 'Quizbord', tekst: 'Teams kiezen om beurt een vak. 2 tot 6 teams.' },
+  { type: 'vieropeenrij', icoon: '🔴', naam: 'Vier op een rij', tekst: 'Juist = een schijf laten vallen. 2 teams.' },
+  { type: 'bom', icoon: '💣', naam: 'Bom doorgeven', tekst: 'Juist = bom naar het volgende team.' },
+  { type: 'live', icoon: '💻', naam: 'Live quiz', tekst: 'Klassieke quiz, elk op de eigen laptop.' },
+  { type: 'escape', icoon: '🗝️', naam: 'Escape room', tekst: 'Elk antwoord geeft een cijfer van de code.' },
+  { type: 'codekraker', icoon: '🔐', naam: 'Codekraker', tekst: 'Munten verdienen en elkaars wachtwoord hacken.' },
+  { type: 'territorium', icoon: '🖌️', naam: 'Territorium', tekst: 'Juist = even tekenen in je eigen kleur.' },
+  { type: 'challenger', icoon: '⚔️', naam: 'Challenger', tekst: 'Eén leerling tegen de hele klas.' },
+  { type: 'puzzel', icoon: '🧩', naam: 'Puzzel', tekst: 'Elk juist antwoord geeft een puzzelstukje.' },
+  { type: 'grafiekjacht', icoon: '📈', naam: 'Grafiekjacht', tekst: 'Voorschrift zoeken bij een grafiek. Zonder vragenset.' },
+  { type: 'cluedo', icoon: '🔎', naam: 'Detectivezaak', tekst: 'Wie, waar en waarmee? Streep kaarten weg.' },
+  { type: 'whodunit', icoon: '🕵️', naam: 'Whodunit', tekst: 'Hints verdienen voor een logisch raadsel.' },
 ];
 
 const BORD_SPELLEN: SpelType[] = ['quizbord', 'vieropeenrij', 'bom'];
-const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'territorium', 'puzzel', 'grafiekjacht', 'cluedo', 'whodunit'];
+const LIVE_SPELLEN: SpelType[] = ['live', 'escape', 'codekraker', 'challenger', 'territorium', 'puzzel', 'grafiekjacht', 'cluedo', 'whodunit'];
 /** Op de eigen laptop, met een verhaal dat niet bij elke set voorbereid is. */
 const VERHAAL_SPELLEN: SpelType[] = ['cluedo', 'whodunit'];
 const VAK_ICONEN: Partial<Record<string, string>> = { wiskunde: '📐', python: '🐍', ict: '💻', andere: '📚' };
@@ -109,12 +110,15 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
-  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
+  const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel' || spel === 'challenger';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
   const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
   const zonderSet = spel === 'grafiekjacht';
   const [aantalGrafieken, setAantalGrafieken] = useState(8);
   const [stukjes, setStukjes] = useState(12);
+  const [harten, setHarten] = useState(3);
+  const [perBeurt, setPerBeurt] = useState(10);
+  const [klasTijd, setKlasTijd] = useState(30);
   const [fotoFout, setFotoFout] = useState<string | null>(null);
   // De foto van de puzzel staat bij de vragenset (anders de cover).
   const puzzelFoto = set?.puzzelFoto ?? set?.cover ?? null;
@@ -219,6 +223,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
       const territorium = spel === 'territorium';
       const grafiekjacht = spel === 'grafiekjacht';
       const puzzel = spel === 'puzzel';
+      const challenger = spel === 'challenger';
       const verhouding = puzzel ? await verhoudingVan(puzzelFoto!) : 1;
       const doelen = grafiekjacht ? maakDoelen(aantalGrafieken, basissen, transformaties) : [];
       const spelSet = grafiekjacht ? grafiekSet(alsVragen(doelen)) : set!;
@@ -244,7 +249,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             : escapeVragen
           : vragen;
       const escapeCode = spel === 'escape' ? maakEscapeCode(gekozen.length) : undefined;
-      const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : timer;
+      // Challenger: geen timer op de server; de klas krijgt haar tijd per vraag van het bord.
+      const spelTimer = escape ? (escapeMinuten ? escapeMinuten * 60 : null) : challenger ? null : timer;
       // Op de server enkel voornamen; de koppeling met de klaslijst blijft hier.
       const namen: Record<string, string[]> = metNamen ? Object.fromEntries(leerlingen.map((l) => [kortNaam(l), [l.id]])) : {};
       const server = await backend(soort).maakSessie({
@@ -264,11 +270,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         territorium: territorium ? { versie: 1, seconden: tekenSeconden, ...(kleurplaat ? { modus: 'samen' as const, kleurplaat } : {}) } : undefined,
         grafiekjacht: grafiekjacht ? publiek(doelen) : undefined,
         puzzel: puzzel ? { versie: 1, ...raster(stukjes, verhouding), verhouding } : undefined,
+        challenger: challenger ? { versie: 1, harten, perBeurt, klasTijd } : undefined,
       });
       // De foto apart, zodat ze maar één keer naar elke laptop gaat.
       if (puzzel) await backend(soort).zetBijlage(server.id, puzzelFoto!);
       const basis = nieuweSessie({
-        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : puzzel ? 'puzzel' : escape ? 'escape' : 'live',
+        spelType: whodunit ? 'whodunit' : codekraker ? 'codekraker' : cluedo ? 'cluedo' : territorium ? 'territorium' : grafiekjacht ? 'grafiekjacht' : puzzel ? 'puzzel' : challenger ? 'challenger' : escape ? 'escape' : 'live',
         set: spelSet,
         vragen: gekozen,
         klasNaam: klas?.naam ?? 'zonder klas',
@@ -281,7 +288,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         ...(whodunit && spelSet.raadsel ? { raadsel: spelSet.raadsel } : {}),
         // De oplossing blijft op deze laptop; de server krijgt enkel het thema.
         ...(cluedo ? { cluedo: { thema: spelThema, oplossing: cluedoOplossing! } } : {}),
-        vraagVolgorde: willekeurig && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
+        vraagVolgorde: (willekeurig || challenger) && !escape ? basis.vraagVolgorde : gekozen.map((v) => v.id),
         live: {
           backend: soort,
           sessieId: server.id,
@@ -513,29 +520,23 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           >
             of zonder klas spelen
           </button>
-          {store.klassen.length === 0 && (
-            <p className="mt-3 text-sm text-slate-500">
-              Tip: maak een <a className="underline" href={href({ pagina: 'klassen' })}>klas</a> aan om namen van leerlingen te zien en resultaten per leerling bij te houden.
-            </p>
-          )}
         </Section>
       )}
 
       {stap === 4 && spel && (set || zonderSet) && klasGekozen && (
         <>
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] p-4">
-            {set?.cover && !zonderSet ? <img src={set.cover} alt="" className="aspect-video w-28 rounded-lg object-cover" /> : <span className="text-5xl">{spelInfo?.icoon}</span>}
             <div className="min-w-0 flex-1 text-lg">
               <strong>
-                {spelInfo?.icoon} {spelInfo?.naam}
-              </strong>{' '}
-              {zonderSet ? (
-                <>met <strong>{aantalGrafieken} grafieken</strong></>
-              ) : (
-                <>
-              met <strong>“{set!.titel}”</strong> ({spel === 'cluedo' && cluedoThema.metVragen ? `${nodigeVragen(cluedoThema)} opgaven` : spel === 'cluedo' && metOpgaven(cluedoThema) ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set!.vragen).length} opgaven` : `${vragen.length} vragen`})
-                </>
-              )} voor <strong>{klas ? `${klas.naam} (${klas.leerlingen.length - afwezig.length} aanwezig)` : 'een groep zonder klas'}</strong>
+                {zonderSet
+                  ? `${aantalGrafieken} grafieken`
+                  : spel === 'cluedo' && cluedoThema.metVragen
+                    ? `${nodigeVragen(cluedoThema)} opgaven`
+                    : spel === 'cluedo' && metOpgaven(cluedoThema)
+                      ? `${opgaveVragen(cluedoThema, trekOplossing(cluedoThema, () => 0), set!.vragen).length} opgaven`
+                      : `${vragen.length} vragen`}
+              </strong>
+              {klas && <> · {klas.leerlingen.length - afwezig.length} aanwezig</>}
             </div>
             <div className="flex flex-col items-end gap-1">
               <Button variant="primary" className="px-8 py-3 text-base" disabled={!kanStarten} onClick={start}>
@@ -672,6 +673,45 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 </select>
               </div>
             </>
+          ) : spel === 'challenger' ? (
+            <>
+              <div className="w-36">
+                <label className={labelClass} htmlFor="harten">
+                  Harten
+                </label>
+                <select id="harten" className={inputClass} value={harten} onChange={(e) => setHarten(Number(e.target.value))}>
+                  {[2, 3, 4].map((n) => (
+                    <option key={n} value={n}>
+                      {'❤️'.repeat(n)} {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-44">
+                <label className={labelClass} htmlFor="perbeurt">
+                  Vragen per beurt
+                </label>
+                <select id="perbeurt" className={inputClass} value={perBeurt} onChange={(e) => setPerBeurt(Number(e.target.value))}>
+                  {[5, 10, 0].map((n) => (
+                    <option key={n} value={n}>
+                      {n ? n : 'tot de harten op zijn'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-44">
+                <label className={labelClass} htmlFor="klastijd">
+                  Tijd voor de klas
+                </label>
+                <select id="klastijd" className={inputClass} value={klasTijd} onChange={(e) => setKlasTijd(Number(e.target.value))}>
+                  {[15, 20, 30, 45, 60, 90].map((n) => (
+                    <option key={n} value={n}>
+                      {n} seconden
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           ) : (
             <div className="w-44">
               <label className={labelClass}>Timer per vraag</label>
@@ -694,10 +734,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                 <div className="flex flex-wrap gap-2" role="group" aria-label="Modus">
                   {(
                     [
-                      ['strijd', '⚔️ 1 tegen allen', 'Meeste gebied wint; je mag over anderen kleuren.'],
-                      ['samen', '🤝 Samen inkleuren', 'Samen één tekening inkleuren, elk in de eigen kleur.'],
+                      ['strijd', '⚔️ 1 tegen allen'],
+                      ['samen', '🤝 Samen inkleuren'],
                     ] as const
-                  ).map(([m, naam, uitleg]) => (
+                  ).map(([m, naam]) => (
                     <button
                       key={m}
                       type="button"
@@ -706,7 +746,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                       className={`rounded-xl border-2 px-4 py-2 text-left transition ${territoriumModus === m ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
                     >
                       <div className="font-semibold">{naam}</div>
-                      <div className="text-sm text-slate-500">{uitleg}</div>
                     </button>
                   ))}
                 </div>
@@ -756,9 +795,6 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     />
                   </label>
                   {fotoFout && <p className="text-red-600">{fotoFout}</p>}
-                  <p className="text-slate-600">
-                    {puzzelFoto ? 'De foto blijft bij deze vragenset. Leerlingen zien ze pas stukje per stukje.' : 'Kies eerst een foto. Ze blijft bij deze vragenset.'}
-                  </p>
                 </div>
               </div>
             ) : spel === 'grafiekjacht' ? (
@@ -783,23 +819,9 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                     ))}
                   </div>
                 </div>
-                <p className="text-slate-600">
-                  Elke leerling zoekt in eigen tempo het voorschrift bij dezelfde reeks grafieken en ziet de eigen grafiek meteen over de doelgrafiek. Eerste poging juist = 3
-                  punten, tweede = 2, daarna 1. Na 2 foute pogingen mag een leerling de oplossing zien en verdergaan.
-                </p>
               </div>
             ) : spel === 'cluedo' ? (
               <>
-                {(metOpgaven(cluedoThema) || cluedoThema.metVragen) && (
-                  <p className="text-slate-600">
-                    Elke opgave hoort bij één kaart: wie de juiste uitkomst vindt, streept die kaart weg. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = straftijd.
-                  </p>
-                )}
-                <p className={`text-slate-600 ${metOpgaven(cluedoThema) || cluedoThema.metVragen ? 'hidden' : ''}`}>
-                  De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo (de vragen komen steeds
-                  opnieuw); elk juist antwoord streept op hun detectiveblad een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost,
-                  fout = straftijd. Wie het snelst oplost, wint; de anderen spelen verder.
-                </p>
                 <details className="rounded-xl border border-slate-200 p-3" open={themaOpen} onToggle={(e) => setThemaOpen(e.currentTarget.open)}>
                   <summary className="cursor-pointer font-semibold">
                     🔎 Verdachten, locaties en wapens voor dit spel: “{cluedoThema.titel}” ({cluedoThema.verdachten.length} + {cluedoThema.locaties.length} + {cluedoThema.wapens.length})
@@ -816,28 +838,18 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                       {set?.cluedo && <Button onClick={() => laadCluedo(set.cluedo!)}>↺ Thema van de vragenset</Button>}
                       <Button onClick={() => laadCluedo(STANDAARD_THEMA)}>↺ Standaardthema</Button>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">Wijzigingen hier gelden enkel voor dit spel, tenzij je ze bewaart in de vragenset.</p>
-                  </div>
+                      </div>
                 </details>
               </>
             ) : spel === 'codekraker' ? (
               <>
-                <p className="text-slate-600">
-                  Elke leerling kiest een geheim wachtwoord en beantwoordt vragen in eigen tempo (de vragen komen steeds opnieuw). Na een juist antwoord kiest de leerling een
-                  kistje: munten (1.000 tot 25.000), een vermenigvuldiger, een firewall, pech of een kans om te hacken (iemand uit de top 3). Wie
-                  het wachtwoord raadt, steelt een deel van diens munten. Wie op het einde de meeste munten heeft, wint.
-                </p>
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={hacken} onChange={(e) => setHacken(e.target.checked)} />
-                  Hacken toestaan (anders enkel kistjes met munten, vermenigvuldigers en firewalls)
+                  Hacken toestaan
                 </label>
               </>
             ) : spel === 'whodunit' ? (
               <>
-                <p className="text-slate-600">
-                  Leerlingen lezen het verhaal, lossen de oefeningen op en krijgen voor elk juist antwoord een hint. Met de hints vullen ze de tabel in; wie de tabel als
-                  eerste volledig juist heeft, wint. Het raadsel stel je in onderaan de editor van de vragenset.
-                </p>
                 {raadselFouten.length > 0 && set && (
                   <Notice tone="warn">
                     {raadselFouten.join(' ')}{' '}
@@ -860,15 +872,11 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   </Notice>
                 )}
               </>
-            ) : spel === 'escape' ? (
-              <p className="text-slate-600">
-                Elk antwoord geeft een cijfer, juist of niet. Wie denkt de code te hebben, test ze; een foute code geeft straftijd.
-              </p>
-            ) : (
+            ) : spel === 'escape' || spel === 'challenger' ? null : (
               <>
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={snelheidsbonus && timer !== null} disabled={timer === null} onChange={(e) => setSnelheidsbonus(e.target.checked)} />
-                  Snelheidsbonus: wie sneller juist antwoordt, krijgt meer punten (enkel met timer)
+                  Snelheidsbonus (enkel met timer)
                 </label>
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={willekeurig} onChange={(e) => setWillekeurig(e.target.checked)} />
@@ -879,7 +887,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             {klas && (
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={vrijeNaam} onChange={(e) => setVrijeNaam(e.target.checked)} />
-                Leerlingen mogen ook een naam typen die niet op de klaslijst staat
+                Ook namen buiten de klaslijst toelaten
               </label>
             )}
             {supabaseIngesteld && !demo && !store.account.leerkracht && (
@@ -898,7 +906,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         {spel === 'quizbord' && klas && (
           <label className="mb-3 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={dubbel} onChange={(e) => setDubbel(e.target.checked)} />
-            Dubbele punten als één leerling alleen antwoordt (zonder overleggen)
+            Dubbele punten als één leerling alleen antwoordt
           </label>
         )}
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(teams.length, 3)}, minmax(0, 1fr))` }} hidden={isLive && !klas}>
@@ -958,20 +966,12 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
             ))}
           </div>
         )}
-        {klas && (
-          <p className="mt-2 text-xs text-slate-500">
-            {isLive
-              ? 'Klik op ✕ als een leerling afwezig is: die naam verschijnt dan niet in de lijst op de laptops.'
-              : 'Klik op een naam om die leerling naar het volgende team te verplaatsen, of op ✕ als de leerling afwezig is.'}
-          </p>
-        )}
           </Section>
 
           {set && !zonderSet && alleVragen.length > 1 && (
             <Section title="Vragen">
               <p className="mb-2 text-sm text-slate-500">
-                {alleVragen.length} speelbare vragen
-                {alleVragen.length < set.vragen.length && ` (${set.vragen.length - alleVragen.length} onvolledige vragen worden overgeslagen)`}.{' '}
+                {alleVragen.length < set.vragen.length && `${set.vragen.length - alleVragen.length} onvolledige vragen worden overgeslagen. `}
                 <a className="text-[var(--accent-tekst)] underline" href={href({ pagina: 'set', id: set.id })}>
                   Vragenset bewerken
                 </a>

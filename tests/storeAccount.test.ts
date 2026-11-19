@@ -4,6 +4,7 @@ import type { Klas } from '../src/lib/types';
 
 let uid: string | null = null;
 const cloudUids: (string | null)[] = [];
+const vergeten: string[] = [];
 vi.mock('../src/lib/account', () => ({
   useAccount: () => ({ leerkracht: uid ? { uid, naam: uid } : null, afmelden: async () => undefined }),
 }));
@@ -12,7 +13,7 @@ vi.mock('../src/lib/useCloud', () => ({
     cloudUids.push(u);
     return { status: 'uit', melding: null, laatsteSync: null, nu: () => undefined };
   },
-  vergeetCloud: () => undefined,
+  vergeetCloud: (u: string) => vergeten.push(u),
 }));
 
 const { useStore } = await import('../src/lib/store');
@@ -50,5 +51,18 @@ describe('gegevens per account', () => {
     uid = 'juf';
     rerender();
     expect(result.current.klassen).toHaveLength(1);
+  });
+});
+
+describe('wisselen van account', () => {
+  it('vergeet wat gesynchroniseerd was, zodat lege lokale gegevens niets in de cloud wissen', async () => {
+    localStorage.clear();
+    vergeten.length = 0;
+    localStorage.setItem('games.v1.eigenaar', JSON.stringify('gast'));
+    uid = 'juf';
+    renderHook(() => useStore());
+    expect(vergeten).toContain('juf');
+    // De cloud van "juf" start pas daarna (met een lege lijst van wat gesynchroniseerd was).
+    expect(cloudUids.at(-1)).toBe('juf');
   });
 });

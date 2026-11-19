@@ -24,6 +24,7 @@ const SPEL_ICONEN: Record<Sessie['spelType'], string> = {
   territorium: '🖌️',
   grafiekjacht: '📈',
   puzzel: '🧩',
+  challenger: '⚔️',
 };
 
 /** Kerncijfers van één spel voor de lijst. */

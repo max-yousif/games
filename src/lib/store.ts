@@ -90,6 +90,9 @@ export function useStore(): Store {
       setKlassenState([]);
       setSessiesState([]);
     }
+    // Opnieuw beginnen met de cloud van dit account: alles ophalen. Wat vroeger als gesynchroniseerd
+    // onthouden werd, zou anders als "lokaal gewist" gelden en op de server gewist worden.
+    vergeetCloud(uid);
     saveEigenaar(uid);
     setEigenaar(uid);
   }, [uid, eigenaar]);

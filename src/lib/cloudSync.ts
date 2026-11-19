@@ -126,3 +126,29 @@ export function verwerkDownload(l: Lokaal, server: readonly ServerItem[], gesync
   }
   return { lokaal: lijsten, gesync: nieuwGesync, gewijzigd };
 }
+
+/**
+ * Vangnet: veel items in één keer wissen gebeurt nooit door een leerkracht, wel door een fout
+ * (bv. lokale gegevens die leeg gemaakt werden). Dan niets wissen.
+ */
+export const VEEL_GEWIST = 3;
+const teVeel = (aantal: number, van: number) => aantal >= VEEL_GEWIST && aantal >= van / 2;
+
+/** Upload: wil die veel items wissen, dan geen enkel (de gegevens worden opnieuw opgehaald). */
+export function verdachtWissen(u: Upload, gesync: Gesync): boolean {
+  return teVeel(u.wissen.length, Object.keys(gesync).length);
+}
+
+/**
+ * Download: zou die veel lokale items wissen, dan zijn ze op de server per vergissing gewist. Die
+ * wissingen negeren en de items vergeten in gesync, zodat ze opnieuw naar de server gaan.
+ */
+export function beschermLokaal(l: Lokaal, server: readonly ServerItem[], gesync: Gesync): { server: ServerItem[]; gesync: Gesync; hersteld: number } {
+  const lokaal = new Set([...items(l)].map((it) => sleutel(it.soort, it.id)));
+  const wist = server.filter((it) => it.verwijderd && lokaal.has(sleutel(it.soort, it.id)));
+  if (!teVeel(wist.length, lokaal.size)) return { server: [...server], gesync, hersteld: 0 };
+  const weg = new Set(wist.map((it) => sleutel(it.soort, it.id)));
+  const nieuw = { ...gesync };
+  for (const k of weg) delete nieuw[k];
+  return { server: server.filter((it) => !weg.has(sleutel(it.soort, it.id))), gesync: nieuw, hersteld: weg.size };
+}

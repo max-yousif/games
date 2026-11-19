@@ -18,6 +18,10 @@ spel spelen. Live op https://max-yousif.github.io/games/.
 - **Codekraker**: munten verdienen, kistjes openen en elkaars wachtwoord kraken.
 - **Territorium**: juist antwoord = even tekenen in je kleur; tegen elkaar of samen een
   kleurplaat inkleuren.
+- **Challenger**: één leerling tegen de klas. De klas antwoordt eerst, dan de challenger alleen.
+  Juist? Wie in de klas fout was, krijgt "GET OUT!" en gaat naar de Comeback Zone (twee keer na
+  elkaar juist = terug). Fout? Een hart minder. Hulplijnen: Wat denkt de klas?, Copycat en
+  Tweede kans (elk één keer per leerling in het hele spel), en één keer per beurt inzet ×2.
 - **Puzzel**: elk juist antwoord geeft een stukje van een foto die jij kiest; wie de puzzel als
   eerste juist gelegd heeft, wint. De foto blijft bij de vragenset.
 - **Grafiekjacht** (zonder vragenset): het voorschrift zoeken bij een grafiek
