@@ -77,3 +77,36 @@ describe('cloud: lokaal gewist', () => {
     expect(r.lokaal.sets.map((s) => s.titel)).toEqual(['Machten (aangepast)']);
   });
 });
+
+describe('vangnet tegen per vergissing alles wissen', () => {
+  const set = (id: string) => ({ id, titel: id }) as unknown as import('../src/lib/types').Vragenset;
+  const lokaal = (ids: string[]) => ({ sets: ids.map(set), klassen: [], sessies: [] });
+
+  it('een upload die bijna alles wist, is verdacht; één item wissen niet', async () => {
+    const { teUploaden, verdachtWissen, vast } = await import('../src/lib/cloudSync');
+    const gesync = Object.fromEntries(['a', 'b', 'c', 'd'].map((id) => [`set:${id}`, vast(set(id))]));
+    expect(verdachtWissen(teUploaden(lokaal([]), gesync), gesync)).toBe(true);
+    expect(verdachtWissen(teUploaden(lokaal(['a', 'b', 'c']), gesync), gesync)).toBe(false);
+  });
+
+  it('een download die veel lokale items wist, wordt genegeerd en de items gaan terug naar de server', async () => {
+    const { beschermLokaal, verwerkDownload, teUploaden, vast } = await import('../src/lib/cloudSync');
+    const ids = ['a', 'b', 'c', 'd'];
+    const gesync = Object.fromEntries(ids.map((id) => [`set:${id}`, vast(set(id))]));
+    const server = ids.map((id) => ({ soort: 'set' as const, id, data: null, verwijderd: true, bijgewerkt: '2026-11-19T10:00:00Z' }));
+    const veilig = beschermLokaal(lokaal(ids), server, gesync);
+    expect(veilig.hersteld).toBe(4);
+    const r = verwerkDownload(lokaal(ids), veilig.server, veilig.gesync);
+    expect(r.lokaal.sets.map((s) => s.id)).toEqual(ids);
+    expect(teUploaden(r.lokaal, r.gesync).bewaren.map((b) => b.id).sort()).toEqual(ids);
+  });
+
+  it('één item gewist op een ander toestel: gewoon wissen', async () => {
+    const { beschermLokaal, vast } = await import('../src/lib/cloudSync');
+    const ids = ['a', 'b', 'c', 'd'];
+    const gesync = Object.fromEntries(ids.map((id) => [`set:${id}`, vast(set(id))]));
+    const veilig = beschermLokaal(lokaal(ids), [{ soort: 'set', id: 'a', data: null, verwijderd: true, bijgewerkt: 'x' }], gesync);
+    expect(veilig.hersteld).toBe(0);
+    expect(veilig.server).toHaveLength(1);
+  });
+});
