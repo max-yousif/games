@@ -120,7 +120,7 @@ export function ChallengerSpeler({
   return (
     <div className="space-y-4">
       {kop}
-      {(getOut || comeback) && <GroteUitroep key={sessie.vraagNr} tekst={getOut ? `GET OUT, ${naam}!` : `COMEBACK, ${naam}!`} uit={getOut} />}
+      {(getOut || comeback) && <GroteUitroep key={sessie.vraagNr} kop={getOut ? 'GET OUT!' : 'COMEBACK!'} naam={naam} uit={getOut} />}
       <div className={`rounded-2xl p-6 text-center text-white shadow-sm ${eigen?.juist ? 'bg-emerald-600' : 'bg-red-600'}`} data-resultaat>
         <div className="text-5xl">{eigen ? (eigen.juist ? '✓' : '✗') : '⏰'}</div>
         <div className="mt-2 text-3xl font-bold">
@@ -190,7 +190,10 @@ function Hulp({ peiling, copycat }: { peiling?: { tekst: string; procent: number
   );
 }
 
-function GroteUitroep({ tekst, uit }: { tekst: string; uit: boolean }) {
+/** Dikke letters met een witte rand: ook leesbaar boven de kaarten eronder. */
+const RAND = [-4, 0, 4].flatMap((x) => [-4, 0, 4].map((y) => `${x}px ${y}px 0 #fff`)).join(', ') + ', 0 8px 24px rgba(0,0,0,0.35)';
+
+function GroteUitroep({ kop, naam, uit }: { kop: string; naam: string; uit: boolean }) {
   const [zichtbaar, setZichtbaar] = useState(true);
   useEffect(() => {
     const t = window.setTimeout(() => setZichtbaar(false), 3000);
@@ -199,7 +202,13 @@ function GroteUitroep({ tekst, uit }: { tekst: string; uit: boolean }) {
   if (!zichtbaar) return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4" data-uitroep>
-      <div className={`pop text-center text-[11vw] leading-none font-black drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)] ${uit ? 'text-red-600' : 'text-emerald-500'}`}>{tekst}</div>
+      <div
+        className={`pop text-center leading-[0.95] tracking-wide uppercase ${uit ? 'text-red-600' : 'text-emerald-500'}`}
+        style={{ fontFamily: 'Impact, Haettenschweiler, "Arial Narrow Bold", "Arial Black", sans-serif', fontWeight: 900, textShadow: RAND }}
+      >
+        <div className="text-[12vw]">{kop}</div>
+        <div className="text-[9vw] break-words">{naam}</div>
+      </div>
     </div>
   );
 }

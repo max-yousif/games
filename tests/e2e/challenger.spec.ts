@@ -46,7 +46,8 @@ test('challenger: GET OUT, hart kwijt, comeback, hulplijnen en einde', async ({ 
   await expect(anna.getByText('Wat denkt de klas?')).toBeVisible();
   await antwoord(anna, true);
   await expect(page.locator('[data-uitslag]')).toContainText('GET OUT, Cas!', { timeout: 10_000 });
-  await expect(cas.locator('[data-uitroep]')).toContainText('GET OUT, Cas!');
+  await expect(cas.locator('[data-uitroep]')).toContainText('GET OUT!');
+  await expect(cas.locator('[data-uitroep]')).toContainText('Cas');
   await expect(cas.locator('[data-rol]')).toContainText('Comeback Zone');
   if (process.env.SCHERMAFDRUK) await page.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-bord.png') });
   if (process.env.SCHERMAFDRUK) await cas.screenshot({ path: process.env.SCHERMAFDRUK.replace('.png', '-getout.png') });
@@ -74,7 +75,7 @@ test('challenger: GET OUT, hart kwijt, comeback, hulplijnen en einde', async ({ 
   await antwoord(anna, false);
   await expect(page.locator('[data-uitslag]')).toContainText('COMEBACK voor Cas!', { timeout: 10_000 });
   await expect(page.locator('[data-uitslag]')).toContainText('De klas wint!');
-  await expect(cas.locator('[data-uitroep]')).toContainText('COMEBACK, Cas!');
+  await expect(cas.locator('[data-uitroep]')).toContainText('COMEBACK!');
 
   // Tussenstand en einde.
   await page.getByRole('button', { name: 'Tussenstand ▶' }).click();
