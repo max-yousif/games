@@ -39,6 +39,14 @@ export function padVan(f: (x: number) => number): string {
 const ROOSTER_X = Array.from({ length: VENSTER.xMax - VENSTER.xMin + 1 }, (_, i) => VENSTER.xMin + i);
 const ROOSTER_Y = Array.from({ length: VENSTER.yMax - VENSTER.yMin + 1 }, (_, i) => VENSTER.yMin + i);
 
+/** Punten van de doelgrafiek met gehele coördinaten: makkelijk af te lezen. */
+export function roosterpunten(ys: readonly (number | null)[]): { x: number; y: number }[] {
+  return XS.flatMap((x, i) => {
+    const y = ys[i];
+    return Number.isInteger(x) && y !== null && Math.abs(y - Math.round(y)) < 0.005 && y >= VENSTER.yMin && y <= VENSTER.yMax ? [{ x, y: Math.round(y) }] : [];
+  });
+}
+
 /** Assenstelsel met de doelgrafiek (dik) en eventueel de eigen grafiek (gestreept). */
 export function Grafiek({ doel, eigen, juist, klein = false }: { doel: readonly (number | null)[]; eigen?: string | null; juist?: boolean; klein?: boolean }) {
   return (
@@ -62,6 +70,7 @@ export function Grafiek({ doel, eigen, juist, klein = false }: { doel: readonly 
           </text>
         ))}
       <path d={pad(doel)} fill="none" stroke={juist ? '#10b981' : '#2563eb'} strokeWidth={klein ? 5 : 6} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />
+      {!klein && roosterpunten(doel).map((p) => <circle key={`p${p.x}`} cx={px(p.x)} cy={py(p.y)} r={7} fill={juist ? '#059669' : '#1d4ed8'} stroke="#fff" strokeWidth={2} data-roosterpunt />)}
       {eigen && <path d={eigen} fill="none" stroke="#f97316" strokeWidth={3} strokeDasharray="10 6" strokeLinejoin="round" data-eigen-grafiek />}
     </svg>
   );

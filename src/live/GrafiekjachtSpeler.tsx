@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { RichText } from '../components/RichText';
 import { tijdTekst } from '../lib/exportResults';
 import { functieVan } from '../lib/wiskunde';
-import { afgewerkt, BASISFUNCTIES, OVERSLAAN, POGINGEN_VOOR_OVERSLAAN, type GrafiekBeloning } from './grafiekjacht';
+import { afgewerkt, BASISFUNCTIES, onbekenden, OVERSLAAN, POGINGEN_VOOR_OVERSLAAN, type GrafiekBeloning } from './grafiekjacht';
 import { Grafiek, padVan } from './Grafiek';
 import { EditorSchakelaar, foutTekst, invoerKlasse, useWiskundeEditor } from './Invoer';
 import type { LiveAntwoord, LiveBackend, LiveSessie } from './types';
@@ -111,6 +111,7 @@ export function GrafiekjachtSpeler({
         key={ronde}
         doel={doelen[ronde].y}
         basis={BASISFUNCTIES[doelen[ronde].basis]?.naam ?? ''}
+        vorm={doelen[ronde].vorm}
         wacht={wacht}
         fouten={fouten}
         onVerstuur={(tekst) => void stuur(ronde, tekst)}
@@ -123,6 +124,7 @@ export function GrafiekjachtSpeler({
 function Ronde({
   doel,
   basis,
+  vorm,
   wacht,
   fouten,
   onVerstuur,
@@ -130,6 +132,7 @@ function Ronde({
 }: {
   doel: (number | null)[];
   basis: string;
+  vorm?: string;
   wacht: boolean;
   fouten: number;
   onVerstuur: (tekst: string) => void;
@@ -147,9 +150,15 @@ function Ronde({
     <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
       <Grafiek doel={doel} eigen={eigen} />
       <div className="space-y-3 rounded-2xl bg-surface p-5 shadow-sm">
-        <p className="text-lg">
-          Zoek het voorschrift van de <span className="font-semibold text-blue-600">blauwe grafiek</span>. Basisfunctie: <span className="font-semibold">{basis}</span>
-        </p>
+        {vorm ? (
+          <div className="text-lg" data-vorm>
+            Zoek {onbekenden(vorm)}: <RichText text={`$y = ${vorm}$`} className="inline text-xl" />
+          </div>
+        ) : (
+          <p className="text-lg">
+            Zoek het voorschrift van de <span className="font-semibold text-blue-600">blauwe grafiek</span>. Basisfunctie: <span className="font-semibold">{basis}</span>
+          </p>
+        )}
         <div className="flex justify-end">
           <EditorSchakelaar
             aan={editor}

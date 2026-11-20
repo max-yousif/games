@@ -5,13 +5,17 @@ import {
   functieVanDoel,
   grafiekBeoordelingen,
   grafiekStand,
+  aantalTransformaties,
   maakDoelen,
+  onbekenden,
+  vorm,
   OVERSLAAN,
   publiek,
   voorschrift,
   zelfdeGrafiek,
   type Doel,
 } from '../src/live/grafiekjacht';
+import { roosterpunten } from '../src/live/Grafiek';
 import type { LiveAntwoord, LiveSpeler } from '../src/live/types';
 
 const doel = (basis: Doel['basis'], a = 1, b = 1, c = 0, d = 0): Doel => ({ basis, a, b, c, d });
@@ -55,6 +59,26 @@ describe('grafiekjacht', () => {
       if (i > 0) expect(voorschrift(d)).not.toBe(voorschrift(doelen[i - 1]));
       expect(bemonster(functieVanDoel(d)).filter((y) => y !== null && Math.abs(y) <= 6).length).toBeGreaterThanOrEqual(40);
     }
+  });
+
+  it('bouwt op: eerst één transformatie, op het einde alle gekozen', () => {
+    const aantal = (d: Doel) => [d.c !== 0 || d.d !== 0, Math.abs(d.a) !== 1, d.a < 0 || d.b < 0].filter(Boolean).length;
+    const doelen = maakDoelen(9, ['kwadraat', 'abs', 'wortel'], ['verschuiven', 'uitrekken', 'spiegelen']);
+    expect(doelen.slice(0, 3).map(aantal)).toEqual([1, 1, 1]);
+    expect(doelen.slice(3, 6).map(aantal)).toEqual([2, 2, 2]);
+    expect(doelen.slice(6).map(aantal)).toEqual([3, 3, 3]);
+    expect(aantalTransformaties(0, 10, 2)).toBe(1);
+    expect(aantalTransformaties(9, 10, 2)).toBe(2);
+  });
+
+  it('de vorm toont enkel de letters die meedoen', () => {
+    expect(vorm(doel('kwadraat', -2, 1, 3, 1))).toBe('a(x-c)^2+d');
+    expect(vorm(doel('wortel', 1, 1, 0, 2))).toBe('\\sqrt{x}+d');
+    expect(vorm(doel('omgekeerd', 2, 2, 0, 0))).toBe('a\\cdot\\frac{1}{bx}');
+    expect(onbekenden(vorm(doel('kwadraat', -2, 1, 3, 1)))).toBe('a, c en d');
+    expect(onbekenden(vorm(doel('omgekeerd', 2, 2, 0, 0)))).toBe('a en b');
+    expect(onbekenden(vorm(doel('abs', 1, 1, 2, 0)))).toBe('c');
+    expect(onbekenden(vorm(doel('sin', 1, -1, 0, 0)))).toBe('b');
   });
 
   it('de leerlingen krijgen punten, geen voorschrift', () => {
@@ -101,5 +125,15 @@ describe('grafiekjacht', () => {
       ['An', 3, 1, 1],
       ['Cas', 0, 0, 1],
     ]);
+  });
+});
+
+describe('roosterpunten', () => {
+  it('enkel punten met gehele coördinaten in beeld', () => {
+    const p = roosterpunten(bemonster(functieVanDoel(doel('kwadraat', 1, 1, 2, -1))));
+    expect(p).toContainEqual({ x: 2, y: -1 });
+    expect(p).toContainEqual({ x: 4, y: 3 });
+    expect(p.every((q) => Number.isInteger(q.x) && Number.isInteger(q.y) && Math.abs(q.y) <= 6)).toBe(true);
+    expect(p.find((q) => q.x === 6)).toBeUndefined(); // y = 15 valt buiten beeld
   });
 });

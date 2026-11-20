@@ -39,7 +39,7 @@ const SPELUITLEG: Record<SpelType, string> = {
     'Eén leerling is de challenger, de rest is de klas. De klas antwoordt eerst, dan de challenger alleen. Juist? Wie in de klas fout was, vliegt naar de Comeback Zone (GET OUT!) en komt terug met twee juiste antwoorden na elkaar. Fout? Een hart minder. Hulplijnen, elk één keer per leerling in het hele spel: 📊 Wat denkt de klas?, 🐱 Copycat en 🎯 Tweede kans. Eén keer per beurt: 💰 inzet ×2.',
   puzzel: 'Elk juist antwoord geeft een stukje van de foto; de leerling sleept het naar de juiste plaats. Wie de puzzel als eerste af heeft, wint. De foto blijft bij de vragenset.',
   grafiekjacht:
-    'Elke leerling zoekt in eigen tempo het voorschrift bij dezelfde reeks grafieken en ziet de eigen grafiek meteen over de doelgrafiek. Eerste poging juist = 3 punten, tweede = 2, daarna 1. Na 2 foute pogingen mag een leerling de oplossing zien en verdergaan.',
+    'Elke leerling zoekt in eigen tempo het voorschrift bij dezelfde reeks grafieken en ziet de eigen grafiek meteen over de doelgrafiek. De leerling ziet de vorm (bv. y = a(x − c)² + d) en punten met gehele coördinaten. Eerst één transformatie per grafiek, daarna twee, op het einde alle gekozen. Eerste poging juist = 3 punten, tweede = 2, daarna 1. Na 2 foute pogingen mag een leerling de oplossing zien en verdergaan.',
   cluedo:
     'De laptop van de leerkracht trekt in het geheim een dader, een plaats en een wapen. Leerlingen beantwoorden vragen in eigen tempo; elk juist antwoord streept een kaart weg die niet de oplossing is. Wie denkt het te weten, beschuldigt: juist = opgelost, fout = straftijd. Wie het snelst oplost, wint.',
   whodunit:

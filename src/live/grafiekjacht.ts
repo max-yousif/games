@@ -48,7 +48,7 @@ export interface Doel {
 /** Wat de leerlingen krijgen: per ronde de basisfunctie en de punten van de doelgrafiek. */
 export interface GrafiekjachtPubliek {
   versie: 1;
-  doelen: { basis: BasisId; y: (number | null)[] }[];
+  doelen: { basis: BasisId; y: (number | null)[]; vorm?: string }[];
 }
 
 export const OVERSLAAN = '⏭';
@@ -92,10 +92,11 @@ export function maakDoel(basissen: readonly BasisId[], transformaties: readonly 
     if (transformaties.includes('verschuiven')) {
       c = r(9) - 4;
       d = r(7) - 3;
+      if (c === 0 && d === 0) continue;
     }
-    if (transformaties.includes('uitrekken')) a = kies([1, 2, 3, 0.5], r);
-    if (transformaties.includes('horizontaal')) b = kies([1, 2, 0.5], r);
-    if (transformaties.includes('spiegelen') && r(2) === 0) {
+    if (transformaties.includes('uitrekken')) a = kies([2, 0.5], r);
+    if (transformaties.includes('horizontaal')) b = kies([2, 0.5], r);
+    if (transformaties.includes('spiegelen')) {
       // Bij een even functie verandert spiegelen om de y-as niets: dan om de x-as.
       if (BASISFUNCTIES[basis].even || r(2) === 0) a = -a;
       else b = -b;
@@ -109,18 +110,44 @@ export function maakDoel(basissen: readonly BasisId[], transformaties: readonly 
   }
 }
 
-/** Een reeks doelgrafieken; twee na elkaar zijn nooit dezelfde. */
+/** Hoeveel transformaties ronde i (van n) combineert: eerst één, dan twee, op het einde alle gekozen. */
+export const aantalTransformaties = (i: number, n: number, gekozen: number) => Math.min(gekozen, 1 + Math.floor((3 * i) / Math.max(1, n)));
+
+/** Een willekeurige keuze van k transformaties uit de lijst. */
+function deelVan(lijst: readonly Transformatie[], k: number, r: RandomInt): Transformatie[] {
+  const rest = [...lijst];
+  const uit: Transformatie[] = [];
+  while (uit.length < k && rest.length) uit.push(rest.splice(r(rest.length), 1)[0]);
+  return uit;
+}
+
+/** Een reeks doelgrafieken, van makkelijk (één transformatie) naar moeilijker; twee na elkaar zijn nooit dezelfde. */
 export function maakDoelen(aantal: number, basissen: readonly BasisId[], transformaties: readonly Transformatie[], r: RandomInt = standaardRandom): Doel[] {
   const doelen: Doel[] = [];
   while (doelen.length < aantal) {
-    const d = maakDoel(basissen, transformaties, r);
+    const d = maakDoel(basissen, deelVan(transformaties, aantalTransformaties(doelen.length, aantal, transformaties.length), r), r);
     if (voorschrift(d) !== (doelen.at(-1) && voorschrift(doelen.at(-1)!))) doelen.push(d);
   }
   return doelen;
 }
 
+/** De vorm van het voorschrift met letters, enkel voor wat in deze ronde verandert (hint), bv. a(x-c)^2+d. */
+export function vorm(d: Doel): string {
+  const verschil = d.c !== 0 ? 'x-c' : 'x';
+  const binnen = d.b !== 1 ? (d.c !== 0 ? `b(${verschil})` : 'bx') : verschil;
+  const f = BASISFUNCTIES[d.basis].latex(binnen);
+  const voor = d.a !== 1 ? `a${d.basis === 'omgekeerd' || d.basis === 'exp' ? '\\cdot' : ''}${f}` : f;
+  return d.d !== 0 ? `${voor}+d` : voor;
+}
+
+/** De letters die in de vorm voorkomen, bv. "a, c en d" (niet die in \cdot, \frac ...). */
+export function onbekenden(vorm: string): string {
+  const l = ['a', 'b', 'c', 'd'].filter((x) => new RegExp(`(^|[^a-z\\\\])${x}(?![a-wyz])`).test(vorm));
+  return l.length <= 1 ? (l[0] ?? 'het voorschrift') : `${l.slice(0, -1).join(', ')} en ${l.at(-1)}`;
+}
+
 export function publiek(doelen: readonly Doel[]): GrafiekjachtPubliek {
-  return { versie: 1, doelen: doelen.map((d) => ({ basis: d.basis, y: bemonster(functieVanDoel(d)) })) };
+  return { versie: 1, doelen: doelen.map((d) => ({ basis: d.basis, y: bemonster(functieVanDoel(d)), vorm: vorm(d) })) };
 }
 
 /** De rondes als vragen (voor de resultaten en de export). */
