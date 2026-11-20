@@ -71,6 +71,14 @@ describe('grafiekjacht', () => {
     expect(aantalTransformaties(9, 10, 2)).toBe(2);
   });
 
+  it('bij de sinus telkens één transformatie meer', () => {
+    const aantal = (d: Doel) => [d.c !== 0 || d.d !== 0, Math.abs(d.a) !== 1, Math.abs(d.b) !== 1, d.a < 0 || d.b < 0].filter(Boolean).length;
+    const doelen = maakDoelen(9, ['sin'], ['verschuiven', 'uitrekken', 'spiegelen', 'horizontaal']);
+    expect(doelen.slice(0, 3).map(aantal)).toEqual([2, 2, 2]);
+    expect(doelen.slice(3, 6).map(aantal)).toEqual([3, 3, 3]);
+    expect(doelen.slice(6).map(aantal)).toEqual([4, 4, 4]);
+  });
+
   it('de vorm toont enkel de letters die meedoen', () => {
     expect(vorm(doel('kwadraat', -2, 1, 3, 1))).toBe('a(x-c)^2+d');
     expect(vorm(doel('wortel', 1, 1, 0, 2))).toBe('\\sqrt{x}+d');

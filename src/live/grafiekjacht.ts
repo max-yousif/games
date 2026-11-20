@@ -121,11 +121,14 @@ function deelVan(lijst: readonly Transformatie[], k: number, r: RandomInt): Tran
   return uit;
 }
 
-/** Een reeks doelgrafieken, van makkelijk (één transformatie) naar moeilijker; twee na elkaar zijn nooit dezelfde. */
+/** Een reeks doelgrafieken, van makkelijk (één transformatie, bij de sinus twee) naar moeilijker; twee na elkaar zijn nooit dezelfde. */
 export function maakDoelen(aantal: number, basissen: readonly BasisId[], transformaties: readonly Transformatie[], r: RandomInt = standaardRandom): Doel[] {
   const doelen: Doel[] = [];
   while (doelen.length < aantal) {
-    const d = maakDoel(basissen, deelVan(transformaties, aantalTransformaties(doelen.length, aantal, transformaties.length), r), r);
+    // Bij de sinus zie je goed wat elke transformatie doet: daar telkens één transformatie meer.
+    const basis = kies(basissen, r);
+    const k = aantalTransformaties(doelen.length, aantal, transformaties.length) + (basis === 'sin' ? 1 : 0);
+    const d = maakDoel([basis], deelVan(transformaties, k, r), r);
     if (voorschrift(d) !== (doelen.at(-1) && voorschrift(doelen.at(-1)!))) doelen.push(d);
   }
   return doelen;
