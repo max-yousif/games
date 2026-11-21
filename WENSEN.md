@@ -5,17 +5,14 @@ wens eerst; staat er niets, dan kiest hij zelf een verbetering of een nieuw spel
 
 ## Open
 
-1. **Instellingen onthouden per spel en klas** op de Spelen-pagina (zoals de vraagkeuze van de
-   escape room al doet), zodat de leerkracht minder moet klikken.
-
-2. **Herhalingsset uit "Moeilijkste vragen"** bij Resultaten: met één klik een nieuwe vragenset
+1. **Herhalingsset uit "Moeilijkste vragen"** bij Resultaten: met één klik een nieuwe vragenset
    maken met die vragen.
 
-3. **Toegankelijkheid**: juist/fout, straftijd en nieuwe stukjes/hints ook aankondigen voor
+2. **Toegankelijkheid**: juist/fout, straftijd en nieuwe stukjes/hints ook aankondigen voor
    schermlezers (aria-live); waar kleur de enige aanduiding is (teams, territorium) een icoon of
    patroon toevoegen.
 
-4. **Onderhoud**: `SpelenPage.tsx` en `LiveHost.tsx` opsplitsen per spel, zonder gedrag te
+3. **Onderhoud**: `SpelenPage.tsx` en `LiveHost.tsx` opsplitsen per spel, zonder gedrag te
    veranderen.
 
 ## Gedaan
@@ -40,3 +37,5 @@ wens eerst; staat er niets, dan kiest hij zelf een verbetering of een nieuw spel
 - Geen merknamen: Codekraker en Detectivezaak.
 - README bijgewerkt, PLAN.md geschrapt.
 - Mintekens (−, –, ⁻) gelden als gewone min bij het nakijken.
+- Instellingen onthouden per spel en klas op de Spelen-pagina (anders de laatste van dat spel).
+- Grafiekjacht: bij de sinus telkens één transformatie meer.
