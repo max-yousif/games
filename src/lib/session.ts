@@ -77,7 +77,7 @@ export function korteNaamVan(s: Sessie): (naam: string) => string {
  */
 export function aantalSpelers(s: Sessie): number {
   const leerlingen = s.teams.flatMap((t) => t.leerlingen);
-  if (s.live) return leerlingen.filter((l) => s.beurten.some((b) => b.leerlingId === l.id)).length;
+  if (s.live && !s.live.teambord) return leerlingen.filter((l) => s.beurten.some((b) => b.leerlingId === l.id)).length;
   return leerlingen.length;
 }
 

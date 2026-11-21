@@ -22,6 +22,8 @@ import { TerritoriumHost } from '../live/TerritoriumHost';
 import { GrafiekjachtHost } from '../live/GrafiekjachtHost';
 import { PuzzelHost } from '../live/PuzzelHost';
 import { ChallengerHost } from '../live/ChallengerHost';
+import { TeambordHost } from '../live/TeambordHost';
+import { TEAMBORD_SPELLEN } from '../live/teambord';
 import { useWakker } from '../lib/useWakker';
 import { bevestig } from '../lib/bevestig';
 
@@ -85,7 +87,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
   const vierWinnaar =
     sessie.spelType === 'vieropeenrij' ? (winnaar(bouwRooster(sessie.zetten))?.team ?? null) : sessie.spelType === 'bom' ? bomWinnaar(sessie) : undefined;
   const isLive = sessie.spelType === 'live' || sessie.spelType === 'escape' || sessie.spelType === 'whodunit' || sessie.spelType === 'codekraker' || sessie.spelType === 'cluedo' || sessie.spelType === 'territorium' || sessie.spelType === 'grafiekjacht' || sessie.spelType === 'puzzel' || sessie.spelType === 'challenger';
-  const liveLoopt = isLive && !!sessie.live && !sessie.live.afgesloten;
+  const opLaptops = !!sessie.live && TEAMBORD_SPELLEN.includes(sessie.spelType);
+  const liveLoopt = (isLive || opLaptops) && !!sessie.live && !sessie.live.afgesloten;
   // Bij de bom niet: de ontploffingen en de houder zouden niet mee teruggaan.
   const kanOngedaan = sessie.beurten.length > 0 && !isLive && sessie.spelType !== 'bom';
 
@@ -99,8 +102,8 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {isLive && !sessie.live?.afgesloten && <VerbindingsBolletje />}
-          {!isLive && (
+          {(isLive || opLaptops) && !sessie.live?.afgesloten && <VerbindingsBolletje />}
+          {!isLive && !opLaptops && (
             <ToolKnop onClick={() => store.bewaarSessie(ongedaanMaken(sessie))} disabled={!kanOngedaan} title="Laatste beurt ongedaan maken">
               ↶ Ongedaan maken
             </ToolKnop>
@@ -123,7 +126,9 @@ export function SessiePage({ id, store }: { id: string; store: Store }) {
         </div>
       </header>
 
-      {sessie.spelType === 'challenger' ? (
+      {sessie.live && TEAMBORD_SPELLEN.includes(sessie.spelType) ? (
+        <TeambordHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
+      ) : sessie.spelType === 'challenger' ? (
         <ChallengerHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />
       ) : sessie.spelType === 'puzzel' ? (
         <PuzzelHost sessie={sessie} onUpdate={store.bewaarSessie} onBewaar={() => store.telGespeeld(sessie.id)} onVerwijder={verwijder} />

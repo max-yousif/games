@@ -8,6 +8,7 @@ import { TerritoriumSpeler } from './TerritoriumSpeler';
 import { GrafiekjachtSpeler } from './GrafiekjachtSpeler';
 import { PuzzelSpeler } from './PuzzelSpeler';
 import { ChallengerSpeler } from './ChallengerSpeler';
+import { TeambordSpeler } from './TeambordSpeler';
 import { CodekrakerSpeler } from './CodekrakerSpeler';
 import { AntwoordTekst, Beantwoord, foutTekst } from './Invoer';
 import { plaatsVan, schermNaam } from './logic';
@@ -335,6 +336,7 @@ function Spel({ be, deelname, onWeg }: { be: LiveBackend; deelname: Deelname; on
     );
   }
 
+  if (sessie.vraag?.teambord || sessie.stand.some((r) => r.team !== undefined)) return <TeambordSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.challenger) return <ChallengerSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />;
   if (sessie.modus === 'escape' && sessie.puzzel) return metMelding(bordStil, <PuzzelSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);
   if (sessie.modus === 'escape' && sessie.grafiekjacht) return metMelding(bordStil, <GrafiekjachtSpeler be={be} sessie={sessie} antwoorden={antwoorden} spelerId={ik?.id ?? null} nieuwSpel={nieuwSpel} />);

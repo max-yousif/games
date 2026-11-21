@@ -6,7 +6,8 @@ import { beeindig, gespeeldeVragen, teamAanDeBeurt, teamScores, voegBeurtToe } f
 import type { Sessie, Vraag } from '../lib/types';
 import { useMuziek } from '../lib/geluid';
 
-export function QuizBord({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+/** Met onKies (spelen op de laptops) opent een vak geen beurtscherm, maar gaat de keuze naar de laptops. */
+export function QuizBord({ sessie, onUpdate, onKies }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onKies?: (v: Vraag) => void }) {
   useMuziek('spel');
   const [open, setOpen] = useState<Vraag | null>(null);
   const kolommen = bordIndeling(sessie.vragen);
@@ -32,7 +33,7 @@ export function QuizBord({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: S
                 key={v.id}
                 type="button"
                 disabled={gespeeld.has(v.id)}
-                onClick={() => setOpen(v)}
+                onClick={() => (onKies ? onKies(v) : setOpen(v))}
                 style={{ gridColumn: ki + 1, gridRow: vi + 2, ...(beurt?.juist ? { background: kleur, color: 'white' } : {}) }}
                 className={`flex min-h-16 items-center justify-center rounded-xl font-mono text-4xl font-bold transition ${
                   gespeeld.has(v.id) ? (beurt?.juist ? 'opacity-40' : 'bg-slate-200 text-slate-400') : 'bg-indigo-600 text-amber-300 shadow-md hover:-translate-y-0.5 hover:bg-indigo-500'

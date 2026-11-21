@@ -13,7 +13,17 @@ export function wachtOpZet(s: Sessie): number | null {
   return laatste?.juist && s.zetten.length < juist ? laatste.team : null;
 }
 
-export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+/** Een schijf laten vallen voor het team dat na een juist antwoord mag; null als dat niet kan. */
+export function zetSchijf(s: Sessie, kolom: number): Sessie | null {
+  const team = wachtOpZet(s);
+  if (team === null || vrijeRij(bouwRooster(s.zetten), kolom) === null) return null;
+  const na: Sessie = { ...s, zetten: [...s.zetten, { team, kolom }] };
+  const r = bouwRooster(na.zetten);
+  return winnaar(r) || isVol(r) ? beeindig(na) : na;
+}
+
+/** Met onVraag (spelen op de laptops) gaat de vraag naar de laptops in plaats van naar het beurtscherm. */
+export function VierOpEenRij({ sessie, onUpdate, onVraag, vraagBezig = false }: { sessie: Sessie; onUpdate: (s: Sessie) => void; onVraag?: () => void; vraagBezig?: boolean }) {
   useMuziek('spel');
   // Een schijf valt: plof.
   const aantalZetten = sessie.zetten.length;
@@ -33,10 +43,8 @@ export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (
   const winVakjes = new Set(win?.vakjes.map(([r, k]) => `${r},${k}`));
 
   function laatVallen(kolom: number) {
-    if (zetVan === null || vrijeRij(rooster, kolom) === null) return;
-    let s: Sessie = { ...sessie, zetten: [...sessie.zetten, { team: zetVan, kolom }] };
-    const r = bouwRooster(s.zetten);
-    if (winnaar(r) || isVol(r)) s = beeindig(s);
+    const s = zetSchijf(sessie, kolom);
+    if (!s) return;
     onUpdate(s);
     setHover(null);
   }
@@ -46,8 +54,8 @@ export function VierOpEenRij({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (
       <div className="flex h-16 items-center text-2xl font-semibold" style={{ color: sessie.teams[team].kleur }}>
         {zetVan !== null ? (
           <span>✓ Juist! {sessie.teams[zetVan].naam}: kies een kolom voor je schijf.</span>
-        ) : (
-          <button type="button" onClick={() => setVraagOpen(true)} className="rounded-xl px-8 py-3 text-xl font-semibold text-white shadow-md hover:brightness-110" style={{ background: sessie.teams[team].kleur }}>
+        ) : vraagBezig ? null : (
+          <button type="button" onClick={() => (onVraag ? onVraag() : setVraagOpen(true))} className="rounded-xl px-8 py-3 text-xl font-semibold text-white shadow-md hover:brightness-110" style={{ background: sessie.teams[team].kleur }}>
             Vraag voor {sessie.teams[team].naam} ▶
           </button>
         )}

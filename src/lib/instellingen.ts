@@ -12,6 +12,7 @@ export type SpelInstellingen = Partial<{
   willekeurig: boolean;
   vrijeNaam: boolean;
   dubbel: boolean;
+  opLaptops: boolean;
   bomTijd: string;
   aantalGrafieken: number;
   stukjes: number;
@@ -40,6 +41,7 @@ const SOORT: Record<keyof SpelInstellingen, (x: unknown) => boolean> = {
   willekeurig: (x) => typeof x === 'boolean',
   vrijeNaam: (x) => typeof x === 'boolean',
   dubbel: (x) => typeof x === 'boolean',
+  opLaptops: (x) => typeof x === 'boolean',
   bomTijd: (x) => typeof x === 'string',
   aantalGrafieken: getal,
   stukjes: getal,

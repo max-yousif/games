@@ -5,6 +5,7 @@ import type { TerritoriumModus } from './territorium';
 import type { GrafiekjachtPubliek } from './grafiekjacht';
 import type { PuzzelPubliek } from './puzzel';
 import type { ChallengerInstellingen, ChallengerVraag, Uitslag } from './challenger';
+import type { TeambordUitslag, TeambordVraag } from './teambord';
 
 /** Vraag zoals leerlingen ze zien: zonder antwoord. */
 export interface PubliekeVraag {
@@ -23,6 +24,8 @@ export interface PubliekeVraag {
   categorie: string;
   /** Challenger: fase, wie de challenger is en de hulplijnen. */
   challenger?: ChallengerVraag;
+  /** Quizbord, vier op een rij en bom op de laptops: fase, team aan de beurt en wie kiest. */
+  teambord?: TeambordVraag;
 }
 
 export interface Oplossing {
@@ -32,6 +35,7 @@ export interface Oplossing {
   uitleg: string;
   /** Challenger: wie eruit vloog, wie terugkwam, punten. */
   challenger?: Uitslag;
+  teambord?: TeambordUitslag;
 }
 
 export interface StandRij {
@@ -52,6 +56,10 @@ export interface StandRij {
   /** Challenger: rol en harten (van de challenger). */
   rol?: 'klas' | 'zone' | 'challenger';
   harten?: number;
+  /** Spellen in teams op de laptops: het team van de speler. */
+  team?: number;
+  /** Bom op de laptops: ontploffingen van het team. */
+  ontploffingen?: number;
   /** Grafiekjacht: aantal afgewerkte rondes. */
   klaar?: number;
   /** Codekraker: hoe vaak het wachtwoord gekraakt werd (dan kiest de leerling een nieuw). */

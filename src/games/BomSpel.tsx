@@ -1,21 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { RichText } from '../components/RichText';
 import { VraagWeergave } from '../components/VraagWeergave';
 import { bomAntwoord, bomTijd, bomVragenOver, ontploffing } from '../lib/bom';
 import { speel, useMuziek } from '../lib/geluid';
 import { juistAntwoord } from '../lib/questions';
 import { korteNaamVan, volgendeVraag } from '../lib/session';
-import type { Sessie } from '../lib/types';
+import type { Sessie, Vraag } from '../lib/types';
 import { isKeuzeVraag, keuzeOpties, LETTERS } from '../lib/vraagtypes';
 
-type Fase = 'klaar' | 'tikt' | 'pauze' | 'boem';
+export type BomFase = 'klaar' | 'tikt' | 'pauze' | 'boem';
+type Fase = BomFase;
+
+/** Spelen op de laptops: de uitslag van het team komt van de laptops (sleutel = aantal beurten bij de vraag). */
+export interface BomLaptop {
+  uitslag: { sleutel: number; juist: boolean } | null;
+  status?: ReactNode;
+  onFase: (fase: BomFase, vraag: Vraag | null, sleutel: number) => void;
+}
 
 /**
  * Bom doorgeven op het bord. De verborgen tijd loopt enkel tijdens een ronde (niet bij pauze); hoe
  * dichter bij de ontploffing, hoe sneller de bom tikt.
  * Sneltoetsen: spatie = start / antwoord tonen, J = juist, F = fout, P = pauze, A-D = keuze.
  */
-export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Sessie) => void }) {
+export function BomSpel({ sessie, onUpdate, laptop }: { sessie: Sessie; onUpdate: (s: Sessie) => void; laptop?: BomLaptop }) {
   // De bom is de muziek: geen achtergrondmuziek.
   useMuziek(null);
   const bom = sessie.bom!;
@@ -90,6 +98,16 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
     }, juist ? 900 : 1300);
   }
 
+  // Op de laptops: de fase en de vraag doorgeven, en de uitslag van het team verwerken.
+  const sleutel = sessie.beurten.length;
+  const onFase = laptop?.onFase;
+  useEffect(() => onFase?.(fase, fase === 'tikt' ? vraag : null, sleutel), [onFase, fase, vraag, sleutel]);
+  const laptopUitslag = laptop?.uitslag;
+  useEffect(() => {
+    if (laptopUitslag && laptopUitslag.sleutel === sleutel && fase === 'tikt') antwoord(laptopUitslag.juist);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laptopUitslag, sleutel, fase]);
+
   function kiesOptie(i: number) {
     if (!vraag || fase !== 'tikt' || getoond) return;
     setGekozenOptie(i);
@@ -104,11 +122,11 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
       if (k === ' ') {
         e.preventDefault();
         if (fase === 'klaar' || fase === 'boem') nieuweRonde();
-        else if (fase === 'tikt' && !getoond) setGetoond(true);
+        else if (fase === 'tikt' && !getoond && !laptop) setGetoond(true);
       } else if (k === 'p') setFase((f) => (f === 'tikt' ? 'pauze' : f === 'pauze' ? 'tikt' : f));
       else if (fase === 'tikt' && k === 'j') antwoord(true);
       else if (fase === 'tikt' && k === 'f') antwoord(false);
-      else if (fase === 'tikt' && vraag && isKeuzeVraag(vraag) && !getoond) {
+      else if (fase === 'tikt' && vraag && isKeuzeVraag(vraag) && !getoond && !laptop) {
         const i = LETTERS.toLowerCase().indexOf(k);
         if (i >= 0 && i < keuzeOpties(vraag).length) kiesOptie(i);
       }
@@ -187,7 +205,7 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
         {fase === 'tikt' && vraag && (
           <div className="mt-6 flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <VraagWeergave vraag={vraag} groot getoond={getoond} gekozenOptie={gekozenOptie} onKiesOptie={isKeuzeVraag(vraag) ? kiesOptie : undefined} />
+              <VraagWeergave vraag={vraag} groot getoond={getoond} gekozenOptie={gekozenOptie} onKiesOptie={isKeuzeVraag(vraag) && !laptop ? kiesOptie : undefined} />
               {getoond && !isKeuzeVraag(vraag) && (
                 <div className="pop mt-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50 px-6 py-4">
                   <div className="text-sm font-semibold tracking-wide text-emerald-700 uppercase">Antwoord</div>
@@ -196,9 +214,19 @@ export function BomSpel({ sessie, onUpdate }: { sessie: Sessie; onUpdate: (s: Se
               )}
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-4">
+              {laptop && uitkomst === null && laptop.status}
               {uitkomst !== null ? (
                 <span className={`pop text-3xl font-bold ${uitkomst ? 'text-emerald-600' : 'text-red-600'}`}>
                   {uitkomst ? '✓ Juist! De bom gaat door…' : '✗ Fout! Nieuwe vraag…'}
+                </span>
+              ) : laptop ? (
+                <span className="ml-auto flex gap-2 text-sm">
+                  <button type="button" onClick={() => antwoord(true)} className="rounded-lg bg-slate-100 px-3 py-1.5 hover:bg-emerald-100" title="Toch juist (J)">
+                    ✓
+                  </button>
+                  <button type="button" onClick={() => antwoord(false)} className="rounded-lg bg-slate-100 px-3 py-1.5 hover:bg-red-100" title="Toch fout (F)">
+                    ✗
+                  </button>
                 </span>
               ) : !getoond ? (
                 <button type="button" onClick={() => setGetoond(true)} className="rounded-xl bg-gray-800 px-8 py-3 text-xl font-semibold text-white hover:bg-gray-700">

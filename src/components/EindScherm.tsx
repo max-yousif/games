@@ -6,7 +6,22 @@ import type { Sessie } from '../lib/types';
 import { Button } from './ui';
 import { speel } from '../lib/geluid';
 
-export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }: { sessie: Sessie; winnaar?: number | null; onOpnieuw: () => void; onBewaar: () => void; onVerwijder: () => void }) {
+export function EindScherm({
+  sessie,
+  winnaar,
+  onOpnieuw,
+  onBewaar,
+  onVerwijder,
+  serverWissen,
+}: {
+  sessie: Sessie;
+  winnaar?: number | null;
+  onOpnieuw?: () => void;
+  onBewaar: () => void;
+  onVerwijder: () => void;
+  /** Op de laptops gespeeld: de gegevens op de server wissen bij het afsluiten. */
+  serverWissen?: () => Promise<void>;
+}) {
   // Fanfare bij de eindstand (één keer).
   useEffect(() => speel('fanfare'), []);
   const scores = teamScores(sessie);
@@ -89,8 +104,8 @@ export function EindScherm({ sessie, winnaar, onOpnieuw, onBewaar, onVerwijder }
         <Button variant="primary" onClick={() => exporteerSessie(sessie)}>
           ⬇ Resultaten exporteren (Excel)
         </Button>
-        <Button onClick={onOpnieuw}>↻ Opnieuw spelen met dezelfde teams</Button>
-        <AfsluitKnoppen onBewaar={onBewaar} onVerwijder={onVerwijder} />
+        {onOpnieuw && <Button onClick={onOpnieuw}>↻ Opnieuw spelen met dezelfde teams</Button>}
+        <AfsluitKnoppen serverWissen={serverWissen} onBewaar={onBewaar} onVerwijder={onVerwijder} />
       </div>
     </div>
   );

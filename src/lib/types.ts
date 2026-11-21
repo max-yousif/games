@@ -191,6 +191,8 @@ export interface LiveInfo {
   doelen?: { basis: string; a: number; b: number; c: number; d: number }[];
   /** Challenger: de toestand van het spel en per gespeelde vraag de uitslag (null = overgeslagen). */
   challenger?: { toestand: ChallengerToestand; log: { q: number; vraagId: string; uitslag: ChallengerUitslag | null }[] };
+  /** Quizbord, vier op een rij en bom op de laptops: teams, beurten om te kiezen, volgnummer. */
+  teambord?: import('../live/teambord').TeambordToestand;
   /** Puzzel: aantal stukjes (de foto zelf staat enkel op de server en in de vragenset). */
   stukjes?: number;
   /** Namen op de server (voornaam, of een groepje "Anna & Bert") met de leerlingen erachter. */

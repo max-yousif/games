@@ -12,6 +12,7 @@ import { CluedoThemaEditor } from '../components/CluedoThemaEditor';
 import { maakEscapeCode } from '../live/escape';
 import { nieuwRaadsel, publiekRaadsel, raadselProblemen } from '../live/whodunit';
 import { publiekeVraag } from '../live/logic';
+import { beginTeambord } from '../live/teambord';
 import { LiveFout } from '../live/types';
 import { speelbareVragen, vakkenVan } from '../lib/questions';
 import { ga, href } from '../lib/route';
@@ -28,9 +29,9 @@ import { bewaarInstellingen, leesInstellingen } from '../lib/instellingen';
 
 /** Speluitleg bij stap 4, standaard ingeklapt. */
 const SPELUITLEG: Record<SpelType, string> = {
-  quizbord: 'Een bord met categorieën en punten. De teams kiezen om beurt een vak en beantwoorden de vraag; juist = de punten. Met dubbele punten verdient een leerling die alleen antwoordt (zonder overleggen) het dubbele.',
-  vieropeenrij: 'Twee teams beantwoorden om beurt een vraag. Juist = een schijf laten vallen. Wie eerst vier op een rij heeft, wint.',
-  bom: 'De bom tikt bij het team aan de beurt. Juist = de bom naar het volgende team; fout = een nieuwe vraag terwijl de bom verder tikt. Niemand weet wanneer ze ontploft. Alle vragen komen aan bod; de minste ontploffingen wint.',
+  quizbord: 'Een bord met categorieën en punten. De teams kiezen om beurt een vak en beantwoorden de vraag; juist = de punten. Met dubbele punten verdient een leerling die alleen antwoordt (zonder overleggen) het dubbele. Op de laptops kiest één teamlid (om beurt) het vak en antwoordt elk teamlid; de meerderheid beslist.',
+  vieropeenrij: 'Twee teams beantwoorden om beurt een vraag. Juist = een schijf laten vallen. Wie eerst vier op een rij heeft, wint. Op de laptops antwoordt elk teamlid (de meerderheid beslist) en kiest één teamlid (om beurt) de kolom.',
+  bom: 'De bom tikt bij het team aan de beurt. Juist = de bom naar het volgende team; fout = een nieuwe vraag terwijl de bom verder tikt. Niemand weet wanneer ze ontploft. Alle vragen komen aan bod; de minste ontploffingen wint. Op de laptops antwoordt elk lid van het team met de bom; de meerderheid beslist.',
   live: 'Elke leerling beantwoordt dezelfde vraag op de eigen laptop; jij volgt live mee op het bord en kan afwijkende antwoorden nog goedkeuren. Met de snelheidsbonus levert sneller juist meer punten op.',
   escape: 'Elk antwoord geeft een cijfer van de code, juist of niet. Wie denkt de code te hebben, test ze: juist = ontsnapt, fout = straftijd.',
   codekraker:
@@ -129,6 +130,8 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const [willekeurig, setWillekeurig] = useState(false);
   const [vrijeNaam, setVrijeNaam] = useState(false);
   const [dubbel, setDubbel] = useState(true);
+  /** Quizbord, vier op een rij en bom: op de laptops van de leerlingen in plaats van vooraan op het bord. */
+  const [opLaptops, setOpLaptops] = useState(false);
   // Zonder live server (enkel bij het testen van de website) speelt alles in deze browser.
   const demo = !supabaseIngesteld;
   const [bezig, setBezig] = useState(false);
@@ -141,6 +144,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const vragen = alleVragen.filter((v) => !uit.has(v.id));
   const escapeVragen = vragen;
   const [bomTijdKeuze, setBomTijdKeuze] = useState<BomTijd>('normaal');
+  const kanOpLaptops = spel === 'quizbord' || spel === 'vieropeenrij' || spel === 'bom';
   const isLive = spel === 'live' || spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel' || spel === 'challenger';
   // Escape room en whodunit: elke leerling werkt in eigen tempo.
   const eigenTempo = spel === 'escape' || spel === 'whodunit' || spel === 'codekraker' || spel === 'cluedo' || spel === 'territorium' || spel === 'grafiekjacht' || spel === 'puzzel';
@@ -230,17 +234,44 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   function start() {
     if (!(set || zonderSet) || !spel) return;
     bewaarInstellingen(spel, klasId ?? '', {
-      aantal, timer, snelheidsbonus, willekeurig, vrijeNaam, dubbel, bomTijd: bomTijdKeuze, aantalGrafieken, stukjes, harten, perBeurt, klasTijd,
+      aantal, timer, snelheidsbonus, willekeurig, vrijeNaam, dubbel, opLaptops, bomTijd: bomTijdKeuze, aantalGrafieken, stukjes, harten, perBeurt, klasTijd,
       basissen, transformaties, hacken, tekenSeconden, territoriumModus, kleurplaat: kleurplaatKeuze, escapeMinuten, wachttijd, aantalSloten, strafTijd,
     });
     if (isLive) {
       void startLive();
       return;
     }
+    if (kanOpLaptops && opLaptops) {
+      void startOpLaptops();
+      return;
+    }
     const sessie = nieuweSessie({ spelType: spel, set: set!, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde, dubbelIndividueel: spel === 'quizbord' && dubbel });
     if (spel === 'bom') sessie.bom = nieuweBom(teams.length, bomTijdKeuze);
     store.bewaarSessie(sessie);
     ga({ pagina: 'sessie', id: sessie.id });
+  }
+
+  /** Quizbord, vier op een rij of bom met de antwoorden van de laptops (het bord blijft op de projector). */
+  async function startOpLaptops() {
+    if (!spel || !set) return;
+    setBezig(true);
+    setFout(null);
+    try {
+      const soort = demo ? 'lokaal' : 'supabase';
+      const leerlingen = teams.flatMap((t) => t.leerlingen);
+      const metNamen = klas !== null && leerlingen.length > 0;
+      const namen: Record<string, string[]> = metNamen ? Object.fromEntries(leerlingen.map((l) => [kortNaam(l), [l.id]])) : {};
+      const server = await backend(soort).maakSessie({ titel: set.titel, namen: Object.keys(namen), vrijeNaam: !metNamen || vrijeNaam, aantalVragen: vragen.length, timer: null, modus: 'quiz' });
+      const sessie = nieuweSessie({ spelType: spel, set, vragen, klasNaam: klas?.naam ?? 'zonder klas', teams, timer: spel === 'bom' ? null : timer, naamVolgorde });
+      if (spel === 'bom') sessie.bom = nieuweBom(teams.length, bomTijdKeuze);
+      sessie.live = { backend: soort, sessieId: server.id, code: server.code, snelheidsbonus: false, afgesloten: false, ...(metNamen ? { namen } : {}), teambord: beginTeambord() };
+      store.bewaarSessie(sessie);
+      ga({ pagina: 'sessie', id: sessie.id });
+    } catch (e) {
+      setFout(e instanceof LiveFout ? e.message : 'Het spel kon niet gestart worden. Controleer de internetverbinding.');
+    } finally {
+      setBezig(false);
+    }
   }
 
   async function startLive() {
@@ -359,6 +390,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     neem(i.willekeurig, [true, false], setWillekeurig);
     neem(i.vrijeNaam, [true, false], setVrijeNaam);
     neem(i.dubbel, [true, false], setDubbel);
+    neem(i.opLaptops, [true, false], setOpLaptops);
     neem(i.bomTijd as BomTijd | undefined, Object.keys(BOM_TIJDEN) as BomTijd[], setBomTijdKeuze);
     neem(i.aantalGrafieken, AANTAL_GRAFIEKEN, setAantalGrafieken);
     neem(i.stukjes, STUKJES, setStukjes);
@@ -424,7 +456,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   const kanStarten = zonderSet
     ? klasGekozen && basissen.length > 0 && !bezig && !(!demo && !store.account.leerkracht)
-    : (spel !== 'puzzel' || puzzelFoto !== null) && spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !(isLive && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
+    : (spel !== 'puzzel' || puzzelFoto !== null) && spel !== null && set !== null && klasGekozen && (vragen.length > 0 || (spel === 'cluedo' && metOpgaven(cluedoThema))) && (spel !== 'escape' || escapeVragen.length > 0) && !bezig && !((isLive || (kanOpLaptops && opLaptops)) && !demo && !store.account.leerkracht) && raadselFouten.length === 0 && cluedoFouten.length === 0;
 
   return (
     <div className="space-y-6">
@@ -617,6 +649,26 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
           <summary className="cursor-pointer text-slate-500 hover:text-slate-700">📖 Speluitleg</summary>
           <p className="mt-2 max-w-3xl text-slate-600">{SPELUITLEG[spel]}</p>
         </details>
+        {kanOpLaptops && (
+          <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Spelen op">
+            {(
+              [
+                [false, '🖥️ Vooraan op het bord'],
+                [true, '💻 Op de laptops'],
+              ] as const
+            ).map(([waarde, naam]) => (
+              <button
+                key={naam}
+                type="button"
+                aria-pressed={opLaptops === waarde}
+                onClick={() => setOpLaptops(waarde)}
+                className={`rounded-xl border-2 px-4 py-2 font-semibold transition ${opLaptops === waarde ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+              >
+                {naam}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-end gap-4">
           {(spel === 'quizbord' || spel === 'bom') && (
             <div className="w-36">
@@ -973,7 +1025,24 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
         )}
 
 
-        {spel === 'quizbord' && klas && (
+        {kanOpLaptops && opLaptops && klas && (
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={vrijeNaam} onChange={(e) => setVrijeNaam(e.target.checked)} />
+            Ook namen buiten de klaslijst toelaten
+          </label>
+        )}
+        {kanOpLaptops && opLaptops && supabaseIngesteld && !demo && !store.account.leerkracht && (
+          <div className="mb-3">
+            <Notice tone="warn">
+              Spelen op de laptops kan enkel als leerkracht.{' '}
+              <a className="font-semibold underline" href={href({ pagina: 'aanmelden' })}>
+                Meld je aan
+              </a>
+              .
+            </Notice>
+          </div>
+        )}
+        {spel === 'quizbord' && klas && !opLaptops && (
           <label className="mb-3 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={dubbel} onChange={(e) => setDubbel(e.target.checked)} />
             Dubbele punten als één leerling alleen antwoordt

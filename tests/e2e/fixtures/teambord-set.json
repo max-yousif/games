@@ -1,0 +1,59 @@
+{
+  "soort": "games-vragenset",
+  "versie": 1,
+  "set": {
+    "id": "test-teambord",
+    "titel": "Teams op de laptops",
+    "beschrijving": "",
+    "vak": "wiskunde",
+    "leerjaar": "test",
+    "aangemaakt": "2026-11-21T00:00:00Z",
+    "gewijzigd": "2026-11-21T00:00:00Z",
+    "vragen": [
+      {
+        "antwoord": "4",
+        "opties": [],
+        "juisteOptie": 0,
+        "uitleg": "",
+        "id": "t1",
+        "categorie": "Optellen",
+        "punten": 100,
+        "type": "getal",
+        "tekst": "Vraag 1: hoeveel is $2+2$?"
+      },
+      {
+        "antwoord": "4",
+        "opties": [],
+        "juisteOptie": 0,
+        "uitleg": "",
+        "id": "t2",
+        "categorie": "Optellen",
+        "punten": 200,
+        "type": "getal",
+        "tekst": "Vraag 2: hoeveel is $2+2$?"
+      },
+      {
+        "antwoord": "4",
+        "opties": [],
+        "juisteOptie": 0,
+        "uitleg": "",
+        "id": "t3",
+        "categorie": "Aftrekken",
+        "punten": 100,
+        "type": "getal",
+        "tekst": "Vraag 3: hoeveel is $2+2$?"
+      },
+      {
+        "antwoord": "4",
+        "opties": [],
+        "juisteOptie": 0,
+        "uitleg": "",
+        "id": "t4",
+        "categorie": "Aftrekken",
+        "punten": 200,
+        "type": "getal",
+        "tekst": "Vraag 4: hoeveel is $2+2$?"
+      }
+    ]
+  }
+}
