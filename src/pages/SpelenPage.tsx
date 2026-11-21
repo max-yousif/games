@@ -24,6 +24,7 @@ import { VraagKeuze } from '../components/VraagKeuze';
 import { jarenVanSet, VAK_LABELS } from './SetsPage';
 import { klasJaar } from './KlassenPage';
 import { BOM_TIJDEN, nieuweBom, type BomTijd } from '../lib/bom';
+import { bewaarInstellingen, leesInstellingen } from '../lib/instellingen';
 
 /** Speluitleg bij stap 4, standaard ingeklapt. */
 const SPELUITLEG: Record<SpelType, string> = {
@@ -101,6 +102,15 @@ function bewaarVraagKeuze(setId: string, klasId: string, uit: Set<string>) {
 const STRAFTIJDEN = [30, 60, 120, 180];
 
 const TIMERS = [null, 30, 60, 90, 120, 180];
+const AANTAL_TEAMS = [2, 3, 4, 5, 6];
+const HARTEN = [2, 3, 4];
+const PER_BEURT = [5, 10, 0];
+const KLAS_TIJDEN = [15, 20, 30, 45, 60, 90];
+
+/** Een onthouden waarde enkel overnemen als ze nog een van de keuzes is. */
+function neem<T>(waarde: T | undefined, keuzes: readonly T[], zet: (w: T) => void) {
+  if (waarde !== undefined && keuzes.includes(waarde)) zet(waarde);
+}
 
 type Stap = 1 | 2 | 3 | 4;
 
@@ -219,6 +229,10 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
 
   function start() {
     if (!(set || zonderSet) || !spel) return;
+    bewaarInstellingen(spel, klasId ?? '', {
+      aantal, timer, snelheidsbonus, willekeurig, vrijeNaam, dubbel, bomTijd: bomTijdKeuze, aantalGrafieken, stukjes, harten, perBeurt, klasTijd,
+      basissen, transformaties, hacken, tekenSeconden, territoriumModus, kleurplaat: kleurplaatKeuze, escapeMinuten, wachttijd, aantalSloten, strafTijd,
+    });
     if (isLive) {
       void startLive();
       return;
@@ -336,10 +350,41 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
   const spelInfo = SPELLEN.find((s) => s.type === spel) ?? null;
   const klasGekozen = klasId !== null;
 
+  /** De instellingen van de vorige keer met dit spel (en deze klas) terugzetten; geeft het aantal teams. */
+  function laadInstellingen(type: SpelType, kid: string): number {
+    const i = leesInstellingen(type, kid);
+    neem(i.aantal, AANTAL_TEAMS, setAantal);
+    neem(i.timer, TIMERS, setTimer);
+    neem(i.snelheidsbonus, [true, false], setSnelheidsbonus);
+    neem(i.willekeurig, [true, false], setWillekeurig);
+    neem(i.vrijeNaam, [true, false], setVrijeNaam);
+    neem(i.dubbel, [true, false], setDubbel);
+    neem(i.bomTijd as BomTijd | undefined, Object.keys(BOM_TIJDEN) as BomTijd[], setBomTijdKeuze);
+    neem(i.aantalGrafieken, AANTAL_GRAFIEKEN, setAantalGrafieken);
+    neem(i.stukjes, STUKJES, setStukjes);
+    neem(i.harten, HARTEN, setHarten);
+    neem(i.perBeurt, PER_BEURT, setPerBeurt);
+    neem(i.klasTijd, KLAS_TIJDEN, setKlasTijd);
+    const b = (i.basissen ?? []).filter((x): x is BasisId => (BASIS_IDS as readonly string[]).includes(x));
+    if (b.length) setBasissen(b);
+    const tids: string[] = TRANSFORMATIES.map((t) => t.id);
+    if (i.transformaties) setTransformaties(i.transformaties.filter((x) => tids.includes(x)) as Transformatie[]);
+    neem(i.hacken, [true, false], setHacken);
+    neem(i.tekenSeconden, TEKENTIJDEN, setTekenSeconden);
+    neem(i.territoriumModus as TerritoriumModus | undefined, ['strijd', 'samen'], setTerritoriumModus);
+    neem(i.kleurplaat, ['', ...KLEURPLATEN.map((k) => k.id)], setKleurplaatKeuze);
+    neem(i.escapeMinuten, ESCAPE_MINUTEN, setEscapeMinuten);
+    neem(i.wachttijd, WACHTTIJDEN, setWachttijd);
+    if (i.aantalSloten !== undefined) setAantalSloten(i.aantalSloten);
+    neem(i.strafTijd, STRAFTIJDEN, setStrafTijd);
+    return type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : AANTAL_TEAMS.includes(i.aantal ?? 0) ? i.aantal! : aantal;
+  }
+
   function kiesSpel(type: SpelType) {
     setSpel(type);
-    verdeel(klas?.leerlingen, type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : aantal, afwezig);
-    if (type === 'live' && timer === null) setTimer(30);
+    const n = klasId !== null ? laadInstellingen(type, klasId) : type === 'vieropeenrij' ? 2 : LIVE_SPELLEN.includes(type) ? 1 : aantal;
+    verdeel(klas?.leerlingen, n, afwezig);
+    if (type === 'live' && timer === null && leesInstellingen(type, klasId ?? '').timer === undefined) setTimer(30);
     setStap(klasGekozen ? (set || type === 'grafiekjacht' ? 4 : 3) : 2);
   }
 
@@ -355,7 +400,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
     setKlasId(id);
     setAfwezig([]);
     const k = store.klassen.find((x) => x.id === id);
-    verdeel(k?.leerlingen ?? [], aantalTeams, []);
+    verdeel(k?.leerlingen ?? [], spel ? laadInstellingen(spel, id) : aantalTeams, []);
     // Vragensets meteen gefilterd op het jaar van de klas.
     setJaar(k ? (klasJaar(k) ?? 0) : 0);
     if (gekozenSet) setUit(leesVraagKeuze(gekozenSet, id));
@@ -584,7 +629,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   verdeel(klas?.leerlingen, Number(e.target.value));
                 }}
               >
-                {[2, 3, 4, 5, 6].map((n) => (
+                {AANTAL_TEAMS.map((n) => (
                   <option key={n} value={n}>
                     {n}
                   </option>
@@ -705,7 +750,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   Harten
                 </label>
                 <select id="harten" className={inputClass} value={harten} onChange={(e) => setHarten(Number(e.target.value))}>
-                  {[2, 3, 4].map((n) => (
+                  {HARTEN.map((n) => (
                     <option key={n} value={n}>
                       {'❤️'.repeat(n)} {n}
                     </option>
@@ -717,7 +762,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   Vragen per beurt
                 </label>
                 <select id="perbeurt" className={inputClass} value={perBeurt} onChange={(e) => setPerBeurt(Number(e.target.value))}>
-                  {[5, 10, 0].map((n) => (
+                  {PER_BEURT.map((n) => (
                     <option key={n} value={n}>
                       {n ? n : 'tot de harten op zijn'}
                     </option>
@@ -729,7 +774,7 @@ export function SpelenPage({ setId, store }: { setId?: string; store: Store }) {
                   Tijd voor de klas
                 </label>
                 <select id="klastijd" className={inputClass} value={klasTijd} onChange={(e) => setKlasTijd(Number(e.target.value))}>
-                  {[15, 20, 30, 45, 60, 90].map((n) => (
+                  {KLAS_TIJDEN.map((n) => (
                     <option key={n} value={n}>
                       {n} seconden
                     </option>

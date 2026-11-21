@@ -41,3 +41,13 @@ export const saveVoorbeelden = (ids: string[]) => write(KEYS.voorbeelden, ids);
 /** Het account waarvan de vragensets, klassen en resultaten in deze browser zijn. */
 export const loadEigenaar = () => read<string>(KEYS.eigenaar);
 export const saveEigenaar = (uid: string) => write(KEYS.eigenaar, uid);
+
+/** Onthouden keuzes op de Spelen-pagina (vraagkeuze, instellingen): horen bij het account. */
+export function vergeetKeuzes(): void {
+  try {
+    localStorage.removeItem('games.v1.vraagkeuze');
+    localStorage.removeItem('games.v1.instellingen');
+  } catch {
+    // geen opslag
+  }
+}

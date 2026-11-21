@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VOORBEELDSETS } from '../content/voorbeelden';
-import { loadEigenaar, loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveEigenaar, saveKlassen, saveSessies, saveSets, saveVoorbeelden } from './storage';
+import { loadEigenaar, loadKlassen, loadSessies, loadSets, loadVoorbeelden, saveEigenaar, saveKlassen, saveSessies, saveSets, saveVoorbeelden, vergeetKeuzes } from './storage';
 import { isBewaard, ruimOp, telGespeeld as telSpel } from './session';
 import type { Klas, Sessie, Vragenset } from './types';
 import { useAccount, type Account } from './account';
@@ -89,6 +89,7 @@ export function useStore(): Store {
       setSetsState([]);
       setKlassenState([]);
       setSessiesState([]);
+      vergeetKeuzes();
     }
     // Opnieuw beginnen met de cloud van dit account: alles ophalen. Wat vroeger als gesynchroniseerd
     // onthouden werd, zou anders als "lokaal gewist" gelden en op de server gewist worden.

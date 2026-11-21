@@ -39,6 +39,17 @@ describe('gegevens per account', () => {
     expect(cloudUids.filter((u) => u === 'gast').length).toBeGreaterThan(0);
   });
 
+  it('een ander account krijgt de onthouden keuzes op de Spelen-pagina niet', () => {
+    uid = 'juf';
+    const { rerender } = renderHook(() => useStore());
+    localStorage.setItem('games.v1.instellingen', JSON.stringify({ 'live:k1': { timer: 60 } }));
+    localStorage.setItem('games.v1.vraagkeuze', JSON.stringify({ 's1:k1': ['v1'] }));
+    uid = 'gast';
+    rerender();
+    expect(localStorage.getItem('games.v1.instellingen')).toBeNull();
+    expect(localStorage.getItem('games.v1.vraagkeuze')).toBeNull();
+  });
+
   it('hetzelfde account houdt zijn gegevens; gegevens van vóór het aanmelden horen bij het eerste account', () => {
     uid = null;
     const { result, rerender } = renderHook(() => useStore());
